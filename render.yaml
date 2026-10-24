@@ -1,0 +1,20 @@
+# One-click deploy on Render (https://render.com) — free tier works.
+# 1. Push this repo to GitHub.
+# 2. Render → New → Blueprint → pick the repo. It reads this file.
+# 3. Add your LLM_API_KEY in the dashboard (it's marked sync:false so it isn't committed).
+services:
+  - type: web
+    name: raahi-ai-travel
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build && pip install -r backend/requirements.txt
+    startCommand: cd backend && gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    envVars:
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_BASE_URL
+        value: https://api.openai.com/v1
+      - key: LLM_MODEL
+        value: gpt-4o-mini
+      - key: PYTHON_VERSION
+        value: "3.12.5"

@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-white font-sans text-ink antialiased;
+  }
+  ::selection {
+    @apply bg-brand text-white;
+  }
+  :focus-visible {
+    outline: 3px solid #1570ef;
+    outline-offset: 3px;
+    border-radius: 12px;
+  }
+  .on-dark :focus-visible {
+    outline-color: #a9d4ff;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+@media print {
+  body > #root > header,
+  #top,
+  #features,
+  #destinations,
+  #why,
+  #experiences,
+  #seasons,
+  #safety,
+  #cta,
+  footer,
+  #plan form,
+  #plan-heading,
+  .fixed {
+    display: none !important;
+  }
+  #plan {
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  #itinerary {
+    box-shadow: none !important;
+    max-height: none !important;
+  }
+  #itinerary ol {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}
