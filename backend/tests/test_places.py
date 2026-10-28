@@ -77,8 +77,8 @@ def test_overpass_failure_is_reported_and_the_mirror_is_tried(monkeypatch, web):
     web.on(config.OVERPASS_URLS[1], FakeResponse(STAYS))
     assert places.stays("skardu")["live"]["count"] == 4
     web.routes.clear()
-    web.on(config.OVERPASS_URLS[0], FakeResponse(status=504))
-    web.on(config.OVERPASS_URLS[1], FakeResponse(status=504))
+    for url in config.OVERPASS_URLS:
+        web.on(url, FakeResponse(status=504))
     res = places.stays("gilgit")
     assert res["live"]["available"] is False and "could not be reached" in res["live"]["reason"]
     assert res["curated"] is None and res["check_prices"]                     # still useful links
@@ -157,3 +157,10 @@ def test_budget_says_how_much_a_room_night_can_cost():
     tight = build(TripRequest(destinations=["hunza"], days=7, adults=2, budget_pkr=40000))
     assert tight["budget"]["stay_allowance"]["per_room_night"] == 0
     assert build(TripRequest(destinations=["hunza"], days=7, adults=2))["budget"]["stay_allowance"] is None
+
+
+def test_provider_errors_are_reported_without_keys():
+    from agent.llm import _safe
+    text = '{"error": {"message": "Incorrect API key provided: gsk_abcdef123456. Get one at console"}}'
+    assert _safe(text) == "Incorrect API key provided: [key]. Get one at console"
+    assert "AIza" not in _safe('[{"error": {"message": "API key AIzaSyXXXXXXXX not valid"}}]')

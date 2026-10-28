@@ -187,7 +187,8 @@ def create_app() -> Flask:
         return {
             "ok": True, "version": VERSION, "time": http.now_iso(),
             "ai": {"configured": config.llm_enabled(),
-                   "providers": [{"name": p["name"], "model": p["models"][0]} for p in config.llm_providers()]},
+                   "providers": [{"name": p["name"], "model": p["models"][0], "host": p["base"].split("/")[2]}
+                                 for p in config.llm_providers()]},
             "storage": {"enabled": storage.enabled(), "kind": storage.kind()},
             "enquiries_open": enquiries_open(),
             "services": {"weather": config.WEATHER_ENABLED, "pmd_alerts": config.PMD_ALERTS_ENABLED,

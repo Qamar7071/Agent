@@ -125,10 +125,10 @@ def _overpass(query: str) -> list[dict]:
     last: Exception | None = None
     for url in config.OVERPASS_URLS:
         try:
-            r = http.post(url, data={"data": query}, timeout=max(config.HTTP_TIMEOUT_S, 15))
+            r = http.post(url, data={"data": query}, timeout=10)
             return r.json().get("elements", [])
         except Exception as exc:  # busy or down: try the next public server
-            last = exc
+            last = RuntimeError(f"{url.split('/')[2]}: {type(exc).__name__} {str(exc)[:80]}")
             log.warning("Overpass failed at %s: %s", url, exc)
     raise last or RuntimeError("no Overpass server")
 
@@ -181,9 +181,10 @@ def _live(town: str, kind: str) -> dict:
     def fetch():
         try:
             elements = _overpass(_query(kind, centre[0], centre[1], t["radius"]))
-        except Exception:
+        except Exception as exc:
             return {"available": False, "reason": "OpenStreetMap could not be reached just now. Try again in a "
-                                                  "minute, or use the map links below."}
+                                                  "minute, or use the map links below.",
+                    "detail": f"{type(exc).__name__}: {str(exc)[:160]}"}
         seen, places = set(), []
         for el in elements:
             p = _parse(el, kind, centre, t["name"])

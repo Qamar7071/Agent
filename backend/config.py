@@ -84,6 +84,8 @@ PMD_ALERTS_ENABLED = _bool("PMD_ALERTS_ENABLED", "true")
 ROUTING_ENABLED = _bool("ROUTING_ENABLED", "true")
 PLACES_ENABLED = _bool("PLACES_ENABLED", "true")        # OpenStreetMap stays and food
 OVERPASS_URLS = _list("OVERPASS_URLS", "https://overpass-api.de/api/interpreter,"
+                                       "https://overpass.private.coffee/api/interpreter,"
+                                       "https://maps.mail.ru/osm/tools/overpass/api/interpreter,"
                                        "https://overpass.kumi.systems/api/interpreter")
 OSRM_URL = _get("OSRM_URL", "https://router.project-osrm.org").rstrip("/")
 TAVILY_API_KEY = _get("TAVILY_API_KEY")       # optional road news search
