@@ -1,149 +1,218 @@
-# Raahi — AI Travel Concierge for Northern Pakistan
+# Raahi: AI trip planner for Northern Pakistan
 
-React 18 + Vite + Tailwind CSS frontend for an AI travel agent focused on Gilgit-Baltistan.
+Raahi plans trips to Hunza, Attabad Lake, Passu, Khunjerab Pass, Skardu, Deosai, Fairy
+Meadows and the K2 trek. Tell it where, when, who and roughly how much, by chat or with a
+form, and it builds a day-by-day plan around the real road: drive days, departure times set
+by daylight, overnight stops, season checks, a live forecast, honest road information and a
+line-by-line cost estimate. You can change the plan by chat or by hand, save it, and send a
+booking enquiry.
 
-## Run it online (frontend + AI backend)
+Raahi is careful about what it knows. Forecasts come from a live weather model with the time
+they were checked. Road status is never guessed: it says "Current road status could not be
+verified" and points to the official sources. Prices are estimates, not quotes. Nothing is
+ever booked or paid through Raahi.
 
-The agent's brain lives in `backend/` (Flask). It serves the API **and** the built site, so you deploy one app.
+How it is built: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). The state of the project
+before this version: [docs/AUDIT.md](docs/AUDIT.md).
 
-```bash
-# 1. Build the frontend
-npm install && npm run build
+## Features
 
-# 2. Start the backend (serves API + the built site)
-cd backend
-pip install -r requirements.txt
-cp .env.example .env         # paste your LLM_API_KEY (OpenAI / OpenRouter / Groq …)
-python app.py                # → http://localhost:5000
-```
-
-Open `http://localhost:5000` — the site and the live agent run together.
-
-**Deploy online (free):** push to GitHub → on [Render](https://render.com) choose *New → Blueprint* (it reads `render.yaml`) → add `LLM_API_KEY` in the dashboard. Done. Works the same on Railway/Fly with the included `Procfile`.
-
-**Without an API key** the chat still gives a guided reply (it asks you the right questions) and the planner works fully — add the key to unlock the thinking, adaptive agent.
-
-Photos are bundled in `src/assets/destinations/` so they always show; drop your own files with the same names to replace them.
-
-## Real data, no API keys needed
-
-These work out of the box in the browser — nothing to configure:
-
-- **Live weather** — real current conditions + 7-day forecast from [Open-Meteo](https://open-meteo.com) (free, keyless), shown in each destination, in the planner's stays, and in the assistant's "road & weather" action. Code: `src/lib/weather.js`.
-- **Exact distance & time** — every travel leg links to **Google Maps directions** (`src/data/logistics.js` → `mapsDirections`), which computes the exact distance, drive time and live traffic for you. The curated km/hours shown inline are accurate *approximate* road figures; Google gives the live number.
-- **Maps** — each destination dialog embeds a Google map (keyless `output=embed`).
-- **Transparent budget** — the planner computes an itemised PKR estimate (transport, stays, food, park fees) from the assumptions in `src/data/logistics.js` (`costModel`). It is clearly labelled an estimate; it never invents live prices.
-- **Stays** — real, well-known properties per town with **indicative** price ranges and a "check live prices" link. Not live quotes — confirm when booking.
-
-### Offline agent (works with NO backend)
-
-When no AI backend is connected, Raahi still behaves like an agent: ask it to plan a
-trip and it runs a **flipped-interaction** flow — it asks you, one question at a time
-(destinations → start city → days → travellers → budget → month → style), with quick
-replies, remembers your answers, **adapts** (e.g. in January it warns that Deosai/Khunjerab
-are snowed-in and leans to reachable towns), then auto-builds the day-by-day plan. Code:
-`src/lib/planFlow.js`. Connect your LLM and the real agent takes over (see the system
-prompt note at the end of this file).
-
-### Real photos are bundled
-
-`src/assets/destinations/` now ships with a real photo per destination (plus `hero.jpg`
-and `cta.jpg`), so images always show without any network. Replace any file with your own
-(same name) to use your photography — it takes priority automatically.
-
-### What still needs YOUR backend / API keys
-
-- **Live hotel availability & exact fees**, and **live road/KKH status** — there is no free, reliable public API for these in GB. The UI links to official sources (PMD, NDMA, NHA) and booking search. To make these live, add them to your AI backend (e.g. Google Places / a booking API) and return the data from `/api/plan`; the UI already renders `cost`, `stay` and per-day fields when present.
-- **The "thinking" agent** — reasoning and recommendations come from your AI backend via `/api/chat`. The frontend formats its replies (text, destination cards, itineraries, actions). When the backend is offline, a rule-based guide answers from the curated data instead.
-
-
-## Quick start
-
-```bash
-npm install
-cp .env.example .env        # point VITE_BACKEND_URL at your AI backend
-npm run dev                 # http://localhost:5173
-npm run build               # production build in dist/
-```
-
-## Plugging into your existing project
-
-**Merging into your own React app:** copy `src/` over (or just `components/`, `context/`, `data/`, `lib/`), then merge `tailwind.config.js`. Also copy the font `<link>` from `index.html`.
-
-**Using your own photos (recommended):** put them in `src/assets/destinations/`, named by destination id. They are picked up at build time and take priority over the remote photos.
-
-| File name | Used for |
+| Feature | Notes |
 |---|---|
-| `hero.jpg` | Hero background |
-| `cta.jpg` | Final call-to-action band |
-| `hunza.jpg`, `skardu.jpg`, `attabad.jpg`, `fairy-meadows.jpg`, `deosai.jpg`, `passu.jpg`, `khunjerab.jpg`, `k2.jpg` | Destination cards, dialogs, planner, seasons |
+| AI travel agent (chat) | Calls 11 server-side tools (destinations, weather, routes, road status, budget, create and update itinerary, save and reopen trips, booking enquiry draft) with step, tool-call, time and size limits. Works with any OpenAI-compatible model, with a backup provider. |
+| Guided mode | Without an AI key, or if the model fails, a rule-based assistant answers with the same tools and says that it is in guided mode. |
+| Trip memory | A structured trip state (places, origin, dates, days, adults, children, budget and whether it is per person, transport, stays, pace, interests, accessibility, food, guide) kept across messages; nothing is asked twice. |
+| Trip form | The same details as a form, with validation. |
+| Day-by-day plan | Route order, travel days, departure and arrival times, overnight stops, activities, risks and sources for each day, and a bad-weather alternative for sightseeing days. Warns when the days are too few, places are out of season, a drive may end after dark, or a route suits limited mobility poorly. |
+| Editing | By chat ("one day less", "add Deosai", "start on 12 May", "cheaper") or by hand: edit, regenerate or reset any day. Every other preference is kept. |
+| Budget | Itemised PKR estimate (transport, stays, food, entry fees, guide, activities, 10% contingency) for the group and per person, compared with your budget, with ways to save. |
+| Weather and roads | Open-Meteo forecast per day with confidence, official PMD alerts, typical seasonal closures, and official places to check road status (NHMP helpline 130). |
+| Stays | Indicative price ranges by stay level for each overnight town; labelled as not quotes. |
+| Saved trips | Saved in the database with a private key kept in your browser; reopen, update or delete from "My trips". |
+| Booking enquiries | Consent required, a reference like `RAH-7KQ2-M9XD`, status check and withdrawal; an admin page to review them. It is an enquiry, not a booking. |
+| Destination pages | One page per place with season, access, altitude, stays, forecast and sources, prerendered for search engines, plus `sitemap.xml` and `robots.txt`. |
 
-`.jpg`, `.jpeg`, `.png`, `.webp` and `.avif` all work. When there is no local file, the site loads real photographs from Wikimedia Commons, listed in `src/data/destinations.js` under `photos`. If none of them load, a mountain illustration is shown, so there are never broken images. Photo credits are listed in the footer.
+### What is live and what is not
 
-## Backend integration (`src/lib/api.js`)
+| Information | Where it comes from | Live? |
+|---|---|---|
+| Weather forecast | [Open-Meteo](https://open-meteo.com) forecast model, up to 16 days | Yes, with the time it was checked |
+| Weather warnings | Pakistan Meteorological Department public alert feed (CAP) | Yes |
+| Drive time (second opinion) | OSRM routing on OpenStreetMap data | Yes, but free-flow: no closures or slowdowns |
+| Drive times in the plan | Raahi's curated road legs | No, reviewed estimates |
+| Road status | No public live source exists for Gilgit-Baltistan | No. Always "could not be verified", with official places to check |
+| Costs and stays | Raahi's cost assumptions (reviewed 27 Oct 2026) | No, estimates |
+| Possible closures in the news | Tavily search, only if you add a key | Unverified reports |
 
-During development, Vite forwards `/api/*` to `VITE_BACKEND_URL`. The default is a Flask server on port 5000. You can change the endpoint paths in `.env`.
+## Run it on your computer
 
-### `POST /api/chat`
+You need [Node.js](https://nodejs.org) 20 or newer and [Python](https://www.python.org) 3.12
+or newer. No API key is needed to start.
 
-Request:
+**Windows (PowerShell in VS Code)**
 
-```json
-{ "message": "Plan 5 days in Hunza", "history": [{ "role": "user", "content": "..." }] }
+```powershell
+git clone https://github.com/Qamar7071/Agent.git
+cd Agent
+npm install
+npm run build
+
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+# If PowerShell blocks that, run once: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+pip install -r requirements.txt
+copy .env.example .env
+python app.py
 ```
 
-The response can be plain text or structured. All of these work:
+**macOS or Linux**
 
-```json
-{ "reply": "Markdown text…" }
-{ "response": "…" }
-{ "answer": "…" }
-{
-  "reply": "…",
-  "destinations": ["hunza", "Attabad Lake"],
-  "itinerary": { "title": "…", "days": [{ "day": 1, "title": "…", "location": "Hunza", "activities": ["…"], "estimated_cost": 12000 }] },
-  "actions": [{ "label": "Open trip planner", "type": "planner", "value": { "destinations": ["hunza"] } }],
-  "links": [{ "label": "…", "href": "https://…" }]
-}
+```bash
+git clone https://github.com/Qamar7071/Agent.git && cd Agent
+npm install && npm run build
+cd backend
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+python app.py
 ```
 
-If the backend returns the JSON as a string inside `reply`, it is parsed. Destinations are rendered as cards and itineraries as a day list with an **Open full plan** button.
+Open http://localhost:5000. The website and the API run together, and saved trips go into
+`backend/raahi.db` (SQLite).
 
-### `POST /api/plan`
+To work on the front end with instant reload, keep `python app.py` running and, in a second
+terminal in the project folder, run `npm run dev`, then open http://localhost:5173 (it
+forwards `/api` to port 5000).
 
-Request:
+### Settings
 
-```json
-{ "from": "Islamabad", "destinations": ["hunza","attabad"], "start_date": "2026-11-06",
-  "days": 7, "travelers": 2, "budget_pkr": 150000, "interests": ["lakes"], "transport": "car" }
+The backend reads `backend/.env` locally; on Vercel or Render you add the same names in the
+dashboard. Every setting is explained in [backend/.env.example](backend/.env.example). The
+important ones:
+
+| Name | Needed for | Example |
+|---|---|---|
+| `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` | The AI agent (without them: guided mode) | a key from OpenAI, Groq or Google AI Studio |
+| `LLM2_API_KEY`, `LLM2_BASE_URL`, `LLM2_MODEL` | A backup AI provider (optional) | Gemini through its OpenAI-compatible endpoint |
+| `DATABASE_URL` | Saving trips and enquiries online | `postgresql://USER:PASSWORD@HOST/DB?sslmode=require` |
+| `ADMIN_TOKEN` | The admin page; enquiries stay off without it | a long random string |
+| `SITE_URL` | Canonical links and the sitemap | `https://your-domain.example` |
+| `TAVILY_API_KEY` | Road news search (optional) | |
+
+Keys only ever go in the backend. Anything starting with `VITE_` ends up in the website's
+JavaScript, so never put a key there ([.env.example](.env.example)).
+
+To get an AI key: OpenAI at https://platform.openai.com/api-keys, Groq at
+https://console.groq.com/keys, or Google AI Studio at https://aistudio.google.com/apikey.
+Put it in `LLM_API_KEY` with the matching `LLM_BASE_URL` and `LLM_MODEL` from
+`backend/.env.example` (model names change over time; check the provider's model list),
+then restart `python app.py`. http://localhost:5000/api/health
+shows `"configured": true` under `ai` when the key is loaded.
+
+## Deploy on Vercel
+
+The site is static (`dist/`, served by Vercel's CDN) and the API is one Python function
+(`api/index.py`, which loads `backend/app.py`). `vercel.json` already configures both.
+
+1. **Database.** In the Vercel project, open Storage (or the Marketplace), add a Postgres
+   database such as Neon, and connect it to the project. Make sure an environment variable
+   named `DATABASE_URL` holds its connection string (add it yourself if the integration
+   uses another name). Without it, saving and enquiries are switched off and the site says so.
+2. **Settings.** Under Settings → Environment Variables add `ADMIN_TOKEN`, your AI key
+   (`LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`), and `SITE_URL` if you use your own domain.
+3. **Deploy.** Push to the branch Vercel deploys (usually `main`), or click Redeploy.
+4. **Check.** Open `https://<your-site>/api/health`. You want `"configured": true` under
+   `ai`, `"enabled": true` under `storage` and `"enquiries_open": true`. The tables are
+   created on first use. To create them in advance, run
+   `python backend/storage.py init` on your computer with `DATABASE_URL` set to the same
+   database.
+5. **Test the live site** (optional): `python e2e/run_e2e.py https://<your-site>`.
+
+This version has not been deployed from here (no access to the Vercel project), so do step 4
+after the first deployment.
+
+[render.yaml](render.yaml) describes an alternative deployment on Render (one Flask service
+with gunicorn). It was not tested in this upgrade.
+
+## Tests
+
+| Command | What it runs | Result on 28 Oct 2026 |
+|---|---|---|
+| `npm run build` | Production build, static destination pages, sitemap | OK: main script 229 KB (72 KB gzipped), planner 58 KB (17 KB gzipped) |
+| `npm run test:api` (venv active; once, in `backend/`: `pip install -r requirements-dev.txt`) | 92 backend tests, all offline: data, planner, budget, live-service parsing with recorded responses, storage, API, parser, agent with a scripted model, including the 10 evaluation scenarios | 92 passed |
+| same, with `RAAHI_TEST_PG_URL=postgresql://…` | The storage tests also on Postgres 16 | 97 passed |
+| `npm run test:e2e` (server running; `pip install -r e2e/requirements.txt` and `python -m playwright install chromium` first) | 16 checks in a real browser: pages, navigation, form, chat, editing, tabs, saving, enquiry, admin, network errors, phone to desktop layouts, keyboard | 16 passed |
+| `npm run audit:a11y` (server running) | axe-core accessibility rules (WCAG 2.2 A and AA plus best practices) on 38 page states at phone and desktop sizes, and page weight | 0 violations |
+
+The browser checks ran against a local server in guided mode with SQLite, and the live
+weather, alert and routing services were reachable at the time. A first visit to the home
+page downloaded 806 KB on a phone and 812 KB on a desktop before scrolling, and 930–940 KB
+after scrolling to the bottom, against 8.5 MB for the old site. The local server sends text
+uncompressed; with compression, as on Vercel, the script drops from 224 KB to about 70 KB
+and the first load to about 625 KB.
+
+What the tests do not show: how a real AI model behaves (the agent was tested with a
+scripted model, because no AI key was available for testing), that Vercel runs this version
+(not deployed from here), or that the live services will keep answering. Automated
+accessibility rules also catch only part of the problems; try the site with a keyboard and a
+screen reader too.
+
+## Project structure
+
+```
+api/index.py          Vercel entry point for the API
+backend/              Flask API, agent, planner, budget, storage, live services, tests
+shared/               destinations.json: the one dataset used by the API and the website
+src/                  React website (pages, components, planner state, router, API client)
+public/               favicon and the optimised photos (WebP and social images)
+photos/originals/     source photos; `npm run images` rebuilds public/images from them
+scripts/              image pipeline, prerendering, one-off data migration
+e2e/                  browser tests and the accessibility audit
+docs/                 architecture and the pre-upgrade audit
 ```
 
-Response: `{ "itinerary": { "title", "summary", "total_cost", "warnings", "days": [{ "day", "date", "title", "location", "activities", "notes", "transport", "accommodation", "estimated_cost" }] } }`. The fields are flexible; see `normalisePlan`.
+To change destination facts, road legs, stays or cost assumptions, edit
+`shared/destinations.json` (and its `last_reviewed` date), then run `npm run test:api`.
 
-Costs, stays and totals are shown **only** when the backend sends them.
+## Limitations
 
-### When the backend is not running
+- **Road status is not live.** No public API publishes road conditions for Gilgit-Baltistan.
+  Raahi shows official weather alerts, typical seasonal closures and where to check (NHMP
+  helpline 130), and never calls a road open.
+- **Prices are estimates**, from cost assumptions reviewed on 27 Oct 2026. There is no hotel,
+  flight or transport booking API, so no live rates or availability.
+- **Enquiries are not bookings.** They go to an admin queue at `/admin`; there is no operator
+  integration and no email notification yet, so someone has to check the queue.
+- **No accounts.** Saved trips and enquiries are reachable only from the browser that holds
+  their private keys. Clearing the browser's data loses access.
+- **Rate limits are per server instance** and kept in memory, so on Vercel they are
+  approximate.
+- **The AI mode was not tried with a real model** in this upgrade. Small models may use tools
+  poorly; the server-side checks and the guided fallback limit the damage, but test with your
+  chosen model.
+- **Free services have conditions.** Open-Meteo's free API is for non-commercial use only
+  (under 10,000 calls a day), and the public OSRM server is best-effort with no guarantee.
+  A commercial launch needs Open-Meteo's paid API and a self-hosted router.
+- **Photo licences are unknown.** The bundled photos came with the original project; credits
+  are taken from the files where recorded, but no licences are known. Replace them with
+  photos you own or have permission to use before any public or commercial use.
+- **Forecast points are approximate.** Each place uses one approximate coordinate, and
+  mountain weather changes quickly with altitude.
+- Python 3.12, which Vercel uses, was not tested here (tests ran on Python 3.13).
 
-- **Chat:** answers come from the curated destination guide (`src/lib/offlineGuide.js`), labelled as **Offline guide**, with a **Retry AI** button.
-- **Planner:** builds a draft route along the real road network (`src/lib/offlinePlanner.js`), labelled as **Offline draft**.
-- **Live data:** neither path makes up live weather, road status, prices or bookings. Instead, they link to PMD, NDMA, NHA and the GB Tourism Department.
+## Next steps
 
-## Security
-
-Never put API keys in `VITE_*` variables, because they ship to the browser. Keep keys in the backend's own `.env`.
-
-## Structure
-
-```
-src/
-  components/
-    hero/          Hero, SearchBar
-    assistant/     AssistantPanel, AssistantSheet, RichBlocks, MiniMarkdown
-    destinations/  Destinations (editorial grid), DestinationDialog
-    planner/       TripPlanner, PlannerForm, ItineraryView
-    sections/      Experiences, Seasons, Safety, FinalCTA, Footer
-    ui/            SmartImage, Logo, Reveal, SectionHeading, Contours
-  context/AppContext.jsx   shared assistant / planner / dialog state
-  data/                    destinations + content (edit facts here)
-  lib/                     api, offline guide & planner, images, format
-```
+1. Rotate any AI key that has ever been pasted into a chat, file or screenshot, then add the
+   new key only in Vercel's settings.
+2. Deploy with `DATABASE_URL`, `ADMIN_TOKEN` and an AI key, check `/api/health`, and run the
+   browser tests against the live site.
+3. Try the AI mode with your chosen model: read the tool trace in the chat ("What Raahi
+   checked") for the 10 scenarios and adjust the prompt if needed.
+4. Replace the photos with licensed ones.
+5. Email the admin when an enquiry arrives (a transactional email service), and let the
+   traveller choose to get a copy.
+6. Move rate limiting to a shared store (such as Upstash Redis) or the Vercel firewall.
+7. Add database migrations (Alembic) before the next schema change.
+8. Only with a licensed operator's real API: live availability and booking, showing
+   "confirmed" only when the operator confirms.

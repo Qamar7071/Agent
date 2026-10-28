@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <sent>2026-10-01T13:00:00+05:00</sent>
+  <info>
+    <event>Hot and dry</event><urgency>Expected</urgency><severity>Minor</severity><certainty>Likely</certainty>
+    <onset>2026-10-01T00:00:00+05:00</onset><expires>2026-10-03T00:00:00+05:00</expires>
+    <senderName>National Weather Forecasting Centre, Islamabad</senderName>
+    <headline>Hot and dry weather in Sindh</headline>
+    <description>Sindh: Mainly hot and dry weather is likely to continue.</description>
+    <area><areaDesc>Sindh</areaDesc></area>
+  </info>
+</alert>
