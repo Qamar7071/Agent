@@ -38,7 +38,10 @@ INTENT_WORDS = {
               r"hata|shamil|extend)\b",
     "booking": r"\b(book|booking|reserve|reservation|enquiry|inquiry|contact an operator)\b",
     "save": r"\b(save|bookmark|mehfooz)\b",
-    "stays": r"\b(hotel|hotels|stay|stays|guesthouse|accommodation|room|rooms|kamra)\b",
+    "stays": r"\b(hotel|hotels|stay|stays|guest ?house|guest ?houses|hostel|hostels|accommodation|room|rooms|kamra|"
+             r"kamre|motel|camping|campsite|lodge)\b",
+    "food": r"\b(food|foods|restaurant|restaurants|cafe|cafes|café|eat|eating|khana|khaana|khane|dhaba|dhabay|"
+            r"dish|dishes|lunch|dinner|breakfast|nashta)\b",
     "suggest": r"\b(suggest|recommend|where should|best place|kahan|kidhar|ideas?)\b",
 }
 
@@ -87,6 +90,33 @@ def _budget(t: str) -> int | None:
             continue
         if unit or near_currency or (near_budget and amount >= 5000):
             return amount
+    return None
+
+
+_AMT = r"(\d[\d,]*(?:\.\d+)?)\s*(k|thousand|hazar|hazaar)?"
+_NIGHT_WORDS = r"\b(hotel|hotels|stay|room|rooms|guest ?houses?|hostels?|motel|lodge|per night|a night|night|raat|kamra|kamre)\b"
+
+
+def _night_range(t: str) -> tuple[int | None, int | None] | None:
+    """A per-night price range for a room: '5000 to 8000', 'under 8k', '5 se 10 hazar tak'."""
+    if not re.search(_NIGHT_WORDS, t):
+        return None
+
+    def ok(v):
+        return v is not None and 1000 <= v <= 500_000
+
+    m = re.search(rf"{_AMT}\s*(?:-|–|to|se|sy|say|and)\s*{_AMT}", t)
+    if m:
+        lo, hi = _amount(m.group(1), m.group(2) or m.group(4)), _amount(m.group(3), m.group(4))
+        if ok(lo) and ok(hi) and lo <= hi:
+            return lo, hi
+    m = re.search(rf"\b(?:under|below|less than|max(?:imum)?|up ?to|within|andar)\s*(?:pkr|rs\.?|rupees?)?\s*{_AMT}", t) \
+        or re.search(rf"{_AMT}\s*(?:pkr|rs\.?|rupees?)?\s*(?:tak|se kam|or less|max)\b", t)
+    if m and ok(_amount(m.group(1), m.group(2))):
+        return None, _amount(m.group(1), m.group(2))
+    m = re.search(rf"\b(?:above|over|more than|at least|min(?:imum)?)\s*(?:pkr|rs\.?|rupees?)?\s*{_AMT}", t)
+    if m and ok(_amount(m.group(1), m.group(2))):
+        return _amount(m.group(1), m.group(2)), None
     return None
 
 
@@ -178,8 +208,11 @@ def extract(text: str, today: date | None = None) -> dict:
     elif re.search(r"\b(no kids|no children|without kids)\b", t):
         out["children"] = 0
 
+    night = _night_range(t)
     budget = _budget(t)
-    if budget:
+    if night:
+        out["night_range"] = night
+    if budget and not (night and not re.search(r"\b(budget|total|trip|kharch)", t)):
         out["budget_pkr"] = budget
         if re.search(r"per (person|head|traveller|adult)|\beach\b|fi kas|per banda|har banda", t):
             out["budget_basis"] = "per_person"
@@ -237,6 +270,17 @@ def extract(text: str, today: date | None = None) -> dict:
         out["guide"] = True
     elif re.search(r"\b(no guide|without a guide)\b", t):
         out["guide"] = False
+    # "Hotels in Hunza" asks about places in a town; it doesn't add Hunza to the trip.
+    if "destinations" in out and ({"stays", "food"} & intents(text)) and not ({"plan", "change"} & intents(text)) \
+            and not (out.get("days") or out.get("start_date")):
+        out["place_towns"] = out.pop("destinations")
+    if {"stays", "food"} & intents(text) and not out.get("days") and not out.get("start_date"):
+        towns = re.findall(r"\b(gilgit|chilas|sost|karimabad|gulmit)\b", t)
+        if towns:
+            out["place_towns"] = list(dict.fromkeys([*out.get("place_towns", []), *towns]))
+        if out.get("place_towns") and out.get("accommodation") and not out.get("night_range"):
+            band = data.cost_model()["room_bands"][out.pop("accommodation")]
+            out["night_range"] = (band[0] or None, band[1])
     return out
 
 
@@ -246,7 +290,7 @@ def merge(state: TripState, slots: dict) -> TripState:
         return state
     upd = {}
     for key, value in slots.items():
-        if key == "remove_destinations":
+        if key in ("remove_destinations", "night_range", "place_towns"):
             continue
         if key == "days_delta":
             base = state.days or (state.plan().days if state.plan() else None)

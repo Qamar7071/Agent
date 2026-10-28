@@ -7,12 +7,14 @@ import DayCard from './DayCard.jsx';
 import BudgetView from './BudgetView.jsx';
 import ConditionsView from './ConditionsView.jsx';
 import StaysView from './StaysView.jsx';
+import FoodView from './FoodView.jsx';
 
 const TABS = [
   ['itinerary', 'Day by day'],
   ['budget', 'Budget'],
   ['conditions', 'Weather and roads'],
   ['stays', 'Stays'],
+  ['food', 'Food'],
 ];
 const TRANSPORT = { car: 'hired car with driver', bus: 'public coach', flight: 'flying north' };
 const STAY = { budget: 'budget stays', mid: 'mid-range stays', premium: 'premium stays' };
@@ -163,7 +165,8 @@ export default function PlanView({ onOpenForm }) {
         )}
         {tab === 'budget' && <BudgetView budget={itinerary.budget} />}
         {tab === 'conditions' && <ConditionsView />}
-        {tab === 'stays' && <StaysView stays={itinerary.stays} />}
+        {tab === 'stays' && <StaysView stays={itinerary.stays} budget={itinerary.budget} />}
+        {tab === 'food' && <FoodView itinerary={itinerary} />}
       </div>
 
       {planBusy && (

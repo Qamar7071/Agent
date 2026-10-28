@@ -129,10 +129,16 @@ def run_states(page: Page, screen: str):
 
     for tab, wait_for in (("Budget", "Total (estimate)"),
                           ("Weather and roads", "Current road status could not be verified."),
-                          ("Stays", "not quotes")):
+                          ("Stays", "not quotes"),
+                          ("Food", "Local food")):
         page.get_by_role("tab", name=tab).click()
         expect(page.get_by_role("tabpanel")).to_contain_text(wait_for, timeout=40000)
         audit(page, screen, f"plan: {tab.lower()} tab")
+    page.get_by_role("tab", name="Stays").click()
+    page.get_by_role("button", name="Show more places on the map").first.click()
+    expect(page.get_by_role("tabpanel")).to_contain_text("More places from OpenStreetMap")
+    page.wait_for_load_state("networkidle")
+    audit(page, screen, "plan: stays with map listings")
     page.get_by_role("tab", name="Day by day").click()
 
     page.get_by_role("button", name="Edit day").first.click()

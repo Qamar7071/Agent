@@ -115,6 +115,7 @@ def run_chat(body: ChatRequest) -> dict:
         "alerts": a.get("alerts"),
         "roads": a.get("roads"),
         "route": a.get("route"),
+        "places": a.get("places"),
         "budget": a.get("budget") if not a.get("itinerary") else None,
         "enquiry_draft": a.get("enquiry_draft"),
         "client_actions": ctx.client_actions,

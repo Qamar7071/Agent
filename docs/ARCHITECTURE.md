@@ -18,7 +18,7 @@ flowchart LR
   subgraph Server["Flask API (Vercel function or gunicorn)"]
     API[app.py<br/>validation, rate limits,<br/>CORS, security headers]
     AG[agent/runner.py<br/>tool loop + guided mode]
-    TL[agent/tools.py<br/>11 validated tools]
+    TL[agent/tools.py<br/>12 validated tools]
     PL[planner.py + budget.py<br/>deterministic]
     SV[services/<br/>weather, roads, routing]
     DB[storage.py]
@@ -86,6 +86,7 @@ flowchart LR
 | `get_weather_forecast` | Forecast up to 16 days with risks and confidence, plus official alerts | Open-Meteo, PMD |
 | `get_route_information` | Curated distance and realistic drive time, OSRM free-flow figure, Maps link | dataset, OSRM |
 | `get_road_status` | What can and cannot be known: always "not verified", with alerts, typical seasonal closures, optional unverified news, official checks | PMD, dataset, Tavily (optional) |
+| `find_places` | Places to stay (curated, matched to a per-night range, plus OpenStreetMap listings without prices) or to eat (local dishes, restaurants and cafés) in a town | dataset, OpenStreetMap |
 | `estimate_trip_budget` | Line-by-line PKR estimate compared with the budget, with savings | `budget.py` |
 | `create_itinerary` | Builds the full day-by-day plan | `planner.py` |
 | `update_itinerary` | Changes days, dates, budget, pace, transport, stays, destinations or one day, keeping everything else | `planner.py` |
@@ -107,7 +108,7 @@ flowchart LR
 
 - Tool arguments are parsed with pydantic models; unknown tools and invalid arguments return
   an error to the model instead of running.
-- Only the 11 tools above exist. None of them can fetch an arbitrary URL, run code, read files
+- Only the 12 tools above exist. None of them can fetch an arbitrary URL, run code, read files
   or send messages.
 - A message sticks to one provider. If the main provider fails, the backup provider (and any
   fallback models) is tried; a 401 or 403 skips the rest of that provider's models.
@@ -224,6 +225,7 @@ All responses are JSON. Errors look like `{"error": {"code", "message", "details
 | `GET /api/alerts` | PMD alerts for the region | 60 |
 | `GET /api/roads?destinations=hunza,skardu&date=2026-11-06` | Road information (always not verified) | 60 |
 | `GET /api/route?from=islamabad&to=karimabad` | Route figures | 60 |
+| `GET /api/places?town=hunza&kind=stay&min=5000&max=8000` | Places to stay (or `kind=food`) | 60 |
 | `POST /api/chat` | One agent turn | 12 |
 | `POST /api/plan` | Build a plan from a `TripRequest` | 40 |
 | `POST /api/plan/update` | Apply changes to a request and rebuild | 40 |
@@ -267,7 +269,7 @@ curl -s -X POST localhost:5000/api/chat -H "Content-Type: application/json" -d '
 - Private keys hashed at rest; admin token compared in constant time.
 - Enquiries: consent required, honeypot field against bots, the traveller can withdraw.
 - Prompt injection: tool results and saved notes are marked as data in the prompt, the model
-  can only use the 11 tools, arguments are validated, and anything consequential (sending an
+  can only use the 12 tools, arguments are validated, and anything consequential (sending an
   enquiry) needs the traveller to act in the website.
 - Logs record method, path, status and timing, not request bodies or personal details.
 - Assistant text is rendered with a small safe Markdown renderer (no HTML injection; only
@@ -291,7 +293,7 @@ curl -s -X POST localhost:5000/api/chat -H "Content-Type: application/json" -d '
 |---|---|
 | `npm run test:api` | Backend unit and API tests with pytest: data, planner, budget, services (with recorded PMD fixtures and fake HTTP), storage (SQLite; Postgres when `RAAHI_TEST_PG_URL` is set), API, parser, and the agent with a scripted fake model, including the 10 evaluation scenarios. All offline. |
 | `npm run test:e2e` | 16 browser checks against a running server (Playwright + Chromium). |
-| `npm run audit:a11y` | axe-core accessibility audit of 38 page states at phone and desktop sizes, plus page weight. |
+| `npm run audit:a11y` | axe-core accessibility audit of 42 page states at phone and desktop sizes, plus page weight. |
 
 Tests use fakes for every external service; passing them shows the code handles those
 responses, not that the live services or a real AI model behave the same way.

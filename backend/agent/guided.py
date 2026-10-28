@@ -51,6 +51,16 @@ def respond(message: str, slots: dict, ctx: ToolContext) -> str:
         return ("Saved. You can reopen it from **My trips** in this browser." if res.get("ok")
                 else f"I couldn't save the trip: {res.get('error')}")
 
+    if {"stays", "food"} & it and not (slots.get("days") or slots.get("start_date")):
+        town = (slots.get("place_towns") or slots.get("destinations") or st.destinations or [None])[0]
+        if not town:
+            return "Which town? For example Hunza (Karimabad), Attabad, Passu, Skardu, Gilgit or Chilas."
+        if "food" in it and "stays" not in it:
+            return places_text(execute("find_places", {"town": town, "kind": "food"}, ctx), ctx)
+        lo, hi = slots.get("night_range") or (None, None)
+        return places_text(execute("find_places", {"town": town, "kind": "stay", "min_pkr_per_night": lo,
+                                                   "max_pkr_per_night": hi}, ctx), ctx)
+
     diff = st.changes_since_plan()
     if diff:
         res = execute("create_itinerary", {}, ctx)
@@ -212,3 +222,70 @@ def summary_of(ctx: ToolContext) -> str | None:
         from agent.tools import _forecast_view
         return weather_text({"forecast": _forecast_view(fc), "official_alerts": {}})
     return None
+
+
+def range_text(rng: dict | None) -> str:
+    if not rng:
+        return ""
+    lo, hi = rng.get("min"), rng.get("max")
+    if lo and hi:
+        return f"PKR {lo:,}–{hi:,}"
+    return f"up to PKR {hi:,}" if hi else f"PKR {lo:,} or more"
+
+
+def places_text(res: dict, ctx: ToolContext) -> str:
+    if not res.get("ok"):
+        return f"I couldn't look that up: {res.get('error')}"
+    p = ctx.artifacts["places"][-1]
+    if not p.get("available"):
+        return p["message"]
+    live = p.get("live") or {}
+    lines = []
+    if p["kind"] == "stay":
+        rng = range_text(p.get("range"))
+        lines.append(f"**Places to stay in {p['name']}**" + (f" for {rng} a night" if rng else "") + ".")
+        if p.get("curated"):
+            shown = [o for o in p["curated"]["options"] if o.get("in_range") is not False]
+            others = len(p["curated"]["options"]) - len(shown)
+            lines.append("\nFrom Raahi's guide (indicative price per room-night, not quotes):")
+            if not shown:
+                lines.append("- None of the places in Raahi's guide usually fit this range.")
+            for o in shown:
+                price = f"PKR {o['from']:,}–{o['to']:,}" if o.get("to") else "arranged by your operator"
+                fit = {True: ", fits your range", False: ", outside your range"}.get(o.get("in_range"), "")
+                lines.append(f"- **{o['name']}** ({o['tier']}): {price}{fit}")
+            if others:
+                lines.append(f"- {others} more in the guide are outside your range (see the Stays tab).")
+        if live.get("available"):
+            places = [x for x in live["places"] if x.get("fit") != "unlikely"][:8]
+            if places:
+                lines.append(f"\nOn OpenStreetMap (real places, no prices; checked {_time(live.get('retrieved_at'))}):")
+                for x in places:
+                    stars = f", {x['stars']}★" if x.get("stars") else ""
+                    fit = {"usually": ": this type usually fits your range", "unknown": ": price level unknown"}.get(
+                        x.get("fit"), "")
+                    phone = f", {x['phone']}" if x.get("phone") else ""
+                    lines.append(f"- {x['name']} ({x['type']}{stars}){fit}{phone}")
+            else:
+                lines.append("\nOpenStreetMap has no matching places to stay recorded here.")
+        elif live:
+            lines.append(f"\nLive listings: {live.get('reason')}")
+        lines.append("\nConfirm the price and availability with the place before you pay.")
+    else:
+        lines.append(f"**Food in {p['name']}**")
+        dishes = p.get("dishes")
+        if dishes:
+            lines.append(f"\nLocal food ({dishes['area']}): "
+                         + "; ".join(f"{d['name']} ({d['about'].rstrip('.').lower()})" for d in dishes["dishes"]) + ".")
+        if live.get("available"):
+            if live["places"]:
+                lines.append(f"\nRestaurants and cafés on OpenStreetMap (checked {_time(live.get('retrieved_at'))}):")
+                for x in live["places"][:8]:
+                    cuisine = f", {', '.join(x['cuisine'])}" if x.get("cuisine") else ""
+                    lines.append(f"- {x['name']} ({x['type']}{cuisine})")
+            else:
+                lines.append("\nOpenStreetMap has no restaurants recorded here.")
+        elif live:
+            lines.append(f"\nLive listings: {live.get('reason')}")
+        lines.append("\nMany places in the north close in winter, so check before you go.")
+    return "\n".join(lines)

@@ -7,6 +7,7 @@ Public, read-only
     GET  /api/alerts                     official PMD alerts for the region
     GET  /api/roads?destinations=&date=  honest road-status summary
     GET  /api/route?from=&to=
+    GET  /api/places?town=&kind=stay|food&min=&max=   stays (curated + OpenStreetMap) and food
 Planning
     POST /api/chat                       the agent (tool calling, or guided mode)
     POST /api/plan                       deterministic itinerary from the trip form
@@ -40,7 +41,7 @@ from agent.runner import run_chat
 from schemas import (CONSENT_TEXT, CONSENT_VERSION, ChatRequest, EnquiryAdminUpdate, EnquiryIn, PlanUpdate,
                      TripRequest, TripSave)
 from security import admin_status, client_ip, limiter
-from services import conditions, http, roads, weather
+from services import conditions, http, places, roads, weather
 
 VERSION = "2.0.0"
 HEX32 = re.compile(r"^[0-9a-f]{32}$")
@@ -190,7 +191,8 @@ def create_app() -> Flask:
             "storage": {"enabled": storage.enabled(), "kind": storage.kind()},
             "enquiries_open": enquiries_open(),
             "services": {"weather": config.WEATHER_ENABLED, "pmd_alerts": config.PMD_ALERTS_ENABLED,
-                         "routing": config.ROUTING_ENABLED, "road_news": bool(config.TAVILY_API_KEY),
+                         "routing": config.ROUTING_ENABLED, "places": config.PLACES_ENABLED,
+                         "road_news": bool(config.TAVILY_API_KEY),
                          "kkh_model": bool(config.KKH_RISK_API_URL)},
             "data_reviewed": data.dataset()["meta"]["last_reviewed"],
         }
@@ -238,6 +240,24 @@ def create_app() -> Flask:
             return planner.route_summary(request.args.get("from", ""), request.args.get("to", ""))
         except planner.PlanError as exc:
             raise ApiError(400, str(exc), "validation") from exc
+
+    @app.get("/api/places")
+    def get_places():
+        rate("live", config.LIVE_RATE_PER_MIN)
+        town = places.resolve_town(request.args.get("town", ""))
+        if not town:
+            raise ApiError(400, "Choose a town in the north, for example Hunza, Skardu or Gilgit.", "validation")
+        kind = request.args.get("kind", "stay")
+        if kind not in ("stay", "food"):
+            raise ApiError(400, "kind must be 'stay' or 'food'.", "validation")
+        bounds = []
+        for name in ("min", "max"):
+            raw = request.args.get(name, "").strip()
+            value = int(raw) if raw.isdigit() else None
+            if raw and (value is None or value > 1_000_000):
+                raise ApiError(400, f"{name} must be a whole number of rupees up to 1,000,000.", "validation")
+            bounds.append(value)
+        return places.stays(town, *bounds) if kind == "stay" else places.food(town)
 
     # ── Planning ──
     @app.post("/api/chat")

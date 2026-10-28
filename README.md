@@ -19,7 +19,7 @@ before this version: [docs/AUDIT.md](docs/AUDIT.md).
 
 | Feature | Notes |
 |---|---|
-| AI travel agent (chat) | Calls 11 server-side tools (destinations, weather, routes, road status, budget, create and update itinerary, save and reopen trips, booking enquiry draft) with step, tool-call, time and size limits. Works with any OpenAI-compatible model, with a backup provider. |
+| AI travel agent (chat) | Calls 12 server-side tools (destinations, weather, routes, road status, budget, places to stay and eat, create and update itinerary, save and reopen trips, booking enquiry draft) with step, tool-call, time and size limits. Works with any OpenAI-compatible model, with a backup provider. |
 | Guided mode | Without an AI key, or if the model fails, a rule-based assistant answers with the same tools and says that it is in guided mode. |
 | Trip memory | A structured trip state (places, origin, dates, days, adults, children, budget and whether it is per person, transport, stays, pace, interests, accessibility, food, guide) kept across messages; nothing is asked twice. |
 | Trip form | The same details as a form, with validation. |
@@ -27,7 +27,8 @@ before this version: [docs/AUDIT.md](docs/AUDIT.md).
 | Editing | By chat ("one day less", "add Deosai", "start on 12 May", "cheaper") or by hand: edit, regenerate or reset any day. Every other preference is kept. |
 | Budget | Itemised PKR estimate (transport, stays, food, entry fees, guide, activities, 10% contingency) for the group and per person, compared with your budget, with ways to save. |
 | Weather and roads | Open-Meteo forecast per day with confidence, official PMD alerts, typical seasonal closures, and official places to check road status (NHMP helpline 130). |
-| Stays | Indicative price ranges by stay level for each overnight town; labelled as not quotes. |
+| Stays | For each overnight town: Raahi's curated places with indicative prices per room-night, matched to your own per-night range (or to what your budget allows), plus real hotels, guest houses and hostels from OpenStreetMap with map, website and phone links. OpenStreetMap has no prices, so those are grouped only by the price level their type usually has. Ask in chat too: "Hunza mein 5000 se 8000 tak hotel". |
+| Food | Local dishes worth trying in each area, and restaurants and cafés from OpenStreetMap near each stop. |
 | Saved trips | Saved in the database with a private key kept in your browser; reopen, update or delete from "My trips". |
 | Booking enquiries | Consent required, a reference like `RAH-7KQ2-M9XD`, status check and withdrawal; an admin page to review them. It is an enquiry, not a booking. |
 | Destination pages | One page per place with season, access, altitude, stays, forecast and sources, prerendered for search engines, plus `sitemap.xml` and `robots.txt`. |
@@ -42,6 +43,7 @@ before this version: [docs/AUDIT.md](docs/AUDIT.md).
 | Drive times in the plan | Raahi's curated road legs | No, reviewed estimates |
 | Road status | No public live source exists for Gilgit-Baltistan | No. Always "could not be verified", with official places to check |
 | Costs and stays | Raahi's cost assumptions (reviewed 27 Oct 2026) | No, estimates |
+| Places to stay and eat | OpenStreetMap contributors, through the Overpass API | Yes, but no prices or opening status |
 | Possible closures in the news | Tavily search, only if you add a key | Unverified reports |
 
 ## Run it on your computer
@@ -144,10 +146,10 @@ with gunicorn). It was not tested in this upgrade.
 | Command | What it runs | Result on 28 Oct 2026 |
 |---|---|---|
 | `npm run build` | Production build, static destination pages, sitemap | OK: main script 229 KB (72 KB gzipped), planner 58 KB (17 KB gzipped) |
-| `npm run test:api` (venv active; once, in `backend/`: `pip install -r requirements-dev.txt`) | 92 backend tests, all offline: data, planner, budget, live-service parsing with recorded responses, storage, API, parser, agent with a scripted model, including the 10 evaluation scenarios | 92 passed |
-| same, with `RAAHI_TEST_PG_URL=postgresql://…` | The storage tests also on Postgres 16 | 97 passed |
+| `npm run test:api` (venv active; once, in `backend/`: `pip install -r requirements-dev.txt`) | 102 backend tests, all offline: data, planner, budget, live-service parsing with recorded responses, places, storage, API, parser, agent with a scripted model, including the 10 evaluation scenarios | 102 passed |
+| same, with `RAAHI_TEST_PG_URL=postgresql://…` | The storage tests also on Postgres 16 | passed (run before the stays and food update; storage code unchanged since) |
 | `npm run test:e2e` (server running; `pip install -r e2e/requirements.txt` and `python -m playwright install chromium` first) | 16 checks in a real browser: pages, navigation, form, chat, editing, tabs, saving, enquiry, admin, network errors, phone to desktop layouts, keyboard | 16 passed |
-| `npm run audit:a11y` (server running) | axe-core accessibility rules (WCAG 2.2 A and AA plus best practices) on 38 page states at phone and desktop sizes, and page weight | 0 violations |
+| `npm run audit:a11y` (server running) | axe-core accessibility rules (WCAG 2.2 A and AA plus best practices) on 42 page states at phone and desktop sizes, and page weight | 0 violations |
 
 The browser checks ran against a local server in guided mode with SQLite, and the live
 weather, alert and routing services were reachable at the time. A first visit to the home

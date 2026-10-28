@@ -2,7 +2,7 @@
  "meta": {
   "version": 2,
   "last_reviewed": "2026-10-27",
-  "note": "Single source of truth for destination facts, used by the API, the website and the database seed. Values marked verified=false are curated approximations. Nothing here is live data."
+  "note": "Single source of truth for destination facts, used by the API and the website. Values marked verified=false are curated approximations. Nothing here is live data."
  },
  "destinations": [
   {
@@ -1413,7 +1413,22 @@
   "activities_pp_day": 1000,
   "child_food_factor": 0.6,
   "tier_note": "Room rates by stay level are planning assumptions (budget guesthouse, mid-range hotel, premium hotel), not quotes.",
-  "status": "Indicative assumptions for planning. Not live prices."
+  "status": "Indicative assumptions for planning. Not live prices.",
+  "room_bands": {
+   "budget": [
+    0,
+    7000
+   ],
+   "mid": [
+    7000,
+    18000
+   ],
+   "premium": [
+    18000,
+    null
+   ],
+   "note": "Usual PKR per room-night for each stay level, drawn from Raahi's indicative ranges. Used only to say which kinds of places usually fit a range; not any place's price."
+  }
  },
  "general_sources": [
   {
@@ -1424,5 +1439,96 @@
    "label": "Wikipedia: Karakoram Highway",
    "url": "https://en.wikipedia.org/wiki/Karakoram_Highway"
   }
- ]
+ ],
+ "local_food": {
+  "status": "General guide to dishes commonly served in the area, not a menu and not verified for any restaurant.",
+  "areas": {
+   "hunza": {
+    "name": "Hunza and Gojal",
+    "dishes": [
+     {
+      "name": "Chapshuro",
+      "about": "Flatbread stuffed with spiced minced meat, baked or fried."
+     },
+     {
+      "name": "Diram phitti",
+      "about": "Sprouted-wheat flour cooked with butter or apricot-kernel oil."
+     },
+     {
+      "name": "Harissa",
+      "about": "Slow-cooked meat and wheat, mostly made in winter."
+     },
+     {
+      "name": "Mamtu",
+      "about": "Steamed meat dumplings."
+     },
+     {
+      "name": "Apricots",
+      "about": "Fresh in summer, dried all year; also apricot-kernel oil."
+     },
+     {
+      "name": "Walnut and apricot cake",
+      "about": "Served in many Karimabad cafés."
+     }
+    ]
+   },
+   "baltistan": {
+    "name": "Skardu and Baltistan",
+    "dishes": [
+     {
+      "name": "Balay",
+      "about": "Thick noodle soup with meat and vegetables."
+     },
+     {
+      "name": "Mamtu",
+      "about": "Steamed meat dumplings."
+     },
+     {
+      "name": "Marzan",
+      "about": "Wheat or barley flour cooked with butter."
+     },
+     {
+      "name": "Butter tea (namkeen chai)",
+      "about": "Salted tea with butter and milk."
+     },
+     {
+      "name": "Apricots and mulberries",
+      "about": "Fresh in summer, dried all year."
+     }
+    ]
+   },
+   "highway": {
+    "name": "the Karakoram Highway",
+    "dishes": [
+     {
+      "name": "Dhaba meals",
+      "about": "Roadside cafés mostly serve daal, chicken karahi, roti and chai."
+     }
+    ]
+   },
+   "remote": {
+    "name": "Remote camps",
+    "dishes": [
+     {
+      "name": "Camp meals",
+      "about": "Simple meals from your hut, camp or operator. Carry snacks and water."
+     }
+    ]
+   }
+  },
+  "town_area": {
+   "hunza": "hunza",
+   "attabad": "hunza",
+   "passu": "hunza",
+   "sost": "hunza",
+   "khunjerab": "hunza",
+   "skardu": "baltistan",
+   "deosai": "baltistan",
+   "gilgit": "highway",
+   "chilas": "highway",
+   "fairy-meadows": "remote",
+   "k2": "remote",
+   "askole": "remote"
+  }
+ }
 }

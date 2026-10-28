@@ -14,7 +14,8 @@ BACKEND = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND))
 for key in ("LLM_API_KEY", "LLM2_API_KEY", "TAVILY_API_KEY", "KKH_RISK_API_URL", "DATABASE_URL", "ADMIN_TOKEN", "VERCEL", "RENDER"):
     os.environ.pop(key, None)
-os.environ.update(WEATHER_ENABLED="false", PMD_ALERTS_ENABLED="false", ROUTING_ENABLED="false", LOG_LEVEL="WARNING")
+os.environ.update(WEATHER_ENABLED="false", PMD_ALERTS_ENABLED="false", ROUTING_ENABLED="false", PLACES_ENABLED="false",
+                  LOG_LEVEL="WARNING")
 
 import pytest  # noqa: E402
 import requests  # noqa: E402
@@ -63,6 +64,7 @@ def isolate(monkeypatch, tmp_path):
     svc_http.clear_cache()
     for name, value in (("LLM_API_KEY", ""), ("LLM2_API_KEY", ""), ("TAVILY_API_KEY", ""), ("KKH_RISK_API_URL", ""),
                         ("WEATHER_ENABLED", False), ("PMD_ALERTS_ENABLED", False), ("ROUTING_ENABLED", False),
+                        ("PLACES_ENABLED", False),
                         ("ADMIN_TOKEN", ADMIN)):
         monkeypatch.setattr(config, name, value)
     storage.reset_for_tests(f"sqlite:///{tmp_path / 'test.db'}")

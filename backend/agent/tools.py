@@ -21,7 +21,7 @@ import data
 import planner
 import storage
 from schemas import TripRef, TripRequest, TripState, UpdateOp
-from services import roads, routing, weather
+from services import places, roads, routing, weather
 
 log = logging.getLogger("raahi.tools")
 
@@ -102,6 +102,13 @@ class ChangeArgs(_Args):
 
 class UpdateArgs(_Args):
     changes: list[ChangeArgs] = Field(min_length=1, max_length=10)
+
+
+class PlacesArgs(_Args):
+    town: str | None = Field(default=None, max_length=60)
+    kind: Literal["stay", "food"] = "stay"
+    min_pkr_per_night: int | None = Field(default=None, ge=0, le=1_000_000)
+    max_pkr_per_night: int | None = Field(default=None, ge=0, le=1_000_000)
 
 
 class SaveArgs(_Args):
@@ -268,6 +275,40 @@ def get_road_status(args: RoadArgs, ctx: ToolContext) -> dict:
     out["official_weather_alerts"] = _alerts_view(status["official_weather_alerts"])
     if status.get("news", {}).get("available"):
         out["news"] = {**status["news"], "items": status["news"]["items"][:5]}
+    out["ok"] = True
+    return out
+
+
+def _place_view(p: dict) -> dict:
+    keep = ("name", "type", "stars", "cuisine", "distance_km", "phone", "fit", "usual_levels")
+    return {k: p[k] for k in keep if p.get(k) not in (None, [], "")}
+
+
+def find_places(args: PlacesArgs, ctx: ToolContext) -> dict:
+    town = places.resolve_town(args.town) if args.town else None
+    if args.town and not town:
+        raise ToolFailure(f"Raahi has no place listings for '{args.town}'. Try Hunza, Attabad, Passu, Sost, Skardu, "
+                          "Fairy Meadows, Gilgit or Chilas.")
+    if not town:
+        town = places.resolve_town(ctx.state.destinations[0]) if ctx.state.destinations else None
+    if not town:
+        raise ToolFailure("Which town? For example Hunza, Skardu or Gilgit.")
+    if args.kind == "food":
+        res = places.food(town)
+    else:
+        res = places.stays(town, args.min_pkr_per_night, args.max_pkr_per_night)
+    ctx.artifacts.setdefault("places", []).append(res)
+    out = {k: v for k, v in res.items() if k not in ("live", "curated", "check_prices")}
+    if res.get("curated"):
+        out["curated_stays"] = [{"name": o["name"], "tier": o["tier"], "pkr_per_night": [o["from"], o["to"]],
+                                 "in_range": o.get("in_range")} for o in res["curated"]["options"]]
+        out["curated_status"] = "indicative ranges from Raahi's guide, not quotes"
+    live = res.get("live") or {}
+    if live:
+        out["openstreetmap"] = ({"available": True, "retrieved_at": live["retrieved_at"], "count": live["count"],
+                                 "places": [_place_view(p) for p in live["places"][:12]],
+                                 "status": "real places from OpenStreetMap; no prices"}
+                                if live.get("available") else {"available": False, "reason": live.get("reason")})
     out["ok"] = True
     return out
 
@@ -477,6 +518,17 @@ TOOLS = {
             "key": {"type": "string", "description": "Day key from the itinerary, e.g. 'hunza:1'."},
             "title": {"type": "string"}, "activities": {"type": "array", "items": {"type": "string"}},
             "note": {"type": "string"}}, "required": ["op"]}}}, ["changes"])),
+    "find_places": (PlacesArgs, find_places, _fn(
+        "find_places", "Places to stay or eat in a town on the trip. Stays: Raahi's curated hotels with indicative "
+        "price ranges, matched to the traveller's per-night range, plus real places from OpenStreetMap (no prices, "
+        "grouped by the price level their type usually has). Food: local dishes and restaurants or cafes from "
+        "OpenStreetMap. Use for any hotel, guest house, hostel, restaurant or food question.",
+        {"town": {"type": "string", "description": "Hunza, Attabad, Passu, Sost, Skardu, Fairy Meadows, Deosai, "
+                                                    "Gilgit or Chilas. Omit to use the trip's first destination."},
+         "kind": {"type": "string", "enum": ["stay", "food"]},
+         "min_pkr_per_night": {"type": "integer", "description": "Lowest room price per night the traveller wants."},
+         "max_pkr_per_night": {"type": "integer", "description": "Highest room price per night the traveller wants."}},
+        ["kind"])),
     "save_trip": (SaveArgs, save_trip, _fn(
         "save_trip", "Save the current itinerary so the traveller can reopen it later. Only when they ask to save.",
         {"title": {"type": "string"}})),
@@ -548,6 +600,11 @@ def summarize(name: str, result: dict, args: dict) -> str:
         return "Suggested: " + ", ".join(r["name"] for r in result.get("results", [])[:3])
     if name == "get_destination_details":
         return f"Details: {result.get('destination', {}).get('name')}"
+    if name == "find_places":
+        live = result.get("openstreetmap") or {}
+        what = "Places to stay" if result.get("kind") == "stay" else "Food"
+        found = f"{live.get('count', 0)} on OpenStreetMap" if live.get("available") else "OpenStreetMap unavailable"
+        return f"{what} in {result.get('name', '?')}: {found}"
     if name == "save_trip":
         return "Trip saved" if result.get("saved") or result.get("updated") else "Trip not saved"
     if name == "create_booking_enquiry":
