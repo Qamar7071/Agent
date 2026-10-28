@@ -73,6 +73,12 @@ export const api = {
   conditions: (payload, opts) => post('/api/conditions', payload, { timeout: 40000, ...opts }),
   weather: (destination, opts) => get(`/api/weather?destination=${encodeURIComponent(destination)}`, { timeout: 20000, ...opts }),
   alerts: (opts) => get('/api/alerts', { timeout: 30000, ...opts }),
+  places: (town, kind, range = {}, opts) => {
+    const q = new URLSearchParams({ town, kind });
+    if (Number.isFinite(range.min)) q.set('min', String(range.min));
+    if (Number.isFinite(range.max)) q.set('max', String(range.max));
+    return get(`/api/places?${q}`, { timeout: 40000, ...opts });
+  },
 
   saveTrip: (title, tripRequest) => post('/api/trips', { title, request: tripRequest }),
   getTrip: (id, token) => get(`/api/trips/${id}`, { headers: { 'X-Trip-Token': token } }),

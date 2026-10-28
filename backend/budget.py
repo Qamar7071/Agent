@@ -69,6 +69,7 @@ def estimate(req, days: list[dict]) -> dict:
     jeeps = math.ceil(people / cm["jeep_seats"])
     lines = _Lines()
     visited_parks: set[str] = set()
+    room_nights = 0
 
     for day in days:
         cost = {"transport": 0.0, "accommodation": 0.0, "food": 0.0, "activities": 0.0, "guide": 0.0}
@@ -127,6 +128,7 @@ def estimate(req, days: list[dict]) -> dict:
                     basis="per person", frequency="per night", unit_cost=cm["camp_pp_night"])
             else:
                 rate = room_rate(hub, req.accommodation)
+                room_nights += rooms
                 cost["accommodation"] += lines.add(
                     "rooms", "accommodation", f"Rooms ({STAY_LABEL[req.accommodation]})", rate["amount"] * rooms,
                     basis="whole group", frequency="per night", unit_cost=rate["amount"])
@@ -168,6 +170,8 @@ def estimate(req, days: list[dict]) -> dict:
                       "units": 1, "quantity": f"{pct}% of the subtotal", "status": "estimate", "verified": False,
                       "note": "For delays and closures (an extra night, a changed route) and price changes."})
     total = _round(subtotal + contingency)
+    comparison = compare(req, total, people)
+    rooms_amount = lines.items["rooms"]["amount"] if "rooms" in lines.items else 0
     by_category: dict[str, int] = {}
     for line in out_lines:
         by_category[line["category"]] = by_category.get(line["category"], 0) + line["amount"]
@@ -183,7 +187,8 @@ def estimate(req, days: list[dict]) -> dict:
         "contingency": contingency,
         "total": total,
         "per_person": _round(total / people),
-        "comparison": compare(req, total, people),
+        "comparison": comparison,
+        "stay_allowance": stay_allowance(comparison, subtotal, _round(rooms_amount), room_nights, rooms, pct),
         "assumptions": assumptions(req),
         "not_included": not_included(req),
         "note": "Planning estimate from Raahi's assumptions and indicative ranges. Not a quote: confirm prices "
@@ -224,6 +229,24 @@ def _quantity(line, rates, *, people, vehicles, jeeps, rooms, children, factor) 
     if key == "guide":
         return f"{_n(n, 'day')} × {rate}"
     return f"{n} × {rate}"
+
+
+def stay_allowance(comparison: dict, subtotal: int, rooms_amount: int, room_nights: int, rooms: int,
+                   pct: float) -> dict | None:
+    """Most a room-night can cost for the whole plan to stay within the traveller's budget."""
+    budget_total = comparison.get("budget_total_equivalent")
+    if not budget_total or not room_nights:
+        return None
+    other = subtotal - rooms_amount
+    per_room_night = max(0, int((budget_total / (1 + pct / 100) - other) / room_nights // 500 * 500))
+    nights = room_nights // max(rooms, 1)
+    if per_room_night == 0:
+        msg = "After transport, food and activities, your budget leaves nothing for rooms."
+    else:
+        msg = (f"To stay within your budget, rooms can cost up to about PKR {per_room_night:,} per room per night "
+               f"({rooms} room{'s' if rooms > 1 else ''} for {nights} night{'s' if nights > 1 else ''}), "
+               "if everything else costs what the estimate assumes.")
+    return {"per_room_night": per_room_night, "rooms": rooms, "nights": nights, "status": "estimate", "message": msg}
 
 
 def compare(req, total: int, people: int) -> dict:

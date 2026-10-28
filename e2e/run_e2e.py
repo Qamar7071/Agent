@@ -154,7 +154,7 @@ def edit_day(page):
     expect(page.get_by_role("heading", name="Our own day by the lake")).to_have_count(0, timeout=20000)
 
 
-@check("budget and weather-and-roads tabs")
+@check("budget, weather-and-roads, stays and food tabs")
 def tabs(page):
     page.get_by_role("tab", name="Budget").click()
     expect(page.get_by_text("How the estimate is worked out")).to_be_visible()
@@ -163,6 +163,10 @@ def tabs(page):
     expect(page.get_by_role("tabpanel")).to_contain_text("Current road status could not be verified.", timeout=40000)
     page.get_by_role("tab", name="Stays").click()
     expect(page.get_by_role("tabpanel")).to_contain_text("not quotes")
+    page.get_by_role("button", name="Mid-range: PKR 7,000–18,000").click()
+    expect(page.get_by_text("Fits your range").first).to_be_visible()
+    page.get_by_role("tab", name="Food").click()
+    expect(page.get_by_role("tabpanel")).to_contain_text("Local food", timeout=40000)
     page.get_by_role("tab", name="Day by day").click()
 
 

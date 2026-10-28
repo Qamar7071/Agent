@@ -25,6 +25,6 @@ python storage.py sql                    # print the Postgres schema
 | `clock.py` | Pakistan time (dates and "today" are Pakistani even on UTC servers) |
 | `storage.py` | Saved trips and enquiries (Postgres or SQLite) with hashed private keys |
 | `security.py` | Client IP, in-memory rate limiter, admin token check |
-| `services/` | `weather.py` (Open-Meteo, PMD alerts), `roads.py` (honest road information), `routing.py` (curated legs, OSRM), `conditions.py` (forecast and roads for a plan), `http.py` (timeouts, caching, User-Agent) |
-| `agent/` | `runner.py` (tool loop and limits), `tools.py` (the 11 tools), `prompt.py` (instructions and context), `parser.py` (reads messages without AI), `guided.py` (answers without AI), `llm.py` (OpenAI-compatible client with fallback) |
+| `services/` | `weather.py` (Open-Meteo, PMD alerts), `roads.py` (honest road information), `routing.py` (curated legs, OSRM), `places.py` (stays and food from the guide and OpenStreetMap), `conditions.py` (forecast and roads for a plan), `http.py` (timeouts, caching, User-Agent) |
+| `agent/` | `runner.py` (tool loop and limits), `tools.py` (the 12 tools), `prompt.py` (instructions and context), `parser.py` (reads messages without AI), `guided.py` (answers without AI), `llm.py` (OpenAI-compatible client with fallback) |
 | `tests/` | pytest suite with fakes for every outside service, including the 10 agent evaluation scenarios |
