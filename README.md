@@ -121,6 +121,8 @@ The site is static (`dist/`, served by Vercel's CDN) and the API is one Python f
    uses another name). Without it, saving and enquiries are switched off and the site says so.
 2. **Settings.** Under Settings → Environment Variables add `ADMIN_TOKEN`, your AI key
    (`LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`), and `SITE_URL` if you use your own domain.
+   Each variable applies to the environments you tick: tick Preview as well as Production
+   if you want branch previews to have the AI and saving.
 3. **Deploy.** Push to the branch Vercel deploys (usually `main`), or click Redeploy.
 4. **Check.** Open `https://<your-site>/api/health`. You want `"configured": true` under
    `ai`, `"enabled": true` under `storage` and `"enquiries_open": true`. The tables are
@@ -129,8 +131,10 @@ The site is static (`dist/`, served by Vercel's CDN) and the API is one Python f
    database.
 5. **Test the live site** (optional): `python e2e/run_e2e.py https://<your-site>`.
 
-This version has not been deployed from here (no access to the Vercel project), so do step 4
-after the first deployment.
+On 28 Oct 2026 Vercel built a preview of the `raahi-upgrade` branch without errors. Previews
+sit behind Vercel's login, so its pages and `/api/health` could not be opened from here: open
+the preview while logged in to Vercel and do step 4 there, then merge the branch into `main`
+to publish it.
 
 [render.yaml](render.yaml) describes an alternative deployment on Render (one Flask service
 with gunicorn). It was not tested in this upgrade.
@@ -153,8 +157,9 @@ uncompressed; with compression, as on Vercel, the script drops from 224 KB to ab
 and the first load to about 625 KB.
 
 What the tests do not show: how a real AI model behaves (the agent was tested with a
-scripted model, because no AI key was available for testing), that Vercel runs this version
-(not deployed from here), or that the live services will keep answering. Automated
+scripted model, because no AI key was available for testing), that this version works on
+Vercel (the preview built, but could not be opened from here), or that the live services
+will keep answering. Automated
 accessibility rules also catch only part of the problems; try the site with a keyboard and a
 screen reader too.
 
