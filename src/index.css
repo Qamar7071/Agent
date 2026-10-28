@@ -4,22 +4,88 @@
 
 @layer base {
   html {
-    scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
+    scroll-padding-top: 88px;
   }
   body {
-    @apply bg-white font-sans text-ink antialiased;
+    @apply bg-limestone font-sans text-base text-ink antialiased;
+    font-stretch: 100%;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
   }
   ::selection {
-    @apply bg-brand text-white;
+    @apply bg-juniper text-white;
   }
   :focus-visible {
-    outline: 3px solid #1570ef;
-    outline-offset: 3px;
-    border-radius: 12px;
+    outline: 3px solid #2a6150;
+    outline-offset: 2px;
+    border-radius: 4px;
   }
   .on-dark :focus-visible {
-    outline-color: #a9d4ff;
+    outline-color: #f2c27f;
+  }
+  input,
+  select,
+  textarea,
+  button {
+    font: inherit;
+  }
+}
+
+@layer components {
+  /* Map-label type: Archivo stretched wide, for place names and headings. */
+  .type-wide {
+    font-stretch: 125%;
+    letter-spacing: -0.01em;
+  }
+  .type-semiwide {
+    font-stretch: 112%;
+  }
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .btn {
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded px-4 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-primary {
+    @apply btn bg-juniper text-white hover:bg-juniper-700;
+  }
+  .btn-light {
+    @apply btn bg-white text-juniper hover:bg-juniper-50;
+  }
+  .btn-outline {
+    @apply btn border border-limestone-400 bg-paper text-ink hover:border-juniper-600 hover:text-juniper;
+  }
+  .btn-quiet {
+    @apply btn min-h-[36px] px-2.5 text-juniper-600 hover:bg-juniper-50 hover:text-juniper;
+  }
+
+  .field-label {
+    @apply mb-1.5 block text-sm font-semibold text-ink-700;
+  }
+  .field {
+    @apply block min-h-[44px] w-full rounded border border-limestone-400 bg-paper px-3 text-base text-ink placeholder:text-ink-500 focus:border-juniper-600 focus:outline-none focus:ring-2 focus:ring-juniper-200;
+  }
+  .chip {
+    @apply inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-limestone-400 bg-paper px-3 text-sm font-medium text-ink-700 transition-colors hover:border-juniper-600;
+  }
+  .chip[aria-pressed='true'],
+  .chip[aria-checked='true'] {
+    @apply border-juniper bg-juniper text-white;
+  }
+
+  .panel {
+    @apply rounded-md border border-limestone-300 bg-paper;
+  }
+  .link {
+    @apply font-semibold text-juniper-600 underline decoration-juniper-200 underline-offset-[3px] hover:decoration-juniper-600;
   }
 }
 
@@ -33,44 +99,27 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
   *,
   *::before,
   *::after {
     animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
     transition-duration: 0.001ms !important;
   }
 }
 
 @media print {
-  body > #root > header,
-  #top,
-  #features,
-  #destinations,
-  #why,
-  #experiences,
-  #seasons,
-  #safety,
-  #cta,
+  header,
   footer,
-  #plan form,
-  #plan-heading,
-  .fixed {
+  .no-print {
     display: none !important;
   }
-  #plan {
-    padding: 0 !important;
-    background: #fff !important;
+  body {
+    background: #fff;
   }
-  #itinerary {
-    box-shadow: none !important;
-    max-height: none !important;
-  }
-  #itinerary ol {
-    max-height: none !important;
+  .print-full {
     overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
   }
 }

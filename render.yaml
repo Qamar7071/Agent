@@ -1,20 +1,30 @@
-# One-click deploy on Render (https://render.com) — free tier works.
-# 1. Push this repo to GitHub.
-# 2. Render → New → Blueprint → pick the repo. It reads this file.
-# 3. Add your LLM_API_KEY in the dashboard (it's marked sync:false so it isn't committed).
+# Optional: deploy on Render (https://render.com) instead of Vercel. Not tested in this
+# upgrade; Vercel is the main deployment (see README.md).
+# 1. Push this repo to GitHub.  2. Render: New > Blueprint > pick the repo (it reads this file).
+# 3. Fill in the values marked sync: false in the dashboard. Without DATABASE_URL, saving
+#    and enquiries stay off, because Render's free disk is wiped on every deploy.
 services:
   - type: web
     name: raahi-ai-travel
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build && pip install -r backend/requirements.txt
+    buildCommand: npm ci && npm run build && pip install -r backend/requirements.txt
     startCommand: cd backend && gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    healthCheckPath: /api/health
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.5"
       - key: LLM_API_KEY
         sync: false
       - key: LLM_BASE_URL
         value: https://api.openai.com/v1
       - key: LLM_MODEL
         value: gpt-4o-mini
-      - key: PYTHON_VERSION
-        value: "3.12.5"
+      - key: LLM2_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: ADMIN_TOKEN
+        generateValue: true
+      - key: SITE_URL
+        sync: false

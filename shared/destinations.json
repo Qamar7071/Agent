@@ -1,0 +1,1428 @@
+{
+ "meta": {
+  "version": 2,
+  "last_reviewed": "2026-10-27",
+  "note": "Single source of truth for destination facts, used by the API, the website and the database seed. Values marked verified=false are curated approximations. Nothing here is live data."
+ },
+ "destinations": [
+  {
+   "id": "hunza",
+   "name": "Hunza Valley",
+   "region": "Hunza · Karimabad",
+   "province": "Gilgit-Baltistan",
+   "category": [
+    "valleys",
+    "culture"
+   ],
+   "tagline": "Forts, orchards and a ring of 7,000-metre peaks",
+   "description": "Karimabad sits on a terrace above the Hunza River, facing Rakaposhi and Diran. Walk the lanes to Baltit and Altit forts, climb to Eagle’s Nest for sunset, and time spring for apricot blossom or late autumn for gold poplars.",
+   "altitude_m": 2500,
+   "altitude_note": "Approximate elevation of the visited area.",
+   "coords": {
+    "lat": 36.3167,
+    "lng": 74.6667,
+    "precision": "approximate area centre",
+    "verified": false,
+    "note": "Good enough for weather and map links; not for navigation."
+   },
+   "recommended_days": {
+    "min": 3,
+    "max": 6,
+    "default": 3
+   },
+   "best_months": [
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ],
+   "season_note": "April blossom and late-October colours are the classic windows.",
+   "access": "Fly Islamabad → Gilgit (weather-dependent), then about 2 hours by road. By road from Islamabad it is a 1–2 day drive on the Karakoram Highway.",
+   "accessibility": "Town base with road access; forts involve stairs and steep lanes.",
+   "bad_weather_alternative": "If it rains: visit Baltit and Altit forts (indoor rooms) and Karimabad's cafés and craft shops; skip high viewpoints.",
+   "highlights": [
+    "Baltit Fort",
+    "Altit Fort & royal garden",
+    "Eagle’s Nest sunset",
+    "Rakaposhi viewpoint",
+    "Hunza cafés & local food"
+   ],
+   "nearby": [
+    "attabad",
+    "passu",
+    "khunjerab"
+   ],
+   "day_plans": [
+    {
+     "title": "Karimabad & the forts",
+     "activities": [
+      "Baltit Fort guided visit",
+      "Walk the old bazaar lanes",
+      "Altit Fort and royal garden"
+     ]
+    },
+    {
+     "title": "Eagle’s Nest & viewpoints",
+     "activities": [
+      "Sunrise or sunset at Eagle’s Nest (Duikar)",
+      "Rakaposhi viewpoint stop",
+      "Local Hunza food tasting"
+     ]
+    },
+    {
+     "title": "Slow day in the valley",
+     "activities": [
+      "Orchard walk along the water channels",
+      "Handicraft shops in Karimabad",
+      "Golden-hour photography"
+     ]
+    }
+   ],
+   "visit_costs": [],
+   "aliases": [
+    "hunza",
+    "karimabad",
+    "baltit",
+    "altit",
+    "eagle's nest",
+    "eagles nest",
+    "duikar"
+   ],
+   "sleep_hub": "hunza",
+   "sources": [
+    {
+     "label": "Wikipedia: Hunza Valley",
+     "url": "https://en.wikipedia.org/wiki/Hunza_Valley"
+    },
+    {
+     "label": "Gilgit-Baltistan Tourism Department",
+     "url": "https://tourismdept.gbit.gov.pk"
+    },
+    {
+     "label": "Wikipedia: Karakoram Highway",
+     "url": "https://en.wikipedia.org/wiki/Karakoram_Highway"
+    }
+   ],
+   "last_reviewed": "2026-10-27",
+   "record_status": "curated",
+   "record_note": "Curated travel guide content. Descriptive facts only: no live prices, road status or opening dates."
+  },
+  {
+   "id": "skardu",
+   "name": "Skardu & Upper Kachura",
+   "region": "Baltistan · Skardu",
+   "province": "Gilgit-Baltistan",
+   "category": [
+    "lakes",
+    "valleys"
+   ],
+   "tagline": "Glass-still lakes in a cold desert",
+   "description": "The capital of Baltistan and the gateway to the Karakoram giants. Row across Upper Kachura’s clear water, stay by Shangrila, explore Shigar Fort and walk the dunes of the Katpana cold desert.",
+   "altitude_m": 2228,
+   "altitude_note": "Approximate elevation of the visited area.",
+   "coords": {
+    "lat": 35.2971,
+    "lng": 75.6333,
+    "precision": "approximate area centre",
+    "verified": false,
+    "note": "Good enough for weather and map links; not for navigation."
+   },
+   "recommended_days": {
+    "min": 3,
+    "max": 5,
+    "default": 3
+   },
+   "best_months": [
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "season_note": "Summer is green and busy; autumn is calm, clear and cooler.",
+   "access": "Fly Islamabad → Skardu (weather-dependent, keep a buffer day). By road it is a long 1–2 day drive via the Karakoram Highway and the Jaglot–Skardu road.",
+   "accessibility": "Town base with road and airport access; lake shores are uneven.",
+   "bad_weather_alternative": "If it rains: Shigar Fort and Skardu bazaar; avoid boat rides and the Deosai road.",
+   "highlights": [
+    "Upper Kachura Lake",
+    "Shangrila (Lower Kachura)",
+    "Shigar Fort",
+    "Katpana cold desert",
+    "Manthokha waterfall"
+   ],
+   "nearby": [
+    "deosai",
+    "k2"
+   ],
+   "day_plans": [
+    {
+     "title": "Kachura lakes",
+     "activities": [
+      "Boat ride on Upper Kachura Lake",
+      "Lunch by Shangrila (Lower Kachura)",
+      "Sunset at Katpana cold desert"
+     ]
+    },
+    {
+     "title": "Shigar Valley",
+     "activities": [
+      "Shigar Fort and its gardens",
+      "Village walk along the Shigar River",
+      "Evening in Skardu bazaar"
+     ]
+    },
+    {
+     "title": "Waterfalls & villages",
+     "activities": [
+      "Day trip to Manthokha waterfall",
+      "Kharmang valley viewpoints",
+      "Return to Skardu"
+     ]
+    }
+   ],
+   "visit_costs": [],
+   "aliases": [
+    "skardu",
+    "kachura",
+    "shangrila",
+    "shangri-la",
+    "shigar",
+    "katpana"
+   ],
+   "sleep_hub": "skardu",
+   "sources": [
+    {
+     "label": "Wikipedia: Skardu",
+     "url": "https://en.wikipedia.org/wiki/Skardu"
+    },
+    {
+     "label": "Gilgit-Baltistan Tourism Department",
+     "url": "https://tourismdept.gbit.gov.pk"
+    },
+    {
+     "label": "Wikipedia: Karakoram Highway",
+     "url": "https://en.wikipedia.org/wiki/Karakoram_Highway"
+    }
+   ],
+   "last_reviewed": "2026-10-27",
+   "record_status": "curated",
+   "record_note": "Curated travel guide content. Descriptive facts only: no live prices, road status or opening dates."
+  },
+  {
+   "id": "attabad",
+   "name": "Attabad Lake",
+   "region": "Gojal · Upper Hunza",
+   "province": "Gilgit-Baltistan",
+   "category": [
+    "lakes"
+   ],
+   "tagline": "Turquoise water born from a mountain",
+   "description": "Formed by a landslide in 2010, Attabad is now one of the most vivid lakes in the Karakoram. Take a boat along the cliffs, stop at the lakeside, and continue up the Karakoram Highway into Gojal.",
+   "altitude_m": 2560,
+   "altitude_note": "Approximate elevation of the visited area.",
+   "coords": {
+    "lat": 36.3486,
+    "lng": 74.8603,
+    "precision": "approximate area centre",
+    "verified": false,
+    "note": "Good enough for weather and map links; not for navigation."
+   },
+   "recommended_days": {
+    "min": 1,
+    "max": 2,
+    "default": 1
+   },
+   "best_months": [
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "season_note": "The colour is brightest on clear summer days.",
+   "access": "About 30–45 minutes from Karimabad on the Karakoram Highway, through the lakeside tunnels.",
+   "accessibility": "Roadside lake on the KKH; boat rides need a step down onto the boat.",
+   "bad_weather_alternative": "If it rains or the wind is strong: skip the boat ride and stay in Gulmit's village lanes and cafés.",
+   "highlights": [
+    "Boat ride on the lake",
+    "Lakeside viewpoints",
+    "Karakoram Highway tunnels",
+    "Gulmit village"
+   ],
+   "nearby": [
+    "hunza",
+    "passu"
+   ],
+   "day_plans": [
+    {
+     "title": "Attabad & Gulmit",
+     "activities": [
+      "Boat ride along the cliffs",
+      "Lakeside lunch stop",
+      "Gulmit village and its old houses"
+     ]
+    }
+   ],
+   "visit_costs": [],
+   "aliases": [
+    "attabad",
+    "atabad",
+    "ataabad",
+    "gulmit"
+   ],
+   "sleep_hub": "attabad",
+   "sources": [
+    {
+     "label": "Wikipedia: Attabad Lake",
+     "url": "https://en.wikipedia.org/wiki/Attabad_Lake"
+    },
+    {
+     "label": "Gilgit-Baltistan Tourism Department",
+     "url": "https://tourismdept.gbit.gov.pk"
+    },
+    {
+     "label": "Wikipedia: Karakoram Highway",
+     "url": "https://en.wikipedia.org/wiki/Karakoram_Highway"
+    }
+   ],
+   "last_reviewed": "2026-10-27",
+   "record_status": "curated",
+   "record_note": "Curated travel guide content. Descriptive facts only: no live prices, road status or opening dates."
+  },
+  {
+   "id": "fairy-meadows",
+   "name": "Fairy Meadows",
+   "region": "Diamer · Raikot",
+   "province": "Gilgit-Baltistan",
+   "category": [
+    "treks"
+   ],
+   "tagline": "Pine meadows under Nanga Parbat",
+   "description": "A high meadow facing the Rakhiot face of Nanga Parbat (8,126 m). Reach it by jeep from Raikot Bridge and a short hike, then spend a night under clear skies and walk on to Beyal Camp.",
+   "altitude_m": 3300,
+   "altitude_note": "Approximate elevation of the visited area.",
+   "coords": {
+    "lat": 35.3869,
+    "lng": 74.5744,
+    "precision": "approximate area centre",
+    "verified": false,
+    "note": "Good enough for weather and map links; not for navigation."
+   },
+   "recommended_days": {
+    "min": 2,
+    "max": 4,
+    "default": 2
+   },
+   "best_months": [
+    6,
+    7,
+    8,
+    9
+   ],
+   "season_note": "Snow closes the meadow in winter; June to September is the season.",
+   "access": "Jeep from Raikot Bridge on the Karakoram Highway towards Tato, then a 2–3 hour hike. The jeep track is narrow — use local registered drivers.",
+   "accessibility": "Jeep track then a 2–3 hour uphill hike; not suitable for wheelchairs or people who cannot hike.",
+   "bad_weather_alternative": "If it rains: stay at the meadow camp and skip the Beyal walk; do not attempt the jeep track during heavy rain.",
+   "highlights": [
+    "Nanga Parbat view",
+    "Beyal Camp walk",
+    "Night-sky photography",
+    "Reflection lake"
+   ],
+   "nearby": [
+    "hunza",
+    "skardu"
+   ],
+   "day_plans": [
+    {
+     "title": "Raikot to Fairy Meadows",
+     "activities": [
+      "Jeep ride from Raikot Bridge",
+      "Hike up to the meadow",
+      "Evening view of Nanga Parbat"
+     ]
+    },
+    {
+     "title": "Beyal Camp walk",
+     "activities": [
+      "Hike towards Beyal Camp",
+      "Reflection lake at sunrise",
+      "Stargazing at night"
+     ]
+    }
+   ],
+   "visit_costs": [],
+   "aliases": [
+    "fairy meadows",
+    "fairy meadow",
+    "fairy",
+    "nanga parbat",
+    "raikot",
+    "beyal"
+   ],
+   "sleep_hub": "fairy-meadows",
+   "sources": [
+    {
+     "label": "Wikipedia: Fairy Meadows",
+     "url": "https://en.wikipedia.org/wiki/Fairy_Meadows"
+    },
+    {
+     "label": "Gilgit-Baltistan Tourism Department",
+     "url": "https://tourismdept.gbit.gov.pk"
+    },
+    {
+     "label": "Wikipedia: Karakoram Highway",
+     "url": "https://en.wikipedia.org/wiki/Karakoram_Highway"
+    }
+   ],
+   "last_reviewed": "2026-10-27",
+   "record_status": "curated",
+   "record_note": "Curated travel guide content. Descriptive facts only: no live prices, road status or opening dates."
+  },
+  {
+   "id": "deosai",
+   "name": "Deosai National Park",
+   "region": "Baltistan · Astore",
+   "province": "Gilgit-Baltistan",
+   "category": [
+    "high"
+   ],
+   "tagline": "The plateau they call the land of giants",
+   "description": "One of the highest plateaus in the world, averaging around 4,100 m. Summer turns it into a sea of wildflowers, with Sheosar Lake, marmots and the Himalayan brown bear it protects.",
+   "altitude_m": 4114,
+   "altitude_note": "Approximate elevation of the visited area.",
+   "coords": {
+    "lat": 34.9667,
+    "lng": 75.4167,
+    "precision": "approximate area centre",
+    "verified": false,
+    "note": "Good enough for weather and map links; not for navigation."
+   },
+   "recommended_days": {
+    "min": 1,
+    "max": 2,
+    "default": 1
+   },
+   "best_months": [
+    6,
+    7,
+    8,
+    9
+   ],
+   "season_note": "Open roughly June to September; snow closes it the rest of the year.",
+   "access": "Jeep from Skardu via Sadpara Lake, about 2–3 hours to the plateau. Nights are cold even in summer.",
+   "accessibility": "High plateau (about 4,100 m) reached by jeep; no facilities; cold nights.",
+   "bad_weather_alternative": "If rain, snow or low cloud: postpone the plateau and use the day in Skardu; the plateau is exposed and cold.",
+   "highlights": [
+    "Sheosar Lake",
+    "Bara Pani stream",
+    "Wildflower season",
+    "Himalayan brown bear habitat"
+   ],
+   "nearby": [
+    "skardu"
+   ],
+   "day_plans": [
+    {
+     "title": "Deosai plateau",
+     "activities": [
+      "Jeep via Sadpara Lake",
+      "Bara Pani and the open plains",
+      "Sheosar Lake picnic",
+      "Return to Skardu before dark"
+     ]
+    }
+   ],
+   "visit_costs": [
+    {
+     "item": "National park entry (per person, local rate)",
+     "pkr": 500,
+     "status": "estimate",
+     "verified": false
+    }
+   ],
+   "aliases": [
+    "deosai",
+    "sheosar",
+    "deosi"
+   ],
+   "sleep_hub": "skardu",
+   "sources": [
+    {
+     "label": "Wikipedia: Deosai National Park",
+     "url": "https://en.wikipedia.org/wiki/Deosai_National_Park"
+    },
+    {
+     "label": "Gilgit-Baltistan Tourism Department",
+     "url": "https://tourismdept.gbit.gov.pk"
+    },
+    {
+     "label": "Wikipedia: Karakoram Highway",
+     "url": "https://en.wikipedia.org/wiki/Karakoram_Highway"
+    }
+   ],
+   "last_reviewed": "2026-10-27",
+   "record_status": "curated",
+   "record_note": "Curated travel guide content. Descriptive facts only: no live prices, road status or opening dates."
+  },
+  {
+   "id": "passu",
+   "name": "Passu & Gojal",
+   "region": "Gojal · Upper Hunza",
+   "province": "Gilgit-Baltistan",
+   "category": [
+    "valleys",
+    "treks"
+   ],
+   "tagline": "Cathedral spires and a swaying bridge",
+   "description": "The serrated Passu Cones (Tupopdan, 6,106 m) rise straight above the Karakoram Highway. Cross the Hussaini suspension bridge, walk to Borith Lake and look out over the Passu Glacier.",
+   "altitude_m": 2400,
+   "altitude_note": "Approximate elevation of the visited area.",
+   "coords": {
+    "lat": 36.4667,
+    "lng": 74.8833,
+    "precision": "approximate area centre",
+    "verified": false,
+    "note": "Good enough for weather and map links; not for navigation."
+   },
+   "recommended_days": {
+    "min": 1,
+    "max": 3,
+    "default": 1
+   },
+   "best_months": [
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "season_note": "Autumn apricot-and-poplar colours make October special.",
+   "access": "About 1 hour north of Karimabad on the Karakoram Highway, past Attabad Lake.",
+   "accessibility": "Roadside village; the Hussaini bridge is a swaying plank bridge, not suitable for everyone.",
+   "bad_weather_alternative": "If it rains: skip the Hussaini bridge and glacier walk; visit Gulmit's cultural spots instead.",
+   "highlights": [
+    "Passu Cones viewpoint",
+    "Hussaini suspension bridge",
+    "Borith Lake",
+    "Passu Glacier"
+   ],
+   "nearby": [
+    "attabad",
+    "khunjerab",
+    "hunza"
+   ],
+   "day_plans": [
+    {
+     "title": "Passu Cones & Hussaini",
+     "activities": [
+      "Passu Cones viewpoint",
+      "Cross the Hussaini suspension bridge",
+      "Walk to Borith Lake"
+     ]
+    },
+    {
+     "title": "Glacier walk",
+     "activities": [
+      "Short hike towards Passu Glacier",
+      "Village apricot orchards",
+      "Sunset on the Cones"
+     ]
+    }
+   ],
+   "visit_costs": [],
+   "aliases": [
+    "passu",
+    "pasu",
+    "hussaini",
+    "borith",
+    "gojal",
+    "tupopdan"
+   ],
+   "sleep_hub": "passu",
+   "sources": [
+    {
+     "label": "Wikipedia: Passu",
+     "url": "https://en.wikipedia.org/wiki/Passu"
+    },
+    {
+     "label": "Gilgit-Baltistan Tourism Department",
+     "url": "https://tourismdept.gbit.gov.pk"
+    },
+    {
+     "label": "Wikipedia: Karakoram Highway",
+     "url": "https://en.wikipedia.org/wiki/Karakoram_Highway"
+    }
+   ],
+   "last_reviewed": "2026-10-27",
+   "record_status": "curated",
+   "record_note": "Curated travel guide content. Descriptive facts only: no live prices, road status or opening dates."
+  },
+  {
+   "id": "khunjerab",
+   "name": "Khunjerab Pass",
+   "region": "Hunza · Pak–China border",
+   "province": "Gilgit-Baltistan",
+   "category": [
+    "high"
+   ],
+   "tagline": "The highest paved border crossing on Earth",
+   "description": "At 4,693 m, the top of the Karakoram Highway marks the border with China inside Khunjerab National Park — home to Marco Polo sheep and ibex. Go slowly: the altitude is real.",
+   "altitude_m": 4693,
+   "altitude_note": "Approximate elevation of the visited area.",
+   "coords": {
+    "lat": 36.8469,
+    "lng": 75.4267,
+    "precision": "approximate area centre",
+    "verified": false,
+    "note": "Good enough for weather and map links; not for navigation."
+   },
+   "recommended_days": {
+    "min": 1,
+    "max": 1,
+    "default": 1
+   },
+   "best_months": [
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "season_note": "Seasonal — typically open late spring to late autumn. Confirm before you go.",
+   "access": "A day trip from Passu or Sost along the Karakoram Highway. National park entry is paid at the checkpoint.",
+   "accessibility": "Drive-up border pass at about 4,700 m; thin air, keep stops short.",
+   "bad_weather_alternative": "If snow or storms are forecast: do not drive to the pass; stay lower in Gojal and try another day.",
+   "highlights": [
+    "Pak–China border gate",
+    "Khunjerab National Park",
+    "Sost and the upper KKH",
+    "Wildlife spotting"
+   ],
+   "nearby": [
+    "passu",
+    "attabad"
+   ],
+   "day_plans": [
+    {
+     "title": "Up to Khunjerab",
+     "activities": [
+      "Early start from Passu",
+      "Khunjerab National Park drive",
+      "Border gate at 4,693 m — keep the stop short",
+      "Back down to Gojal"
+     ]
+    }
+   ],
+   "visit_costs": [
+    {
+     "item": "National park entry (per person, local rate)",
+     "pkr": 800,
+     "status": "estimate",
+     "verified": false
+    }
+   ],
+   "aliases": [
+    "khunjerab",
+    "sost",
+    "china border",
+    "pak-china border"
+   ],
+   "sleep_hub": "sost",
+   "sources": [
+    {
+     "label": "Wikipedia: Khunjerab Pass",
+     "url": "https://en.wikipedia.org/wiki/Khunjerab_Pass"
+    },
+    {
+     "label": "Gilgit-Baltistan Tourism Department",
+     "url": "https://tourismdept.gbit.gov.pk"
+    },
+    {
+     "label": "Wikipedia: Karakoram Highway",
+     "url": "https://en.wikipedia.org/wiki/Karakoram_Highway"
+    }
+   ],
+   "last_reviewed": "2026-10-27",
+   "record_status": "curated",
+   "record_note": "Curated travel guide content. Descriptive facts only: no live prices, road status or opening dates."
+  },
+  {
+   "id": "k2",
+   "name": "K2 Base Camp & Concordia",
+   "region": "Baltoro · Karakoram",
+   "province": "Gilgit-Baltistan",
+   "category": [
+    "treks",
+    "high"
+   ],
+   "tagline": "The throne room of the mountain gods",
+   "description": "The great Karakoram trek: walk the Baltoro Glacier past the Trango Towers to Concordia, where K2 (8,611 m), Broad Peak and the Gasherbrums stand in one view. A serious expedition for fit trekkers.",
+   "altitude_m": 5150,
+   "altitude_note": "Approximate elevation of the visited area.",
+   "coords": {
+    "lat": 35.8808,
+    "lng": 76.5133,
+    "precision": "approximate area centre",
+    "verified": false,
+    "note": "Good enough for weather and map links; not for navigation."
+   },
+   "recommended_days": {
+    "min": 14,
+    "max": 21,
+    "default": 14
+   },
+   "best_months": [
+    6,
+    7,
+    8
+   ],
+   "season_note": "A short summer window, June to August.",
+   "access": "From Skardu by jeep to Askole, then on foot. Requires a trekking permit and a registered operator.",
+   "accessibility": "Multi-week glacier trek with permits and an operator; for fit, experienced trekkers only.",
+   "bad_weather_alternative": "Weather days are built into expedition plans; follow your licensed operator and guide.",
+   "highlights": [
+    "Baltoro Glacier",
+    "Trango Towers",
+    "Concordia",
+    "K2 Base Camp"
+   ],
+   "nearby": [
+    "skardu"
+   ],
+   "day_plans": [
+    {
+     "title": "Skardu → Askole",
+     "activities": [
+      "Jeep through the Braldu gorge",
+      "Gear and permit check"
+     ]
+    },
+    {
+     "title": "Askole → Paiju",
+     "activities": [
+      "Trek along the Braldu",
+      "Acclimatisation pace"
+     ]
+    },
+    {
+     "title": "Baltoro Glacier",
+     "activities": [
+      "Urdukas and Goro camps",
+      "Trango Towers and Masherbrum views"
+     ]
+    },
+    {
+     "title": "Concordia & K2 Base Camp",
+     "activities": [
+      "Sunrise on K2 and Broad Peak",
+      "Walk to K2 Base Camp"
+     ]
+    },
+    {
+     "title": "Return trek",
+     "activities": [
+      "Retrace the glacier towards Askole"
+     ]
+    }
+   ],
+   "visit_costs": [],
+   "aliases": [
+    "k2",
+    "concordia",
+    "baltoro",
+    "askole"
+   ],
+   "sleep_hub": "askole",
+   "sources": [
+    {
+     "label": "Wikipedia: K2",
+     "url": "https://en.wikipedia.org/wiki/K2"
+    },
+    {
+     "label": "Wikipedia: Baltoro Glacier",
+     "url": "https://en.wikipedia.org/wiki/Baltoro_Glacier"
+    },
+    {
+     "label": "Gilgit-Baltistan Tourism Department",
+     "url": "https://tourismdept.gbit.gov.pk"
+    },
+    {
+     "label": "Wikipedia: Karakoram Highway",
+     "url": "https://en.wikipedia.org/wiki/Karakoram_Highway"
+    }
+   ],
+   "last_reviewed": "2026-10-27",
+   "record_status": "curated",
+   "record_note": "Curated travel guide content. Descriptive facts only: no live prices, road status or opening dates."
+  }
+ ],
+ "route_order": [
+  "fairy-meadows",
+  "skardu",
+  "deosai",
+  "k2",
+  "hunza",
+  "attabad",
+  "passu",
+  "khunjerab"
+ ],
+ "season_notes": {
+  "winter": "Deep winter. High plateaus, passes and treks are usually closed by snow. Skardu and Hunza towns usually stay reachable, but flights are weather-dependent and the KKH can close after heavy snowfall.",
+  "spring": "Blossom season. Apricot and cherry trees flower in Hunza and Skardu while high routes are still thawing and often closed.",
+  "summer": "Peak season. High routes such as Deosai, Fairy Meadows, Khunjerab and the Baltoro are usually open, but monsoon rain can bring landslides: check road status before you travel and book stays early.",
+  "autumn": "Golden season. Poplars and orchards turn gold, skies are often clear and crowds thin out. High routes begin closing from late autumn."
+ },
+ "hubs": {
+  "islamabad": {
+   "lat": 33.6844,
+   "lng": 73.0479,
+   "altitude_m": 540,
+   "altitude_note": "approximate"
+  },
+  "rawalpindi": {
+   "lat": 33.5651,
+   "lng": 73.0169,
+   "altitude_m": 510,
+   "altitude_note": "approximate"
+  },
+  "lahore": {
+   "lat": 31.5204,
+   "lng": 74.3587
+  },
+  "karachi": {
+   "lat": 24.8607,
+   "lng": 67.0011
+  },
+  "peshawar": {
+   "lat": 34.0151,
+   "lng": 71.5249
+  },
+  "gilgit": {
+   "lat": 35.9208,
+   "lng": 74.308,
+   "altitude_m": 1500,
+   "altitude_note": "approximate"
+  },
+  "chilas": {
+   "lat": 35.4206,
+   "lng": 74.0953,
+   "altitude_m": 1265,
+   "altitude_note": "approximate"
+  },
+  "sost": {
+   "lat": 36.6667,
+   "lng": 74.855,
+   "altitude_m": 2800,
+   "altitude_note": "approximate"
+  },
+  "raikot-bridge": {
+   "lat": 35.389,
+   "lng": 74.579
+  },
+  "askole": {
+   "lat": 35.6814,
+   "lng": 75.8158
+  }
+ },
+ "origins": {
+  "Islamabad": "islamabad",
+  "Rawalpindi": "rawalpindi",
+  "Lahore": "lahore",
+  "Karachi": "karachi",
+  "Peshawar": "peshawar",
+  "Gilgit": "gilgit",
+  "Skardu": "skardu"
+ },
+ "cluster_gateway": {
+  "hunza": "gilgit",
+  "attabad": "gilgit",
+  "passu": "gilgit",
+  "khunjerab": "gilgit",
+  "skardu": "skardu",
+  "deosai": "skardu",
+  "fairy-meadows": "raikot-bridge",
+  "k2": "skardu"
+ },
+ "legs": [
+  {
+   "from": "islamabad",
+   "to": "chilas",
+   "km": 460,
+   "hours": [
+    10,
+    12
+   ],
+   "note": "Karakoram Highway via Besham (or Babusar Top in summer).",
+   "status": "approximate",
+   "verified": false
+  },
+  {
+   "from": "chilas",
+   "to": "gilgit",
+   "km": 130,
+   "hours": [
+    3,
+    4
+   ],
+   "note": "KKH along the Indus, past the three-ranges junction.",
+   "status": "approximate",
+   "verified": false
+  },
+  {
+   "from": "chilas",
+   "to": "skardu",
+   "km": 230,
+   "hours": [
+    6,
+    7
+   ],
+   "note": "Jaglot–Skardu road along the Indus gorge.",
+   "status": "approximate",
+   "verified": false
+  },
+  {
+   "from": "gilgit",
+   "to": "skardu",
+   "km": 210,
+   "hours": [
+    6,
+    7
+   ],
+   "note": "Jaglot–Skardu road; often combined with the KKH.",
+   "status": "approximate",
+   "verified": false
+  },
+  {
+   "from": "gilgit",
+   "to": "hunza",
+   "km": 100,
+   "hours": [
+    2.5,
+    3
+   ],
+   "note": "KKH north to Karimabad.",
+   "status": "approximate",
+   "verified": false
+  },
+  {
+   "from": "hunza",
+   "to": "attabad",
+   "km": 20,
+   "hours": [
+    0.75,
+    1
+   ],
+   "note": "KKH through the lakeside tunnels.",
+   "status": "approximate",
+   "verified": false
+  },
+  {
+   "from": "attabad",
+   "to": "passu",
+   "km": 25,
+   "hours": [
+    0.75,
+    1
+   ],
+   "note": "KKH past Gulmit.",
+   "status": "approximate",
+   "verified": false
+  },
+  {
+   "from": "passu",
+   "to": "sost",
+   "km": 35,
+   "hours": [
+    1,
+    1.25
+   ],
+   "note": "KKH to the last town before the border.",
+   "status": "approximate",
+   "verified": false
+  },
+  {
+   "from": "sost",
+   "to": "khunjerab",
+   "km": 85,
+   "hours": [
+    2.5,
+    3
+   ],
+   "note": "KKH climb into Khunjerab National Park.",
+   "status": "approximate",
+   "verified": false
+  },
+  {
+   "from": "passu",
+   "to": "khunjerab",
+   "km": 120,
+   "hours": [
+    3.5,
+    4
+   ],
+   "note": "KKH via Sost to the Pak–China border.",
+   "status": "approximate",
+   "verified": false
+  },
+  {
+   "from": "skardu",
+   "to": "deosai",
+   "km": 60,
+   "hours": [
+    2.5,
+    3
+   ],
+   "note": "Jeep via Sadpara Lake onto the plateau.",
+   "status": "approximate",
+   "verified": false
+  },
+  {
+   "from": "skardu",
+   "to": "askole",
+   "km": 120,
+   "hours": [
+    6,
+    7
+   ],
+   "note": "Rough jeep track through the Braldu gorge.",
+   "status": "approximate",
+   "verified": false,
+   "mode": "jeep"
+  },
+  {
+   "from": "askole",
+   "to": "k2",
+   "km": 90,
+   "hours": [
+    0,
+    0
+   ],
+   "note": "On foot along the Baltoro Glacier — several trekking days.",
+   "status": "approximate",
+   "verified": false,
+   "mode": "trek"
+  },
+  {
+   "from": "raikot-bridge",
+   "to": "fairy-meadows",
+   "km": 15,
+   "hours": [
+    1.5,
+    2.5
+   ],
+   "note": "Narrow jeep track from the KKH, then a 2–3 h hike.",
+   "status": "approximate",
+   "verified": false,
+   "mode": "jeep",
+   "hike_hours": [
+    2,
+    3
+   ]
+  },
+  {
+   "from": "hunza",
+   "to": "skardu",
+   "km": 290,
+   "hours": [
+    7,
+    9
+   ],
+   "note": "Back down the KKH to Gilgit, then the Skardu road.",
+   "status": "approximate",
+   "verified": false
+  },
+  {
+   "from": "gilgit",
+   "to": "chilas",
+   "km": 130,
+   "hours": [
+    3,
+    4
+   ],
+   "note": "KKH south along the Indus.",
+   "status": "approximate",
+   "verified": false
+  },
+  {
+   "from": "gilgit",
+   "to": "raikot-bridge",
+   "km": 80,
+   "hours": [
+    2,
+    2.5
+   ],
+   "note": "KKH south towards Chilas.",
+   "status": "approximate",
+   "verified": false
+  },
+  {
+   "from": "chilas",
+   "to": "raikot-bridge",
+   "km": 50,
+   "hours": [
+    1,
+    1.5
+   ],
+   "note": "KKH along the Indus.",
+   "status": "approximate",
+   "verified": false
+  },
+  {
+   "from": "raikot-bridge",
+   "to": "skardu",
+   "km": 180,
+   "hours": [
+    5,
+    6
+   ],
+   "note": "KKH to the Jaglot junction, then the Jaglot–Skardu road.",
+   "status": "approximate",
+   "verified": false
+  },
+  {
+   "from": "lahore",
+   "to": "islamabad",
+   "km": 375,
+   "hours": [
+    4.5,
+    5.5
+   ],
+   "note": "M-2 motorway.",
+   "status": "approximate",
+   "verified": false
+  },
+  {
+   "from": "peshawar",
+   "to": "islamabad",
+   "km": 180,
+   "hours": [
+    2,
+    2.5
+   ],
+   "note": "M-1 motorway.",
+   "status": "approximate",
+   "verified": false
+  },
+  {
+   "from": "karachi",
+   "to": "islamabad",
+   "km": 1400,
+   "hours": [
+    18,
+    22
+   ],
+   "note": "Long-distance motorway and highway route via Sukkur, Multan and Lahore; most travellers fly.",
+   "status": "approximate",
+   "verified": false
+  }
+ ],
+ "seasonal_routes": [
+  {
+   "id": "khunjerab-pass",
+   "name": "Khunjerab Pass (KKH, Sost–border)",
+   "typical_open_months": [
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "note": "The border crossing is seasonal and usually closed in winter; exact opening and closing dates are announced each year."
+  },
+  {
+   "id": "babusar-top",
+   "name": "Babusar Top (Naran–Chilas road)",
+   "typical_open_months": [
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "note": "Closed by snow for much of the year; the KKH via Besham is the all-season alternative."
+  },
+  {
+   "id": "deosai-road",
+   "name": "Deosai plateau roads (Skardu–Sadpara–Deosai)",
+   "typical_open_months": [
+    6,
+    7,
+    8,
+    9
+   ],
+   "note": "Snow closes the plateau outside summer."
+  },
+  {
+   "id": "fairy-meadows-track",
+   "name": "Raikot Bridge–Tato jeep track (Fairy Meadows)",
+   "typical_open_months": [
+    6,
+    7,
+    8,
+    9
+   ],
+   "note": "Narrow track; snow and rockfall close it outside the summer season."
+  }
+ ],
+ "stays": {
+  "hunza": {
+   "base": "Karimabad",
+   "note": null,
+   "options": [
+    {
+     "name": "Hunza Serena Inn",
+     "tier": "Premium",
+     "from": 22000,
+     "to": 38000,
+     "price_status": "indicative range, not a quote",
+     "verified": false
+    },
+    {
+     "name": "Eagle's Nest Hotel (Duikar)",
+     "tier": "View",
+     "from": 14000,
+     "to": 26000,
+     "price_status": "indicative range, not a quote",
+     "verified": false
+    },
+    {
+     "name": "Hunza Darbar Hotel",
+     "tier": "Mid-range",
+     "from": 8000,
+     "to": 15000,
+     "price_status": "indicative range, not a quote",
+     "verified": false
+    },
+    {
+     "name": "Local guesthouses in Karimabad",
+     "tier": "Budget",
+     "from": 3500,
+     "to": 7000,
+     "price_status": "indicative range, not a quote",
+     "verified": false
+    }
+   ],
+   "price_note": "Indicative PKR per room-night from Raahi's original dataset. Not live, not verified, no review date: confirm the current price and availability with the property."
+  },
+  "skardu": {
+   "base": "Skardu",
+   "note": null,
+   "options": [
+    {
+     "name": "Shangrila Resort (Lower Kachura)",
+     "tier": "Premium",
+     "from": 20000,
+     "to": 40000,
+     "price_status": "indicative range, not a quote",
+     "verified": false
+    },
+    {
+     "name": "Byarsa / Summit Alpine Hotel",
+     "tier": "Mid-range",
+     "from": 9000,
+     "to": 16000,
+     "price_status": "indicative range, not a quote",
+     "verified": false
+    },
+    {
+     "name": "PTDC Motel Skardu",
+     "tier": "Mid-range",
+     "from": 8000,
+     "to": 14000,
+     "price_status": "indicative range, not a quote",
+     "verified": false
+    },
+    {
+     "name": "Guesthouses near the bazaar",
+     "tier": "Budget",
+     "from": 3500,
+     "to": 7000,
+     "price_status": "indicative range, not a quote",
+     "verified": false
+    }
+   ],
+   "price_note": "Indicative PKR per room-night from Raahi's original dataset. Not live, not verified, no review date: confirm the current price and availability with the property."
+  },
+  "attabad": {
+   "base": "Gojal / lakeside",
+   "note": null,
+   "options": [
+    {
+     "name": "Luxus Hunza Attabad Lake",
+     "tier": "Premium",
+     "from": 30000,
+     "to": 55000,
+     "price_status": "indicative range, not a quote",
+     "verified": false
+    },
+    {
+     "name": "Attabad Lake view guesthouses",
+     "tier": "Mid-range",
+     "from": 8000,
+     "to": 16000,
+     "price_status": "indicative range, not a quote",
+     "verified": false
+    }
+   ],
+   "price_note": "Indicative PKR per room-night from Raahi's original dataset. Not live, not verified, no review date: confirm the current price and availability with the property."
+  },
+  "fairy-meadows": {
+   "base": "Fairy Meadows (seasonal)",
+   "note": "Open roughly June–September only; book cottages ahead in summer.",
+   "options": [
+    {
+     "name": "Fairy Meadows Cottages",
+     "tier": "Cabins",
+     "from": 8000,
+     "to": 18000,
+     "price_status": "indicative range, not a quote",
+     "verified": false
+    },
+    {
+     "name": "Raikot Sarai",
+     "tier": "Cabins",
+     "from": 7000,
+     "to": 15000,
+     "price_status": "indicative range, not a quote",
+     "verified": false
+    },
+    {
+     "name": "Wooden huts / camping",
+     "tier": "Budget",
+     "from": 3000,
+     "to": 6000,
+     "price_status": "indicative range, not a quote",
+     "verified": false
+    }
+   ],
+   "price_note": "Indicative PKR per room-night from Raahi's original dataset. Not live, not verified, no review date: confirm the current price and availability with the property."
+  },
+  "deosai": {
+   "base": "No hotels — camping",
+   "note": "Deosai has no hotels. Most visitors day-trip from Skardu or camp with an operator.",
+   "options": [
+    {
+     "name": "Organised camping (Bara Pani / Sheosar)",
+     "tier": "Camp",
+     "from": 4000,
+     "to": 9000,
+     "price_status": "indicative range, not a quote",
+     "verified": false
+    }
+   ],
+   "price_note": "Indicative PKR per room-night from Raahi's original dataset. Not live, not verified, no review date: confirm the current price and availability with the property."
+  },
+  "passu": {
+   "base": "Passu / Gulmit",
+   "note": null,
+   "options": [
+    {
+     "name": "Passu Tourist Lodge",
+     "tier": "Mid-range",
+     "from": 7000,
+     "to": 13000,
+     "price_status": "indicative range, not a quote",
+     "verified": false
+    },
+    {
+     "name": "Borith Lake Hotel",
+     "tier": "View",
+     "from": 8000,
+     "to": 15000,
+     "price_status": "indicative range, not a quote",
+     "verified": false
+    },
+    {
+     "name": "Gulmit guesthouses",
+     "tier": "Budget",
+     "from": 3500,
+     "to": 7000,
+     "price_status": "indicative range, not a quote",
+     "verified": false
+    }
+   ],
+   "price_note": "Indicative PKR per room-night from Raahi's original dataset. Not live, not verified, no review date: confirm the current price and availability with the property."
+  },
+  "khunjerab": {
+   "base": "Stay at Sost",
+   "note": "Khunjerab Pass is a day trip — there is no accommodation at the top. Sleep at Sost or Passu.",
+   "options": [
+    {
+     "name": "Sost town hotels (nearest beds)",
+     "tier": "Mid-range",
+     "from": 6000,
+     "to": 12000,
+     "price_status": "indicative range, not a quote",
+     "verified": false
+    }
+   ],
+   "price_note": "Indicative PKR per room-night from Raahi's original dataset. Not live, not verified, no review date: confirm the current price and availability with the property."
+  },
+  "k2": {
+   "base": "Camping / trek",
+   "note": "The Baltoro trek is fully camping-based and arranged through a licensed operator.",
+   "options": [
+    {
+     "name": "Expedition camping (operator-arranged)",
+     "tier": "Camp",
+     "from": 0,
+     "to": 0,
+     "price_status": "indicative range, not a quote",
+     "verified": false
+    }
+   ],
+   "price_note": "Indicative PKR per room-night from Raahi's original dataset. Not live, not verified, no review date: confirm the current price and availability with the property."
+  }
+ },
+ "cost_model": {
+  "flight_pp_oneway": 30000,
+  "vehicle_per_day": 18000,
+  "bus_pp_per_leg": 3500,
+  "excursion_jeep": 12000,
+  "room_per_night": 10000,
+  "room_sleeps": 2,
+  "camp_pp_night": 4500,
+  "food_pp_day": 2500,
+  "entries": {
+   "deosai": 500,
+   "khunjerab": 800
+  },
+  "guide_per_day": 6000,
+  "contingency_pct": 10,
+  "room_per_night_by_tier": {
+   "budget": 5000,
+   "mid": 10000,
+   "premium": 25000
+  },
+  "vehicle_seats": 4,
+  "jeep_seats": 5,
+  "local_transport_per_day": 6000,
+  "activities_pp_day": 1000,
+  "child_food_factor": 0.6,
+  "tier_note": "Room rates by stay level are planning assumptions (budget guesthouse, mid-range hotel, premium hotel), not quotes.",
+  "status": "Indicative assumptions for planning. Not live prices."
+ },
+ "general_sources": [
+  {
+   "label": "Gilgit-Baltistan Tourism Department",
+   "url": "https://tourismdept.gbit.gov.pk"
+  },
+  {
+   "label": "Wikipedia: Karakoram Highway",
+   "url": "https://en.wikipedia.org/wiki/Karakoram_Highway"
+  }
+ ]
+}

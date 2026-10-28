@@ -1,171 +1,92 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// Integration point with your existing AI backend.
-//
-//   POST {CHAT_ENDPOINT}  body: { message, history: [{ role, content }] }
-//   POST {PLAN_ENDPOINT}  body: { from, destinations, start_date, days, travelers,
-//                                 budget_pkr, interests, transport }
-//
-// The response normalisers below accept the common shapes (reply / response /
-// answer / text, optional destinations, itinerary, actions) so the UI renders
-// structured results as cards and timelines instead of raw JSON.
-// No API keys live here — the backend owns them.
-// ─────────────────────────────────────────────────────────────────────────────
-import { destinations, matchDestinations } from '../data/destinations.js';
+// Client for Raahi's API (backend/app.py). No keys live here: the server owns them.
+// Every failure becomes an ApiError with a message written for the traveller.
 
 const BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
-const CHAT = import.meta.env.VITE_CHAT_ENDPOINT || '/api/chat';
-const PLAN = import.meta.env.VITE_PLAN_ENDPOINT || '/api/plan';
 
 export class ApiError extends Error {
-  constructor(kind, message) {
+  constructor({ kind, status = 0, code = '', message, details = null, retryAfter = null }) {
     super(message);
-    this.kind = kind; // 'unreachable' | 'timeout' | 'server'
+    this.kind = kind; // 'network' | 'timeout' | 'http'
+    this.status = status;
+    this.code = code;
+    this.details = details;
+    this.retryAfter = retryAfter;
   }
 }
 
-async function post(path, body, { timeout = 60000, signal } = {}) {
+async function request(method, path, { body, headers = {}, timeout = 30000, signal } = {}) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort('timeout'), timeout);
-  signal?.addEventListener('abort', () => ctrl.abort('cancel'));
+  const onAbort = () => ctrl.abort('cancel');
+  signal?.addEventListener('abort', onAbort);
   let res;
   try {
     res = await fetch(`${BASE}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(body),
+      method,
+      headers: { Accept: 'application/json', ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...headers },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: ctrl.signal,
     });
-  } catch (e) {
+  } catch {
+    if (ctrl.signal.reason === 'cancel') throw new ApiError({ kind: 'cancelled', message: 'Cancelled.' });
+    if (ctrl.signal.reason === 'timeout') {
+      throw new ApiError({ kind: 'timeout', message: 'Raahi’s server took too long to answer. Try again.' });
+    }
+    throw new ApiError({ kind: 'network', message: 'Can’t reach Raahi’s server. Check your connection and try again.' });
+  } finally {
     clearTimeout(timer);
-    if (ctrl.signal.reason === 'timeout') throw new ApiError('timeout', 'The AI backend took too long to answer.');
-    throw new ApiError('unreachable', 'The AI backend could not be reached.');
+    signal?.removeEventListener('abort', onAbort);
   }
-  clearTimeout(timer);
 
-  const raw = await res.text();
+  if (res.status === 204) return null;
+  const text = await res.text();
   let data = null;
   try {
-    data = raw ? JSON.parse(raw) : null;
+    data = text ? JSON.parse(text) : null;
   } catch {
     data = null;
   }
-
   if (!res.ok) {
-    // No route / proxy could not connect / static host → treat as "backend not running".
-    const looksMissing = [404, 405, 502, 503, 504].includes(res.status) || (res.status === 500 && !data);
-    if (looksMissing) throw new ApiError('unreachable', 'The AI backend is not running.');
-    throw new ApiError('server', data?.error || data?.detail || `The AI backend returned an error (${res.status}).`);
+    const err = data?.error || {};
+    const retryAfter = Number(res.headers.get('Retry-After')) || null;
+    let message = err.message;
+    if (!message) {
+      message = res.status === 404 && !data
+        ? 'This part of Raahi isn’t available on the server yet.'
+        : `Raahi’s server returned an error (${res.status}).`;
+    }
+    if (res.status === 429 && retryAfter) message = `Too many requests. Wait ${retryAfter} seconds and try again.`;
+    throw new ApiError({ kind: 'http', status: res.status, code: err.code || '', message, details: err.details, retryAfter });
   }
-  if (data === null) return { reply: raw };
+  if (data === null) throw new ApiError({ kind: 'http', status: res.status, message: 'The server sent an empty answer.' });
   return data;
 }
 
-// ── Chat ────────────────────────────────────────────────────────────────────
-export async function sendChat(message, history, opts) {
-  const data = await post(CHAT, { message, history }, opts);
-  return normaliseChat(data);
-}
+const get = (path, opts) => request('GET', path, opts);
+const post = (path, body, opts) => request('POST', path, { body, ...opts });
 
-const pickText = (o) =>
-  typeof o === 'string' ? o : o?.reply ?? o?.response ?? o?.answer ?? o?.message ?? o?.text ?? o?.content ?? o?.output ?? '';
+export const api = {
+  health: () => get('/api/health', { timeout: 10000 }),
+  chat: (payload, opts) => post('/api/chat', payload, { timeout: 70000, ...opts }),
+  plan: (tripRequest, opts) => post('/api/plan', tripRequest, opts),
+  updatePlan: (tripRequest, changes, opts) => post('/api/plan/update', { request: tripRequest, changes }, opts),
+  conditions: (payload, opts) => post('/api/conditions', payload, { timeout: 40000, ...opts }),
+  weather: (destination, opts) => get(`/api/weather?destination=${encodeURIComponent(destination)}`, { timeout: 20000, ...opts }),
+  alerts: (opts) => get('/api/alerts', { timeout: 30000, ...opts }),
 
-function resolveDestinations(list) {
-  if (!Array.isArray(list)) return [];
-  return list
-    .map((x) => {
-      const name = typeof x === 'string' ? x : x?.id || x?.name || x?.destination || '';
-      const byId = destinations.find((d) => d.id === name);
-      return byId?.id || matchDestinations(name)[0];
-    })
-    .filter(Boolean)
-    .filter((v, i, a) => a.indexOf(v) === i);
-}
+  saveTrip: (title, tripRequest) => post('/api/trips', { title, request: tripRequest }),
+  getTrip: (id, token) => get(`/api/trips/${id}`, { headers: { 'X-Trip-Token': token } }),
+  updateTrip: (id, token, title, tripRequest) =>
+    request('PUT', `/api/trips/${id}`, { body: { title, request: tripRequest }, headers: { 'X-Trip-Token': token } }),
+  deleteTrip: (id, token) => request('DELETE', `/api/trips/${id}`, { headers: { 'X-Trip-Token': token } }),
 
-export function normaliseChat(data) {
-  let obj = data;
-  let text = pickText(obj);
-  // Some backends return the structured JSON as a string inside `reply`.
-  if (typeof text === 'string' && /^\s*[{[]/.test(text)) {
-    try {
-      const inner = JSON.parse(text);
-      obj = { ...obj, ...inner };
-      text = pickText(inner);
-    } catch {
-      /* plain text that happens to start with a brace */
-    }
-  }
-  const itinerary = obj?.itinerary || obj?.plan || (Array.isArray(obj?.days) ? { days: obj.days } : null);
-  return {
-    text: typeof text === 'string' ? text : '',
-    destinations: resolveDestinations(obj?.destinations || obj?.places),
-    itinerary: itinerary ? normalisePlan(itinerary) : null,
-    actions: Array.isArray(obj?.actions) ? obj.actions.filter((a) => a?.label) : [],
-    links: Array.isArray(obj?.links) ? obj.links.filter((l) => l?.href && /^https?:/.test(l.href)) : [],
-    aiAvailable: obj?.ai_available !== false,
-  };
-}
+  consent: () => get('/api/enquiries/consent', { timeout: 10000 }),
+  sendEnquiry: (payload) => post('/api/enquiries', payload),
+  enquiryStatus: (ref, token) => get(`/api/enquiries/${ref}`, { headers: { 'X-Enquiry-Token': token } }),
+  withdrawEnquiry: (ref, token) => request('DELETE', `/api/enquiries/${ref}`, { headers: { 'X-Enquiry-Token': token } }),
 
-// ── Trip plan ───────────────────────────────────────────────────────────────
-export async function requestPlan(form, opts) {
-  const data = await post(
-    PLAN,
-    {
-      from: form.from,
-      destinations: form.destinations,
-      start_date: form.startDate,
-      days: form.days,
-      travelers: form.travelers,
-      budget_pkr: form.budget,
-      interests: form.interests,
-      transport: form.transport,
-    },
-    { timeout: 90000, ...opts },
-  );
-  const plan = normalisePlan(data?.itinerary || data?.plan || data);
-  if (!plan.days.length) throw new ApiError('server', 'The AI backend answered, but without a day-by-day plan.');
-  return { ...plan, source: 'ai' };
-}
-
-const num = (v) => {
-  if (typeof v === 'number') return v;
-  if (typeof v === 'string') {
-    const n = Number(v.replace(/[^\d.]/g, ''));
-    return Number.isFinite(n) && n > 0 ? n : null;
-  }
-  return null;
+  adminList: (key, status) =>
+    get(`/api/admin/enquiries${status ? `?status=${status}` : ''}`, { headers: { Authorization: `Bearer ${key}` } }),
+  adminUpdate: (key, ref, body) =>
+    request('PATCH', `/api/admin/enquiries/${ref}`, { body, headers: { Authorization: `Bearer ${key}` } }),
 };
-
-const asList = (v) => (Array.isArray(v) ? v.map((x) => (typeof x === 'string' ? x : x?.name || x?.title || x?.activity || '')).filter(Boolean) : typeof v === 'string' && v ? v.split(/\n|;|•/).map((s) => s.trim()).filter(Boolean) : []);
-
-export function normalisePlan(p) {
-  const daysRaw = Array.isArray(p) ? p : p?.days || p?.itinerary || p?.schedule || [];
-  const days = (Array.isArray(daysRaw) ? daysRaw : []).map((d, i) => {
-    const location = d?.location || d?.destination || d?.place || d?.city || '';
-    const destinationId = d?.destinationId || destinations.find((x) => x.id === location)?.id || matchDestinations(`${location} ${d?.title || ''}`)[0] || null;
-    return {
-      day: d?.day ?? d?.day_number ?? i + 1,
-      date: d?.date || null,
-      title: d?.title || d?.summary || d?.heading || (location ? `Day in ${location}` : `Day ${i + 1}`),
-      destinationId,
-      location,
-      activities: asList(d?.activities || d?.plan || d?.items),
-      notes: asList(d?.notes || d?.tips),
-      transport: typeof d?.transport === 'string' ? d.transport : d?.transport?.mode || null,
-      stay: typeof d?.stay === 'string' ? d.stay : d?.accommodation || d?.hotel || null,
-      cost: num(d?.estimated_cost ?? d?.cost ?? d?.budget),
-      leg: d?.leg || null, // backend / offline planner: distance + Google Maps link
-      hub: d?.hub,
-      firstAtDest: d?.firstAtDest,
-    };
-  });
-  return {
-    title: p?.title || p?.name || 'Your Northern Pakistan journey',
-    summary: p?.summary || p?.overview || '',
-    days,
-    totalCost: num(p?.total_cost ?? p?.estimated_total ?? p?.totalCost ?? p?.total_estimated_cost),
-    budget: p?.budget || null, // transparent breakdown from the backend / planner
-    stayRecs: Array.isArray(p?.stayRecs) ? p.stayRecs : [],
-    warnings: asList(p?.warnings),
-    notes: asList(p?.notes || p?.tips),
-  };
-}

@@ -1,0 +1,45 @@
+{
+ "passu": {
+  "alt": "A lake near Passu at dusk, with the sunlit Passu Cones on the skyline",
+  "place": "Near Passu, Gojal (Upper Hunza)",
+  "credit": "ikram / Malkera",
+  "position": "60% 55%"
+ },
+ "fairy-meadows": {
+  "alt": "Nanga Parbat’s snowy face reflected in a pond at Fairy Meadows, with pine forest and a rider on horseback",
+  "place": "Fairy Meadows and Nanga Parbat",
+  "credit": null
+ },
+ "hunza": {
+  "alt": "A huge snow-covered peak and glacier above a green valley near Hunza",
+  "place": "Hunza–Nagar valley",
+  "credit": null,
+  "position": "45% 40%"
+ },
+ "skardu": {
+  "alt": "A visitor sits beside a clear, still mountain lake near Skardu that mirrors the peaks",
+  "place": "Near Skardu",
+  "credit": "JANU"
+ },
+ "attabad": {
+  "alt": "Turquoise water of Attabad Lake between steep, bare mountain slopes",
+  "place": "Attabad Lake",
+  "credit": "Imran Shah",
+  "position": "22% 70%"
+ },
+ "deosai": {
+  "alt": "Sunset reflected in a still high-altitude lake ringed by low hills",
+  "place": "Deosai plateau",
+  "credit": null
+ },
+ "khunjerab": {
+  "alt": "A wide, dry high valley with braided streams below snow-capped peaks",
+  "place": "Khunjerab area",
+  "credit": null
+ },
+ "k2": {
+  "alt": "K2’s pyramid-shaped summit rising above a glacier under a deep blue sky",
+  "place": "K2 from the Baltoro side",
+  "credit": null
+ }
+}

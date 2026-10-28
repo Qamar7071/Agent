@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>pk-pmd-2026-10-09-10-48-35</identifier>
+  <sender>pakmet_islamabad@yahoo.com</sender>
+  <sent>2026-10-09T15:48:35+05:00</sent>
+  <status>Actual</status>
+  <msgType>Alert</msgType>
+  <scope>Public</scope>
+  <info>
+    <language>en</language>
+    <category>Met</category>
+    <event>Rain-windstorm/thunderstorm</event>
+    <urgency>Expected</urgency>
+    <severity>Moderate</severity>
+    <certainty>Likely</certainty>
+    <onset>2026-10-10T00:00:00+05:00</onset>
+    <expires>EXPIRES_PLACEHOLDER</expires>
+    <senderName>National Weather Forecasting Centre, Islamabad</senderName>
+    <headline>Rain-wind-hailstorm/thunderstorm predicted in upper/central from weekend</headline>
+    <description>Punjab/Islamabad: Rain-windstorm/thunderstorm (isolated hailstorm) is expected in Islamabad, Rawalpindi, Bahawalnagar and Lahore during 10th /11th October.
+Kashmir/Gilgit-Baltistan: Rain-windstorm/thunderstorm (isolated hailstorm) is expected at isolated places in Gilgit-Baltistan (Diamir, Astore, Ghizer, Skardu, Hunza, Gilgit, Ghanche and Shigar) from 10th to 15th October with occasional gaps.
+Sindh: Mainly hot and dry weather is likely to continue in coming days.</description>
+    <instruction>Farmers and travellers are advised to plan accordingly.</instruction>
+    <area><areaDesc>Punjab, Khyber Pakhtunkhwa, Gilgit-Baltistan, Kashmir</areaDesc></area>
+  </info>
+</alert>

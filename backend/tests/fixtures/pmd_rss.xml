@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+  <channel>
+    <title>Latest alerts from Pakistan Meteorological Department</title>
+    <link>https://cap-sources.s3.amazonaws.com/pk-pmd-en/rss.xml</link>
+    <description>Latest alerts from  Pakistan Meteorological Department</description>
+    <copyright>public domain</copyright>
+    <lastBuildDate>Fri, 09 Oct 2026 10:48:45 +0000</lastBuildDate>
+    <item>
+      <title>Rain-wind-hailstorm/thunderstorm predicted in upper/central from weekend</title>
+      <link>https://cap-sources.s3.amazonaws.com/pk-pmd-en/2026-10-09-10-48-35.xml</link>
+      <description>Punjab/Islamabad: Rain-windstorm/thunderstorm is expected in Islamabad, Bahawalnagar and Lahore.</description>
+      <pubDate>Fri, 09 Oct 2026 10:48:35 +0000</pubDate>
+    </item>
+    <item>
+      <title>Hot and dry weather in Sindh</title>
+      <link>https://cap-sources.s3.amazonaws.com/pk-pmd-en/2026-10-01-08-00-00.xml</link>
+      <description>Sindh: Mainly hot and dry weather is likely to continue.</description>
+      <pubDate>Thu, 01 Oct 2026 08:00:00 +0000</pubDate>
+    </item>
+  </channel>
+</rss>
