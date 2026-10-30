@@ -8,6 +8,8 @@ import BudgetView from './BudgetView.jsx';
 import ConditionsView from './ConditionsView.jsx';
 import StaysView from './StaysView.jsx';
 import FoodView from './FoodView.jsx';
+import PackingView from './PackingView.jsx';
+import { Link } from '../../lib/router.jsx';
 
 const TABS = [
   ['itinerary', 'Day by day'],
@@ -15,6 +17,7 @@ const TABS = [
   ['conditions', 'Weather and roads'],
   ['stays', 'Stays'],
   ['food', 'Food'],
+  ['packing', 'Packing'],
 ];
 const TRANSPORT = { car: 'hired car with driver', bus: 'public coach', flight: 'flying north' };
 const STAY = { budget: 'budget stays', mid: 'mid-range stays', premium: 'premium stays' };
@@ -112,6 +115,7 @@ export default function PlanView({ onOpenForm }) {
         </div>
         <div className="no-print flex flex-wrap gap-2">
           <button type="button" onClick={onOpenForm} className="btn-outline"><Pencil size={16} aria-hidden="true" /> Trip details</button>
+          <Link to="/twin?from=plan" className="btn-outline">Travel Twin</Link>
           <SaveButton />
           <button type="button" onClick={() => openEnquiry({})} className="btn-primary"><Mail size={16} aria-hidden="true" /> Send enquiry</button>
           <button type="button" onClick={() => window.print()} className="btn-quiet" aria-label="Print the plan"><Printer size={16} aria-hidden="true" /></button>
@@ -167,6 +171,7 @@ export default function PlanView({ onOpenForm }) {
         {tab === 'conditions' && <ConditionsView />}
         {tab === 'stays' && <StaysView stays={itinerary.stays} budget={itinerary.budget} />}
         {tab === 'food' && <FoodView itinerary={itinerary} />}
+        {tab === 'packing' && <PackingView itinerary={itinerary} />}
       </div>
 
       {planBusy && (

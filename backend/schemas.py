@@ -348,6 +348,55 @@ class ChatRequest(BaseModel):
     trip: TripRef | None = None
 
 
+# ── Agents, Travel Twin, Guardian ────────────────────────────────────────────────────
+AgentIntent = Literal["plan", "safety", "packing", "eco", "budget", "stays", "research"]
+ScenarioType = Literal["road_closed", "heavy_snow", "budget_change", "days_change", "destination_closed",
+                       "group_change", "more_adventure"]
+
+
+class MemoryIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    consent: bool = False
+    preferences: dict[str, Any] = Field(default_factory=dict, max_length=10)
+    trip_id: str | None = Field(default=None, max_length=40)
+    active_trip_id: str | None = Field(default=None, max_length=40)
+
+
+class AgentRunIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    message: Annotated[str, StringConstraints(strip_whitespace=True, max_length=2000)] = ""
+    request: TripRequest | None = None
+    state: TripState | None = None
+    intent: AgentIntent | None = None
+    memory: MemoryIn | None = None
+
+
+class ScenarioIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: ScenarioType
+    label: Annotated[str, StringConstraints(strip_whitespace=True, max_length=120)] = "Scenario"
+    segment: Annotated[str, StringConstraints(max_length=40)] | None = None
+    destination: Annotated[str, StringConstraints(max_length=40)] | None = None
+    from_day: int | None = Field(default=None, ge=1, le=30)
+    percent: int | None = Field(default=None, ge=-90, le=200)
+    delta: int | None = Field(default=None, ge=-10, le=10)
+    add: int | None = Field(default=None, ge=1, le=10)
+    set: int | None = Field(default=None, ge=1, le=20)
+
+
+class TwinSimulateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    request: TripRequest
+    scenario: ScenarioIn | None = None
+    text: Annotated[str, StringConstraints(strip_whitespace=True, max_length=300)] | None = None
+
+
+class GuardianIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    request: TripRequest
+    previous: dict[str, Any] | None = None
+
+
 # ── Saved trips and enquiries ──────────────────────────────────────────────────────
 class TripSave(BaseModel):
     model_config = ConfigDict(extra="ignore")

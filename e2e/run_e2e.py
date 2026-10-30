@@ -170,6 +170,78 @@ def tabs(page):
     page.get_by_role("tab", name="Day by day").click()
 
 
+@check("packing tab is built by the packing agent and remembers ticks")
+def packing(page):
+    page.get_by_role("tab", name="Packing").click()
+    panel = page.get_by_role("tabpanel")
+    expect(panel).to_contain_text("Built by the packing agent", timeout=40000)
+    first = panel.get_by_role("checkbox").first
+    first.check()
+    page.reload(wait_until="networkidle")
+    page.get_by_role("tab", name="Packing").click()
+    expect(page.get_by_role("tabpanel").get_by_role("checkbox").first).to_be_checked(timeout=40000)
+    page.get_by_role("tab", name="Day by day").click()
+
+
+@check("travel twin: agents run with real events, the what-if keeps the original until accepted")
+def travel_twin(page):
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    fresh(page, "/twin")
+    page.get_by_role("button", name="Run the demo trip").click()
+    twin = page.locator("#twin-h")
+    expect(twin).to_have_text("Hunza Valley and Khunjerab Pass", timeout=60000)
+    flow = page.get_by_role("group", name="Agent workflow")
+    for agent in ("Master Orchestrator", "Itinerary Planner", "Predictive Safety", "Validation"):
+        expect(flow.get_by_role("button", name=re.compile(agent)).first).to_be_visible()
+    expect(page.get_by_text(re.compile(r"\d+/\d+ tasks finished")).first).to_be_visible()
+    page.get_by_role("button", name="Khunjerab route unavailable on day 4").click()
+    expect(page.locator("#sim-h")).to_have_text("Khunjerab Pass road (Sost–border) unavailable from day 4", timeout=60000)
+    expect(page.get_by_text("Original plan unchanged until you accept")).to_be_visible()
+    expect(page.get_by_role("region", name="Original and simulated days")).to_contain_text("Up to Khunjerab")
+    expect(twin).to_have_text("Hunza Valley and Khunjerab Pass")
+    page.get_by_role("button", name="Accept this plan").click()
+    expect(twin).not_to_contain_text("Khunjerab", timeout=60000)
+    expect(page.locator("#sim-h")).to_have_count(0)
+    assert not errors, errors
+
+
+@check("agent control center shows the stored run, a task's tool calls and the event log")
+def agent_control(page):
+    page.goto(BASE + "/agents", wait_until="networkidle")
+    expect(page.get_by_role("heading", name="Runs in this browser")).to_be_visible()
+    flow = page.get_by_role("group", name="Agent workflow")
+    flow.get_by_role("button", name=re.compile("Weather Intelligence")).first.click()
+    expect(page.get_by_text(re.compile(r"Tool calls \(\d+\)"))).to_be_visible()
+    expect(page.get_by_text(re.compile("open-meteo|pmd.alerts")).first).to_be_visible()
+    expect(page.get_by_role("heading", name="Event log")).to_be_visible()
+
+
+@check("guardian scores the trip day by day and explains every point")
+def guardian(page):
+    page.goto(BASE + "/guardian", wait_until="networkidle")
+    expect(page.get_by_role("heading", name="Day by day")).to_be_visible(timeout=60000)
+    expect(page.get_by_text("not an official safety assessment").first).to_be_visible()
+    expect(page.get_by_role("heading", name="How the score works")).to_be_visible()
+    page.get_by_role("button", name="Check now").click()
+    expect(page.get_by_role("heading", name="Since your last check")).to_be_visible(timeout=60000)
+
+
+@check("theme button switches between device, light and dark")
+def theme(page):
+    page.goto(BASE + "/", wait_until="networkidle")
+    button = page.get_by_role("button", name=re.compile("Change theme")).first
+    expect(button).to_have_attribute("aria-label", re.compile("same as your device"))
+    button.click()
+    assert page.evaluate("document.documentElement.dataset.theme") == "light"
+    button.click()
+    assert page.evaluate("document.documentElement.dataset.theme") == "dark"
+    page.reload(wait_until="networkidle")
+    assert page.evaluate("document.documentElement.dataset.theme") == "dark"
+    page.get_by_role("button", name=re.compile("Change theme")).first.click()
+    assert page.evaluate("document.documentElement.dataset.theme") in (None, "", "system")
+
+
 @check("save, reopen and delete a trip")
 def saved_trip(page):
     page.get_by_role("button", name="Save trip").click()
@@ -241,12 +313,18 @@ def network_error(page):
 
 @check("no horizontal overflow from phone to desktop, and the phone menu works")
 def responsive(page):
-    for width, height in ((360, 740), (390, 844), (768, 1024), (1024, 768), (1440, 900)):
-        page.set_viewport_size({"width": width, "height": height})
-        for path in ("/", "/plan", "/destinations/hunza", "/trips"):
-            page.goto(BASE + path, wait_until="networkidle")
-            over = page.evaluate("document.documentElement.scrollWidth - window.innerWidth")
-            assert over <= 1, f"{path} overflows by {over}px at {width}px"
+    try:
+        overflow = []
+        for width, height in ((360, 740), (390, 844), (768, 1024), (1024, 768), (1440, 900)):
+            page.set_viewport_size({"width": width, "height": height})
+            for path in ("/", "/plan", "/destinations/hunza", "/trips", "/twin", "/agents", "/guardian"):
+                page.goto(BASE + path, wait_until="networkidle")
+                over = page.evaluate("document.documentElement.scrollWidth - window.innerWidth")
+                if over > 1:
+                    overflow.append(f"{path} by {over}px at {width}px")
+        assert not overflow, "overflow: " + "; ".join(overflow)
+    finally:
+        page.set_viewport_size({"width": 1440, "height": 900})
     page.set_viewport_size({"width": 390, "height": 844})
     page.goto(BASE + "/", wait_until="networkidle")
     page.get_by_role("button", name="Open menu").click()
@@ -274,7 +352,8 @@ def main() -> int:
         page = browser.new_context(viewport={"width": 1440, "height": 900}).new_page()
         page.set_default_timeout(15000)
         for fn in (home, navigation, month_filter, destination_page, seo, form_validation, form_plan, chat_flow,
-                   edit_day, tabs, saved_trip, enquiry, admin, network_error, responsive, keyboard):
+                   edit_day, tabs, packing, saved_trip, enquiry, admin, network_error, travel_twin, agent_control,
+                   guardian, theme, responsive, keyboard):
             fn(page)
         browser.close()
     failed = [r for r in results if not r[1]]

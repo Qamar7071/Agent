@@ -84,6 +84,8 @@ PMD_ALERTS_ENABLED = _bool("PMD_ALERTS_ENABLED", "true")
 ROUTING_ENABLED = _bool("ROUTING_ENABLED", "true")
 PLACES_ENABLED = _bool("PLACES_ENABLED", "true")        # OpenStreetMap stays and food
 OVERPASS_URLS = _list("OVERPASS_URLS", "https://overpass-api.de/api/interpreter,"
+                                       "https://overpass.private.coffee/api/interpreter,"
+                                       "https://maps.mail.ru/osm/tools/overpass/api/interpreter,"
                                        "https://overpass.kumi.systems/api/interpreter")
 OSRM_URL = _get("OSRM_URL", "https://router.project-osrm.org").rstrip("/")
 TAVILY_API_KEY = _get("TAVILY_API_KEY")       # optional road news search
@@ -99,6 +101,7 @@ PLAN_RATE_PER_MIN = _num("PLAN_RATE_PER_MIN", 40, int)
 LIVE_RATE_PER_MIN = _num("LIVE_RATE_PER_MIN", 60, int)
 CHAT_RATE_PER_MIN = _num("CHAT_RATE_PER_MIN", 12, int)
 WRITE_RATE_PER_MIN = _num("WRITE_RATE_PER_MIN", 6, int)
+AGENT_RATE_PER_MIN = _num("AGENT_RATE_PER_MIN", 20, int)   # multi-agent runs, simulations, guardian checks
 
 
 def llm_providers() -> list[dict]:

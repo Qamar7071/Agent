@@ -1133,14 +1133,27 @@
    "id": "khunjerab-pass",
    "name": "Khunjerab Pass (KKH, Sost–border)",
    "typical_open_months": [
+    4,
     5,
     6,
     7,
     8,
     9,
-    10
+    10,
+    11
    ],
-   "note": "The border crossing is seasonal and usually closed in winter; exact opening and closing dates are announced each year."
+   "note": "The border crossing usually opens on 1 April and closes on 30 November; the dates are announced each year, and trade traffic has sometimes continued through winter. Snow can still close the road on any day.",
+   "sources": [
+    {
+     "label": "Daily Pakistan: Khunjerab border closes for four months (29 Nov 2024)",
+     "url": "https://en.dailypakistan.com.pk/29-Nov-2024/pak-china-khunjerab-border-closes-for-four-months"
+    },
+    {
+     "label": "ProPakistani: Khunjerab border resumes operations after four-month closure (2 Apr 2024)",
+     "url": "https://propakistani.pk/2024/04/02/khunjerab-border-resumes-operations-after-four-month-closure/amp/"
+    }
+   ],
+   "reviewed": "2026-10-30"
   },
   {
    "id": "babusar-top",
@@ -1529,6 +1542,197 @@
    "fairy-meadows": "remote",
    "k2": "remote",
    "askole": "remote"
+  }
+ },
+ "road_segments": {
+  "note": "Road sections used by Travel Twin 'what if' scenarios. Each lists the curated legs that physically use that road.",
+  "segments": [
+   {
+    "id": "kkh-islamabad-chilas",
+    "name": "Karakoram Highway, Islamabad–Chilas (via Besham)",
+    "aliases": [
+     "kkh south",
+     "besham",
+     "islamabad chilas",
+     "islamabad to chilas",
+     "lower kkh"
+    ],
+    "legs": [
+     "chilas|islamabad"
+    ]
+   },
+   {
+    "id": "kkh-chilas-gilgit",
+    "name": "Karakoram Highway, Chilas–Gilgit",
+    "aliases": [
+     "chilas gilgit",
+     "chilas to gilgit",
+     "jaglot",
+     "raikot"
+    ],
+    "legs": [
+     "chilas|gilgit",
+     "chilas|raikot-bridge",
+     "gilgit|raikot-bridge"
+    ]
+   },
+   {
+    "id": "kkh-gilgit-hunza",
+    "name": "Karakoram Highway, Gilgit–Hunza",
+    "aliases": [
+     "gilgit hunza",
+     "gilgit to hunza",
+     "hunza road",
+     "kkh to hunza",
+     "karimabad road"
+    ],
+    "legs": [
+     "gilgit|hunza",
+     "hunza|skardu"
+    ]
+   },
+   {
+    "id": "kkh-hunza-sost",
+    "name": "Karakoram Highway, Hunza–Sost (Attabad tunnels, Passu)",
+    "aliases": [
+     "attabad tunnels",
+     "hunza sost",
+     "hunza to sost",
+     "passu road",
+     "upper kkh",
+     "gojal road"
+    ],
+    "legs": [
+     "attabad|hunza",
+     "attabad|passu",
+     "passu|sost",
+     "khunjerab|passu"
+    ]
+   },
+   {
+    "id": "khunjerab",
+    "name": "Khunjerab Pass road (Sost–border)",
+    "destination": "khunjerab",
+    "aliases": [
+     "khunjerab",
+     "khunjerab pass",
+     "khunjerab route",
+     "khunjerab road",
+     "china border",
+     "pak china border"
+    ],
+    "legs": [
+     "khunjerab|sost",
+     "khunjerab|passu"
+    ]
+   },
+   {
+    "id": "skardu-road",
+    "name": "Jaglot–Skardu road",
+    "aliases": [
+     "skardu road",
+     "jaglot skardu",
+     "road to skardu",
+     "s1"
+    ],
+    "legs": [
+     "chilas|skardu",
+     "gilgit|skardu",
+     "raikot-bridge|skardu",
+     "hunza|skardu"
+    ]
+   },
+   {
+    "id": "deosai-road",
+    "name": "Deosai plateau road",
+    "destination": "deosai",
+    "aliases": [
+     "deosai",
+     "deosai road",
+     "sadpara"
+    ],
+    "legs": [
+     "deosai|skardu"
+    ]
+   },
+   {
+    "id": "fairy-meadows-track",
+    "name": "Raikot Bridge–Tato jeep track (Fairy Meadows)",
+    "destination": "fairy-meadows",
+    "aliases": [
+     "fairy meadows",
+     "fairy meadows track",
+     "tato",
+     "raikot track"
+    ],
+    "legs": [
+     "fairy-meadows|raikot-bridge"
+    ]
+   },
+   {
+    "id": "askole-track",
+    "name": "Skardu–Askole jeep track",
+    "destination": "k2",
+    "aliases": [
+     "askole",
+     "k2 track",
+     "braldu"
+    ],
+    "legs": [
+     "askole|skardu"
+    ]
+   },
+   {
+    "id": "babusar",
+    "name": "Babusar Top road (Naran–Chilas)",
+    "aliases": [
+     "babusar",
+     "babusar top",
+     "naran road"
+    ],
+    "legs": [],
+    "note": "Raahi's plans use the KKH via Besham, which is open all year, so a Babusar closure does not change them."
+   }
+  ]
+ },
+ "risk_model": {
+  "version": "2026-10-30",
+  "note": "Heuristic score from public data and typical patterns. It is not an official safety assessment.",
+  "weights": {
+   "forecast_severe": 30,
+   "official_alert": 25,
+   "seasonal_closure": 25,
+   "scenario_hazard": 30,
+   "monsoon_landslide": 10,
+   "winter_conditions": 10,
+   "long_drive": 10,
+   "after_dark": 10,
+   "high_altitude": 10,
+   "community_reports": 15
+  },
+  "categories": [
+   {
+    "name": "Low",
+    "min": 0
+   },
+   {
+    "name": "Moderate",
+    "min": 20
+   },
+   {
+    "name": "High",
+    "min": 40
+   },
+   {
+    "name": "Severe",
+    "min": 60
+   }
+  ],
+  "actions": {
+   "Low": "Continue as planned. Check NHMP (130) on the morning you travel.",
+   "Moderate": "Continue with precautions: start early, keep a spare day and check conditions locally.",
+   "High": "Modify this part of the trip: use the suggested alternative or add a buffer day.",
+   "Severe": "Reconsider or postpone this part of the trip until conditions are confirmed."
   }
  }
 }

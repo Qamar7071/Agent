@@ -88,14 +88,15 @@ def run_chat(body: ChatRequest) -> dict:
     state = parser.merge(body.state or TripState(), slots)
     ctx = tools.ToolContext(state, body.trip)
 
-    mode, provider, model, notice = "guided", None, None, None
+    mode, provider, model, notice, ai_error = "guided", None, None, None, None
     reply = None
     if config.llm_enabled():
         try:
             reply, provider, model = _ai(body, ctx, deadline)
             mode = "ai"
-        except llm.LLMUnavailable:
+        except llm.LLMUnavailable as exc:
             notice = "The AI model did not respond, so Raahi answered in guided mode."
+            ai_error = str(exc)[:600]
     else:
         notice = "AI model not configured on this server: guided mode."
     if reply is None:
@@ -108,6 +109,7 @@ def run_chat(body: ChatRequest) -> dict:
         "provider": provider,
         "model": model,
         "notice": notice,
+        "ai_error": ai_error,
         "state": ctx.state.model_dump(mode="json"),
         "missing": ctx.state.missing(),
         "itinerary": a.get("itinerary"),

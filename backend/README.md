@@ -1,7 +1,8 @@
 # Raahi API (Flask)
 
-The API behind the website: the AI agent, the deterministic planner, live weather and road
-information, saved trips and booking enquiries. It also serves the built website (`../dist`)
+The API behind the website: the AI agent, the multi-agent system (orchestrator, specialists,
+Travel Twin, Journey Guardian), the deterministic planner, live weather and road information,
+saved trips and booking enquiries. It also serves the built website (`../dist`)
 when run on its own. Setup and deployment are in the [main README](../README.md); the design
 is in [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md).
 
@@ -27,4 +28,7 @@ python storage.py sql                    # print the Postgres schema
 | `security.py` | Client IP, in-memory rate limiter, admin token check |
 | `services/` | `weather.py` (Open-Meteo, PMD alerts), `roads.py` (honest road information), `routing.py` (curated legs, OSRM), `places.py` (stays and food from the guide and OpenStreetMap), `conditions.py` (forecast and roads for a plan), `http.py` (timeouts, caching, User-Agent) |
 | `agent/` | `runner.py` (tool loop and limits), `tools.py` (the 12 tools), `prompt.py` (instructions and context), `parser.py` (reads messages without AI), `guided.py` (answers without AI), `llm.py` (OpenAI-compatible client with fallback) |
-| `tests/` | pytest suite with fakes for every outside service, including the 10 agent evaluation scenarios |
+| `agents/` | The multi-agent system: `base.py` (Agent, Blackboard, Tracer with real events), `orchestrator.py` (intent, task plan, parallel runner, retries, decisions, answer), one file per specialist (memory, research, itinerary, weather, route, budget, accommodation, safety, packing, eco, validation), `common.py` |
+| `twin/` | Travel Twin: `scenarios.py` (parse English or Roman Urdu, apply to a copy), `segments.py` (road sections), `simulation.py` (run the affected agents), `comparison.py` (original against simulated) |
+| `guardian.py` | Journey Guardian: re-run weather, route and safety and list what changed since the last check |
+| `tests/` | pytest suite with fakes for every outside service, including the 10 agent evaluation scenarios and the multi-agent tests (`test_multiagent.py`) |

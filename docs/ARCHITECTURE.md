@@ -3,7 +3,10 @@
 Raahi plans trips to Northern Pakistan (Gilgit-Baltistan and the Karakoram Highway). A
 deterministic planner does the arithmetic (route, days, times, costs). A tool-calling AI
 agent talks to the traveller and uses the planner and the live sources as tools. When no AI
-model is available, a rule-based "guided" mode uses the same tools. The rule throughout:
+model is available, a rule-based "guided" mode uses the same tools. On top of these, a
+multi-agent system (section 11) splits a trip into specialist jobs, runs them in parallel,
+validates them against each other, simulates what-if scenarios (Travel Twin) and scores each
+day's risk (Journey Guardian). The rule throughout:
 facts come from code, data files or live sources with a timestamp, never from the model's
 memory, and anything that could not be checked is labelled as such.
 
@@ -43,7 +46,7 @@ flowchart LR
 | Folder | What is in it |
 |---|---|
 | `src/` | React 18 + Vite + Tailwind front end. `pages/`, `components/{home,planner,shared,layout,ui}`, `context/PlannerContext.jsx` (planner state), `lib/` (router, API client, local storage, formatting, SEO). |
-| `backend/` | Flask API: `app.py` (routes), `agent/` (runner, tools, prompt, parser, guided mode, LLM client), `planner.py`, `budget.py`, `schemas.py` (pydantic models), `storage.py`, `security.py`, `services/`, `tests/`. |
+| `backend/` | Flask API: `app.py` (routes), `agent/` (runner, tools, prompt, parser, guided mode, LLM client), `agents/` (the multi-agent system: orchestrator and specialists), `twin/` (Travel Twin scenarios, simulation, comparison), `guardian.py`, `planner.py`, `budget.py`, `schemas.py` (pydantic models), `storage.py`, `security.py`, `services/`, `tests/`. |
 | `shared/destinations.json` | The one destination dataset used by the API and the website: places, hubs, road legs, seasonal routes, stays, cost assumptions, sources and review dates. Edit this file directly (it was first assembled from the old data files by `scripts/build_shared_data.py`); `backend/tests/test_data.py` checks it. |
 | `api/index.py` | Vercel entry point that imports the Flask app. |
 | `scripts/` | Image pipeline (`build_images.py`), static page prerendering (`prerender.mjs`), data builder. |
@@ -227,6 +230,11 @@ All responses are JSON. Errors look like `{"error": {"code", "message", "details
 | `GET /api/route?from=islamabad&to=karimabad` | Route figures | 60 |
 | `GET /api/places?town=hunza&kind=stay&min=5000&max=8000` | Places to stay (or `kind=food`) | 60 |
 | `POST /api/chat` | One agent turn | 12 |
+| `GET /api/agents` | The agent roster, their dependencies, and the agents planned for later | none |
+| `POST /api/agents/run` | Run the orchestrator on `{"message"}` or `{"request"}` (optional `intent`, `memory`); `?stream=1` streams events | 20 |
+| `GET /api/twin/scenarios` | Scenario presets and the road sections that can be closed | none |
+| `POST /api/twin/simulate` | Run a what-if on a copy of `{"request"}` with `{"text"}` or a structured `{"scenario"}`; `?stream=1` streams | 20 |
+| `POST /api/guardian/check` | Re-run weather, route and safety on `{"request"}`, compare with `{"previous"}`; `?stream=1` streams | 20 |
 | `POST /api/plan` | Build a plan from a `TripRequest` | 40 |
 | `POST /api/plan/update` | Apply changes to a request and rebuild | 40 |
 | `POST /api/budget` | Budget only | 40 |
@@ -278,7 +286,11 @@ curl -s -X POST localhost:5000/api/chat -H "Content-Type: application/json" -d '
 ## 9. Front end
 
 - Routes: `/` (home), `/plan` (chat and plan side by side; Chat and Plan tabs on phones),
-  `/trips` (saved trips and enquiries in this browser), `/destinations/<id>`, `/admin`.
+  `/trips` (saved trips and enquiries in this browser), `/destinations/<id>`, `/admin`,
+  `/twin` (Travel Twin), `/agents` (Agent Control Center), `/guardian` (Journey Guardian).
+- Themes: colours are CSS variables, so one set of Tailwind classes serves a light and a dark
+  theme. The theme button cycles device, light and dark (`raahi:theme`). The agent pages use a
+  dark "mission" look (`.mission`) whatever the theme.
   A small History-API router; pages other than home load on demand.
 - `PlannerContext` keeps the conversation, trip state and itinerary in localStorage
   (`raahi:workspace:v2`), so a refresh does not lose the plan.
@@ -291,9 +303,159 @@ curl -s -X POST localhost:5000/api/chat -H "Content-Type: application/json" -d '
 
 | Command | What it covers |
 |---|---|
-| `npm run test:api` | Backend unit and API tests with pytest: data, planner, budget, services (with recorded PMD fixtures and fake HTTP), storage (SQLite; Postgres when `RAAHI_TEST_PG_URL` is set), API, parser, and the agent with a scripted fake model, including the 10 evaluation scenarios. All offline. |
-| `npm run test:e2e` | 16 browser checks against a running server (Playwright + Chromium). |
-| `npm run audit:a11y` | axe-core accessibility audit of 42 page states at phone and desktop sizes, plus page weight. |
+| `npm run test:api` | Backend unit and API tests with pytest: data, planner, budget, services (with recorded PMD fixtures and fake HTTP), storage (SQLite; Postgres when `RAAHI_TEST_PG_URL` is set), API, parser, the agent with a scripted fake model (including the 10 evaluation scenarios), and the multi-agent system (`test_multiagent.py`: task graph, events, intent routing, failures, validation retries, every scenario type, comparison, risk and eco models, Guardian, streaming). All offline. |
+| `npm run test:e2e` | 21 browser checks against a running server (Playwright + Chromium), including Travel Twin, Agent Control Center, Guardian and the theme button. |
+| `npm run audit:a11y` | axe-core accessibility audit of 62 page states at phone and desktop sizes (including the agent pages and the dark theme), plus page weight. |
 
 Tests use fakes for every external service; passing them shows the code handles those
 responses, not that the live services or a real AI model behave the same way.
+
+## 11. Multi-agent system
+
+The multi-agent system reuses the planner, budget engine and live services above; the agents
+are coordinators around them, not a second copy of the logic. Each agent is a Python class
+with a name, a description and its dependencies (`backend/agents/`). Agents share a
+`Blackboard` (the request, closures, scenario, results) and report to a `Tracer` that records
+real events with timestamps. Nothing on the agent pages is animated from a script: every
+status the website shows is an event the server recorded.
+
+```mermaid
+flowchart TB
+  U[Traveller request] --> O[Master Orchestrator<br/>intent → task plan]
+  O --> M[Memory] --> R[Travel Research] --> I[Itinerary Planner]
+  I --> W[Weather Intelligence] & RO[Route Optimizer] & B[Budget Intelligence] & A[Accommodation] & E[Eco-Impact]
+  W --> S[Predictive Safety] & P[Packing]
+  I --> S & P
+  W & RO & B & A & E & S & P --> V[Validation]
+  V -- retry request --> W
+  V -- decision needed --> O
+  O --> ANS[One validated answer<br/>+ Travel Twin baseline]
+  ANS --> T[Travel Twin: what-if on a copy] --> C[Comparison Engine]
+  ANS --> G[Journey Guardian: re-check and compare]
+```
+
+### Agents
+
+| Agent | Depends on | Job | Tools it calls |
+|---|---|---|---|
+| Master Orchestrator | | Detects the intent, plans the tasks, runs them, handles retries and decisions, writes the answer | all of the below; optional LLM narration |
+| Memory | | Reads the message into the trip state; uses saved preferences only with consent and only for the same trip | `agent/parser.py` |
+| Travel Research | Memory (soft) | Season fit, nearby add-ons in the same cluster, alternatives | dataset |
+| Itinerary Planner | Memory, Research (soft) | Day-by-day plan on the road network, respecting closures; a flight alternative when the road is too long | `planner.build` |
+| Weather Intelligence | Itinerary | Forecast for each plan day, official alerts, impacts | Open-Meteo, PMD feed |
+| Route Optimizer | Itinerary | Road sections used, drive hours, live routing cross-check on the longest drives, closures | dataset, OSRM |
+| Budget Intelligence | Itinerary | Itemised estimate, budget status, the cheapest changes that fit | `budget.py`, `fit_to_budget` |
+| Accommodation Research | Itinerary | Stays per overnight town within the per-night allowance | dataset, Overpass |
+| Predictive Safety | Itinerary, Weather | Risk score per day with evidence (below) | risk model, road information |
+| Packing Intelligence | Itinerary, Weather | Checklist with a reason for every item | rules on places, season, forecast, activities, scenario |
+| Eco-Impact | Itinerary | Transport emissions as a range, for the plan and for coach, car and flight options | factor table (below) |
+| Validation | every task that ran | Cross-checks the agents and decides: pass, retry, wait for a decision, or fail | `validation_agent.check` |
+| Travel Twin | | Applies a scenario to a copy of the request | `twin/scenarios.py` |
+| Comparison Engine | Itinerary | Original against simulated: days, cost, time, route, risk, emissions | `twin/comparison.py` |
+
+Local Pulse (community reports) and Emergency Assistance are listed by `GET /api/agents` as
+planned for phase B. They are not implemented, and the website says so.
+
+### How a run executes
+
+1. The orchestrator detects the intent (`plan`, `packing`, `safety`, `eco`, `budget`,
+   `stays` or `research`) and activates only the agents that intent needs. A packing question
+   runs Itinerary, Weather and Packing, not Budget or Eco.
+2. The runner starts every agent whose dependencies have finished, in parallel threads. If a
+   dependency failed, its dependents are marked `failed` with that reason, except for soft
+   dependencies (Memory and Research), which a plan can do without.
+3. Every agent call to a service or engine is recorded as a `tool` event with its duration and
+   result. An agent that raises is marked `failed` with the error; the others still answer.
+4. Validation checks: a plan exists; it fits the days; the budget agent agrees with the plan;
+   forecast dates are plan dates; every day has a risk score and every point has evidence;
+   packing uses the forecast when there is one; emissions list their assumptions; and no agent
+   says a road is open, something is safe or guaranteed, or a booking is confirmed.
+5. If Weather failed for a reason that may pass (the service could not be reached), Validation
+   asks it to run once more. The retry asks the service again instead of reusing the briefly
+   cached failure, and the trace shows the retry as initiated by the Validation task.
+6. Choices that belong to the traveller (over budget, too few days) are returned as options
+   with status `waiting_for_approval`. Choosing one re-runs the agents with that change.
+7. With an AI key, one call turns the validated results into prose. The prose is used only if
+   every amount of 1,000 or more from the deterministic text appears in it unchanged and it
+   passes the same unsupported-claims check; otherwise the deterministic text is used and the
+   trace says why.
+
+Event types: `queued`, `running`, `tool`, `retrying`, `completed`, `failed`, `skipped`,
+`waiting_for_approval`, `note`. With `?stream=1` the endpoints answer with NDJSON, one line
+per event (`{"type": "event", ...}`) and a final `{"type": "result", "data": ...}`, so the
+website can draw the workflow as it happens.
+
+### Travel Twin
+
+A scenario is parsed from English or Roman Urdu (`twin/scenarios.parse`) or sent as a
+structured object. Supported types: `road_closed`, `heavy_snow`, `budget_change`,
+`days_change`, `destination_closed`, `group_change`, `more_adventure`. Anything else is
+refused with the list of supported scenarios.
+
+`apply` builds a new request and never edits the original. For a closed road it closes the
+road's legs from the given day (the planner then routes around them where another road
+exists), drops places that can no longer be reached, and adds an in-season place from the
+same area below 3,500 m if there is one. If the road from the origin itself is cut, it
+switches to flights where they exist, or reports that there is no alternative instead of
+inventing one. A budget cut runs `fit_to_budget` to find the cheapest changes that fit.
+Snowfall is an assumption the traveller makes: it raises the risk of the affected days as a
+`scenario` factor and adds a spare day, and the result says it is not a forecast.
+
+The simulation rebuilds the original with the baseline agents, runs only the agents the
+scenario affects (the rest are shown as "not affected"), validates, compares, and recommends
+accepting or keeping. Its confidence comes from the scenario type: high for budget, days and
+group changes and when the plan never uses the closed road or place, medium for other
+closures and for more adventure, low for snowfall. The original stays unchanged until the
+traveller presses "Accept this plan".
+
+### Risk model (Predictive Safety and the Guardian)
+
+Weights live in `shared/destinations.json` → `risk_model`, so they can be changed without
+code. Each factor adds weight × intensity (0 to 1); a day's score is capped at 100.
+
+| Factor | Weight | Evidence |
+|---|---|---|
+| Severe weather in the forecast | 30 | Open-Meteo: thunderstorms, 20 mm rain or 5 cm snow (full), 10 mm rain or any snow (0.6), −5 °C or colder (0.4) |
+| Official PMD alert for the region | 25 | Active alert for the region: full if it names the place, 0.7 otherwise, 0.5 when the trip has no dates |
+| Usually closed this month | 25 | A seasonal route reached that day is outside its typical open months |
+| Travel Twin scenario | 30 | The traveller's own what-if (marked as an assumption) |
+| Monsoon landslides | 10 | Road travel in July–August (full) or June and September (half) |
+| Winter conditions | 10 | Road travel in December–February (full) or November and March (half) |
+| Long mountain drive | 10 | 10 hours or more (full), 8 or more (0.6) |
+| Arrival after dark | 10 | The daylight check says the drive may end after dark |
+| High altitude | 10 | The highest place actually reached that day: 4,500 m or more (full), 3,500 m or more (0.6) |
+| Community reports | 15 | Not used yet (Local Pulse is phase B) |
+
+Categories: Low under 20, Moderate 20–39, High 40–59, Severe 60 and above, each with a
+recommended action. Confidence is low without dates or a forecast and at most medium with
+them, because no live road status exists. The score is a heuristic from public data, not an
+official safety assessment.
+
+The Guardian (`backend/guardian.py`, page `/guardian`) runs Itinerary, Weather, Route and
+Safety for a saved trip, the current plan or the Travel Twin, and lists what changed since the
+previous check in this browser (overall category, any day's category, new or ended alerts).
+While the page is open it re-checks every 30 minutes and can show a browser notification if
+the traveller allows it. It does not run in the background when the page is closed.
+
+### Emission factors (Eco-Impact)
+
+| Mode | Unit | Low | High | Basis |
+|---|---|---|---|---|
+| Hired car or 4×4 | kg CO2e per vehicle-km | 0.210 | 0.273 | Large diesel car (DESNZ 2025); up to 30% more on steep roads (Raahi assumption) |
+| Coach | kg CO2e per passenger-km | 0.028 | 0.060 | Coach (DESNZ 2025); up to about double for older buses (Raahi assumption) |
+| Domestic flight | kg CO2e per passenger-km | 0.136 | 0.229 | DESNZ 2025, without and with the effect of emissions at altitude |
+
+One vehicle per four travellers; flight distance is the great-circle distance × 1.1. Source:
+UK Government GHG conversion factors (DESNZ), 2025 edition, as tabulated by
+[GreenCalculus](https://greencalculus.com/data/business-travel-freight-logistics-emission-factors/).
+Pakistan publishes no equivalent set, so results are ranges, not measurements.
+
+### Honesty rules the agents follow
+
+- No agent invents a forecast, road status, price, booking or emergency service. Missing data
+  is shown as unavailable with the reason.
+- Scenario inputs (a closed road, snowfall) are labelled as assumptions everywhere they appear.
+- External content (forecasts, alerts, OpenStreetMap entries) is data: agents read fields
+  from it and never follow text inside it.
+- The Validation agent rejects outputs that claim an open road, safety, a guarantee or a
+  confirmed booking.

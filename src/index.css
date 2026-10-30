@@ -2,6 +2,49 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Theme colours (RGB channels for Tailwind's opacity syntax). Light is the default; dark comes from
+   the theme switch (data-theme on <html>), the system setting, or a .mission page, which is always dark. */
+:root {
+  --c-juniper: 23 58 46; --c-juniper-700: 31 74 59; --c-juniper-600: 42 97 80; --c-juniper-500: 59 122 101;
+  --c-juniper-200: 191 214 202; --c-juniper-100: 220 232 225; --c-juniper-50: 238 244 240; --c-on-juniper: 255 255 255;
+  --c-limestone: 245 246 241; --c-limestone-200: 233 235 227; --c-limestone-300: 214 218 207; --c-limestone-400: 185 191 177;
+  --c-ink: 23 33 28; --c-ink-700: 46 58 51; --c-ink-600: 70 82 75; --c-ink-500: 88 98 90;
+  --c-ochre: 140 90 36; --c-ochre-700: 110 69 24; --c-ochre-100: 243 231 214; --c-ochre-50: 250 244 234;
+  --c-apricot-100: 251 235 211;
+  --c-lake: 28 110 120; --c-lake-700: 20 86 94; --c-lake-100: 215 236 238; --c-lake-50: 236 246 247;
+  --c-brick: 163 50 31; --c-brick-50: 251 236 232;
+  --c-paper: 255 255 255;
+  color-scheme: light;
+}
+:root[data-theme='dark'],
+.mission {
+  --c-juniper: 95 211 161; --c-juniper-700: 139 224 187; --c-juniper-600: 111 216 170; --c-juniper-500: 79 191 142;
+  --c-juniper-200: 45 90 74; --c-juniper-100: 23 58 48; --c-juniper-50: 17 41 31; --c-on-juniper: 6 20 15;
+  --c-limestone: 10 17 22; --c-limestone-200: 22 33 42; --c-limestone-300: 36 50 60; --c-limestone-400: 58 75 87;
+  --c-ink: 230 237 240; --c-ink-700: 200 211 216; --c-ink-600: 167 180 187; --c-ink-500: 141 154 162;
+  --c-ochre: 229 168 102; --c-ochre-700: 240 192 140; --c-ochre-100: 58 44 23; --c-ochre-50: 42 33 18;
+  --c-apricot-100: 58 42 18;
+  --c-lake: 108 200 211; --c-lake-700: 148 218 226; --c-lake-100: 20 53 59; --c-lake-50: 15 38 43;
+  --c-brick: 255 138 117; --c-brick-50: 46 21 18;
+  --c-paper: 17 26 31;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+  --c-juniper: 95 211 161; --c-juniper-700: 139 224 187; --c-juniper-600: 111 216 170; --c-juniper-500: 79 191 142;
+  --c-juniper-200: 45 90 74; --c-juniper-100: 23 58 48; --c-juniper-50: 17 41 31; --c-on-juniper: 6 20 15;
+  --c-limestone: 10 17 22; --c-limestone-200: 22 33 42; --c-limestone-300: 36 50 60; --c-limestone-400: 58 75 87;
+  --c-ink: 230 237 240; --c-ink-700: 200 211 216; --c-ink-600: 167 180 187; --c-ink-500: 141 154 162;
+  --c-ochre: 229 168 102; --c-ochre-700: 240 192 140; --c-ochre-100: 58 44 23; --c-ochre-50: 42 33 18;
+  --c-apricot-100: 58 42 18;
+  --c-lake: 108 200 211; --c-lake-700: 148 218 226; --c-lake-100: 20 53 59; --c-lake-50: 15 38 43;
+  --c-brick: 255 138 117; --c-brick-50: 46 21 18;
+  --c-paper: 17 26 31;
+  color-scheme: dark;
+  }
+}
+
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
@@ -20,10 +63,10 @@
     text-wrap: pretty;
   }
   ::selection {
-    @apply bg-juniper text-white;
+    @apply bg-juniper text-on-juniper;
   }
   :focus-visible {
-    outline: 3px solid #2a6150;
+    outline: 3px solid rgb(var(--c-juniper-600));
     outline-offset: 2px;
     border-radius: 4px;
   }
@@ -55,10 +98,10 @@
     @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded px-4 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60;
   }
   .btn-primary {
-    @apply btn bg-juniper text-white hover:bg-juniper-700;
+    @apply btn bg-juniper text-on-juniper hover:bg-juniper-700;
   }
   .btn-light {
-    @apply btn bg-white text-juniper hover:bg-juniper-50;
+    @apply btn bg-white text-juniper-800 hover:bg-[#EEF4F0];
   }
   .btn-outline {
     @apply btn border border-limestone-400 bg-paper text-ink hover:border-juniper-600 hover:text-juniper;
@@ -78,7 +121,7 @@
   }
   .chip[aria-pressed='true'],
   .chip[aria-checked='true'] {
-    @apply border-juniper bg-juniper text-white;
+    @apply border-juniper bg-juniper text-on-juniper;
   }
 
   .panel {
@@ -86,6 +129,30 @@
   }
   .link {
     @apply font-semibold text-juniper-600 underline decoration-juniper-200 underline-offset-[3px] hover:decoration-juniper-600;
+  }
+}
+
+@layer components {
+  /* Mission-control look for the intelligence pages: always dark, glowing signal colours. */
+  .mission {
+    background-color: #0a1116;
+    background-image:
+      radial-gradient(1200px 500px at 80% -10%, rgba(76, 201, 240, 0.12), transparent 60%),
+      radial-gradient(900px 500px at -10% 10%, rgba(61, 220, 151, 0.1), transparent 60%),
+      linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: auto, auto, 32px 32px, 32px 32px;
+    color: rgb(var(--c-ink));
+  }
+  .m-card {
+    @apply rounded-lg border border-white/10 bg-white/[0.035] shadow-[0_0_0_1px_rgba(255,255,255,0.02),0_20px_40px_-24px_rgba(0,0,0,0.8)];
+  }
+  .m-label {
+    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-500;
+  }
+  .m-glow-green { text-shadow: 0 0 18px rgba(61, 220, 151, 0.45); }
+  .status-dot {
+    @apply inline-block h-2 w-2 shrink-0 rounded-full;
   }
 }
 

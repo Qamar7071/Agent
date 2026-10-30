@@ -47,7 +47,7 @@ export default function LiveConditions() {
   const active = alerts.data?.alerts?.filter((a) => a.active) || [];
 
   return (
-    <section id="conditions" aria-labelledby="cond-title" className="on-dark bg-juniper py-16 text-white sm:py-24">
+    <section id="conditions" aria-labelledby="cond-title" className="on-dark bg-juniper-800 py-16 text-white sm:py-24">
       <div className="mx-auto max-w-page px-4 sm:px-6">
         <h2 id="cond-title" className="type-wide text-3xl font-extrabold sm:text-4xl">Weather and roads, honestly</h2>
         <p className="mt-3 max-w-prose text-white/85">

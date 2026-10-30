@@ -98,7 +98,7 @@ export default function EnquiryDialog() {
             <legend className="field-label">How should we reply?</legend>
             <div className="flex flex-wrap gap-2">
               {METHODS.map(([id, label]) => (
-                <label key={id} className={`chip cursor-pointer has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-juniper-600 ${form.contact_method === id ? 'border-juniper bg-juniper text-white' : ''}`}>
+                <label key={id} className={`chip cursor-pointer has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-juniper-600 ${form.contact_method === id ? 'border-juniper bg-juniper text-on-juniper' : ''}`}>
                   <input type="radio" name="eq-method" value={id} checked={form.contact_method === id} onChange={set('contact_method')} className="sr-only" />
                   {label}
                 </label>

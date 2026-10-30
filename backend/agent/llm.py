@@ -1,9 +1,12 @@
 """Chat-completions client for any OpenAI-compatible API (OpenAI, Groq, Gemini, OpenRouter…)
 with tool calling, provider/model fallback and a hard deadline.
 
-Keys stay on the server and are never logged; failures are logged by HTTP status only.
+Keys stay on the server and are never logged; failures are logged by HTTP status and a short
+error excerpt with anything that looks like a key removed.
 """
+import json
 import logging
+import re
 import time
 
 import requests
@@ -16,6 +19,19 @@ KEEP_FIELDS = ("role", "content", "tool_calls", "extra_content")   # extra_conte
 
 class LLMUnavailable(RuntimeError):
     pass
+
+
+def _safe(text: str) -> str:
+    """A short, key-free excerpt of a provider's error message, for diagnosis."""
+    try:
+        body = json.loads(text)
+        err = body[0] if isinstance(body, list) else body
+        msg = (err.get("error") or {}).get("message") if isinstance(err.get("error"), dict) else err.get("error")
+        text = str(msg or text)
+    except (ValueError, AttributeError, TypeError, IndexError):
+        pass
+    text = re.sub(r"\b(sk|gsk|AIza|tvly)[\w-]{4,}", "[key]", text or "")
+    return re.sub(r"\s+", " ", text)[:160]
 
 
 def complete(messages: list[dict], tools: list[dict] | None, deadline: float, prefer: str | None = None) -> dict:
@@ -57,7 +73,7 @@ def complete(messages: list[dict], tools: list[dict] | None, deadline: float, pr
                     call.setdefault("id", f"call_{int(time.time() * 1000)}_{i}")
                     call.setdefault("type", "function")
                 return {"message": clean, "provider": p["name"], "model": model, "usage": body.get("usage") or {}}
-            errors.append(f"{p['name']}/{model}: HTTP {r.status_code}")
+            errors.append(f"{p['name']}/{model}: HTTP {r.status_code} {_safe(r.text)}".strip())
             if r.status_code in (401, 403):
                 break                      # bad key: this provider's other models will fail too
     log.warning("AI providers failed: %s", "; ".join(errors))

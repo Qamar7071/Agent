@@ -89,7 +89,7 @@ function Message({ m, onShowPlan, showNotice }) {
     return <p className="mx-auto max-w-[90%] text-center text-xs text-ink-500">{m.text}</p>;
   }
   if (m.role === 'user') {
-    return <p className="ml-auto max-w-[88%] whitespace-pre-wrap rounded-md rounded-tr-sm bg-juniper px-4 py-2.5 text-white">{m.text}</p>;
+    return <p className="ml-auto max-w-[88%] whitespace-pre-wrap rounded-md rounded-tr-sm bg-juniper px-4 py-2.5 text-on-juniper">{m.text}</p>;
   }
   if (m.error) {
     return (

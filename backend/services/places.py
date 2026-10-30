@@ -121,14 +121,14 @@ def _query(kind: str, lat: float, lng: float, radius: int) -> str:
     return f"[out:json][timeout:20];({sel});out center tags 120;"
 
 
-def _overpass(query: str) -> list[dict]:
+def _overpass(query: str, quick: bool = False) -> list[dict]:
     last: Exception | None = None
-    for url in config.OVERPASS_URLS:
+    for url in (config.OVERPASS_URLS[:1] if quick else config.OVERPASS_URLS):
         try:
-            r = http.post(url, data={"data": query}, timeout=max(config.HTTP_TIMEOUT_S, 15))
+            r = http.post(url, data={"data": query}, timeout=6 if quick else 10)
             return r.json().get("elements", [])
         except Exception as exc:  # busy or down: try the next public server
-            last = exc
+            last = RuntimeError(f"{url.split('/')[2]}: {type(exc).__name__} {str(exc)[:80]}")
             log.warning("Overpass failed at %s: %s", url, exc)
     raise last or RuntimeError("no Overpass server")
 
@@ -170,7 +170,7 @@ def _parse(el: dict, kind: str, centre: tuple[float, float], town_name: str) -> 
     return place
 
 
-def _live(town: str, kind: str) -> dict:
+def _live(town: str, kind: str, quick: bool = False) -> dict:
     if not config.PLACES_ENABLED:
         return {"available": False, "reason": "Live place listings are switched off on this server."}
     centre = _centre(town)
@@ -180,10 +180,11 @@ def _live(town: str, kind: str) -> dict:
 
     def fetch():
         try:
-            elements = _overpass(_query(kind, centre[0], centre[1], t["radius"]))
-        except Exception:
+            elements = _overpass(_query(kind, centre[0], centre[1], t["radius"]), quick)
+        except Exception as exc:
             return {"available": False, "reason": "OpenStreetMap could not be reached just now. Try again in a "
-                                                  "minute, or use the map links below."}
+                                                  "minute, or use the map links below.",
+                    "detail": f"{type(exc).__name__}: {str(exc)[:160]}"}
         seen, places = set(), []
         for el in elements:
             p = _parse(el, kind, centre, t["name"])
@@ -215,7 +216,7 @@ def _no_listing(town: str, kind: str) -> dict:
             "message": NO_LISTINGS[town]}
 
 
-def stays(town: str, min_pkr: int | None = None, max_pkr: int | None = None) -> dict:
+def stays(town: str, min_pkr: int | None = None, max_pkr: int | None = None, quick: bool = False) -> dict:
     """Curated stays matched to a per-night range, plus live OpenStreetMap listings."""
     if town in NO_LISTINGS:
         return _no_listing(town, "stay")
@@ -240,7 +241,7 @@ def stays(town: str, min_pkr: int | None = None, max_pkr: int | None = None) -> 
             options.sort(key=lambda o: (o["in_range"] is not True, o.get("from") or 0))
         curated = {"base": stay["base"], "options": options, "price_note": stay["price_note"]}
 
-    live = _live(town, "stay")
+    live = _live(town, "stay", quick)
     if live.get("available") and has_range:
         live = dict(live)
         marked = []
