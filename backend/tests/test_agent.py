@@ -282,3 +282,73 @@ def test_saved_trip_key_never_reaches_the_model(ai):
 def test_suggestions_follow_the_conversation():
     assert "Suggest a 5-day trip" in chat("hi")["suggestions"]
     assert "Save this trip" in chat("make it 6 days", state=planned_state())["suggestions"]
+
+
+# ── Facts are fetched by the server, not left to the model (found with a real model) ──
+def first_request_tools(llm) -> list[str]:
+    msgs = llm.requests[0]["json"]["messages"]
+    return [c["function"]["name"] for m in msgs if m["role"] == "assistant" for c in m.get("tool_calls") or []]
+
+
+def test_road_question_reaches_the_model_with_the_road_tool_result(ai):
+    llm = ai.script([say("Current road status could not be verified. Call NHMP on 130 before you leave.")])
+    r = chat("Is the Karakoram Highway open today?")
+    assert first_request_tools(llm) == ["get_road_status"]
+    assert tool_results(llm, 0)[0]["status"] == "not_verified"
+    assert len(llm.requests) == 1 and r["mode"] == "ai"                    # one model call instead of two
+    assert r["trace"][0]["tool"] == "get_road_status" and r["roads"]["headline"].startswith("Current road status")
+
+
+def test_weather_question_gets_the_forecast_first(ai, monkeypatch, web):
+    monkeypatch.setattr(config, "WEATHER_ENABLED", True)
+    web.on(weather.OPEN_METEO, open_meteo_handler())
+    llm = ai.script([say("Open-Meteo forecast for Hunza: mild and dry.")])
+    r = chat("What's the weather in Hunza?")
+    assert first_request_tools(llm) == ["get_weather_forecast"] and r["weather"]
+
+
+def test_a_new_trip_with_place_and_length_is_built_before_the_model_replies(ai):
+    llm = ai.script([say("Here's a 5-day draft for Skardu. Which dates do you have in mind?")])
+    r = chat("Plan a 5-day trip to Skardu for two people. Budget PKR 100,000.")
+    assert first_request_tools(llm) == ["create_itinerary"]
+    assert r["itinerary"]["request"]["destinations"] == ["skardu"] and len(r["itinerary"]["days"]) == 5
+    assert "draft" in llm.requests[0]["json"]["messages"][0]["content"]
+
+
+def test_nothing_is_prefetched_when_the_message_does_not_need_it():
+    ctx = runner.tools.ToolContext(TripState(), None)
+    assert runner.prefetch("kya restaurant open hai Karimabad mein", ctx) == []
+    assert runner.prefetch("Hunza mein 5000 se 8000 tak hotel batao", ctx) == []
+    planned = TripState.model_validate(planned_state())
+    assert runner.prefetch("Plan a 7-day trip to Hunza", runner.tools.ToolContext(planned, None)) == []
+
+
+def test_an_ai_reply_claiming_an_open_road_is_replaced(ai):
+    ai.script([say("Great news, the road is open all the way to Sost!")])
+    r = chat("Is the KKH open to Sost?")
+    assert r["mode"] == "guided" and "Great news" not in r["reply"] and runner.unsupported_claim(r["reply"]) is None
+    assert "can't support" in r["notice"] and any(t["tool"] == "honesty_check" and not t["ok"] for t in r["trace"])
+
+
+def test_an_ai_reply_claiming_a_booking_is_replaced(ai):
+    ai.script([say("Done! I've booked your room at Hunza Darbar for 12 November.")])
+    r = chat("Book me a hotel in Hunza for 12 November")
+    assert r["mode"] == "guided" and "booked your room" not in r["reply"] and runner.unsupported_claim(r["reply"]) is None
+
+
+def test_claim_detector_allows_negations_and_seasonal_patterns():
+    allowed = ["Current road status could not be verified.", "No closure report does not mean the road is open.",
+               "The Khunjerab Pass is usually open from April to November.", "Nothing has been booked.",
+               "Prices are not guaranteed."]
+    rejected = ["The KKH is currently open all the way to Sost.", "Your booking is confirmed.",
+                "I have reserved two rooms.", "Guaranteed availability in peak season."]
+    assert [t for t in allowed if runner.unsupported_claim(t)] == []
+    assert [t for t in rejected if not runner.unsupported_claim(t)] == []
+
+
+def test_instructions_cover_script_amenities_and_sources(ai):
+    llm = ai.script([say("Theek hai.")])
+    chat("Hunza mein hotel batao")
+    system = llm.requests[0]["json"]["messages"][0]["content"]
+    assert "never in Urdu script" in system
+    assert "Never add amenities" in system and "never invent websites, portals" in system

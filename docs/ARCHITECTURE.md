@@ -116,6 +116,19 @@ flowchart LR
 - A message sticks to one provider. If the main provider fails, the backup provider (and any
   fallback models) is tried; a 401 or 403 skips the rest of that provider's models.
 - Saved-trip keys, enquiry keys and the admin token are never put in the model's context.
+- **Facts are fetched by the server first.** Tested with a real model (gpt-oss-120b, 30 Oct
+  2026), the model sometimes answered road questions from memory without calling a tool. So
+  `runner.prefetch` now calls the tool itself before the model replies: road questions get
+  `get_road_status`, weather questions the forecast for the places in the trip, and a new trip
+  with a place and a length gets `create_itinerary`. The results go into the conversation as
+  tool results, which also saves one model call per question.
+- **Unsupported claims are rejected.** If the model's reply says a road is open or passable,
+  or that something is booked, reserved or confirmed (outside a negation or a seasonal
+  statement such as "usually open April–November"), the reply is discarded, guided mode
+  answers instead, and the trace shows an `honesty_check` entry.
+- The instructions also require replies in the traveller's own script (Roman Urdu stays in
+  Latin letters), describing places only with the fields a tool returned (no invented
+  amenities), and naming only official sources that tools give.
 
 ## 3. Planner (`backend/planner.py`)
 
@@ -303,7 +316,7 @@ curl -s -X POST localhost:5000/api/chat -H "Content-Type: application/json" -d '
 
 | Command | What it covers |
 |---|---|
-| `npm run test:api` | Backend unit and API tests with pytest: data, planner, budget, services (with recorded PMD fixtures and fake HTTP), storage (SQLite; Postgres when `RAAHI_TEST_PG_URL` is set), API, parser, the agent with a scripted fake model (including the 10 evaluation scenarios), and the multi-agent system (`test_multiagent.py`: task graph, events, intent routing, failures, validation retries, every scenario type, comparison, risk and eco models, Guardian, streaming). All offline. |
+| `npm run test:api` | Backend unit and API tests with pytest (147 on 30 Oct 2026): data, planner, budget, services (with recorded PMD fixtures and fake HTTP), storage (SQLite; Postgres when `RAAHI_TEST_PG_URL` is set), API, parser, the agent with a scripted fake model (including the 10 evaluation scenarios), and the multi-agent system (`test_multiagent.py`: task graph, events, intent routing, failures, validation retries, every scenario type, comparison, risk and eco models, Guardian, streaming). All offline. |
 | `npm run test:e2e` | 21 browser checks against a running server (Playwright + Chromium), including Travel Twin, Agent Control Center, Guardian and the theme button. |
 | `npm run audit:a11y` | axe-core accessibility audit of 62 page states at phone and desktop sizes (including the agent pages and the dark theme), plus page weight. |
 
