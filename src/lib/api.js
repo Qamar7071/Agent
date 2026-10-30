@@ -65,7 +65,82 @@ async function request(method, path, { body, headers = {}, timeout = 30000, sign
 const get = (path, opts) => request('GET', path, opts);
 const post = (path, body, opts) => request('POST', path, { body, ...opts });
 
+// Multi-agent jobs stream their real execution events as NDJSON (one JSON object per line).
+// onEvent gets each event as it happens; the promise resolves with the final result. If the
+// host buffers the stream, the events simply arrive together at the end.
+async function stream(path, body, { onEvent, signal, timeout = 90000 } = {}) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort('timeout'), timeout);
+  const onAbort = () => ctrl.abort('cancel');
+  signal?.addEventListener('abort', onAbort);
+  try {
+    let res;
+    try {
+      res = await fetch(`${BASE}${path}?stream=1`, {
+        method: 'POST',
+        headers: { Accept: 'application/x-ndjson', 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: ctrl.signal,
+      });
+    } catch {
+      if (ctrl.signal.reason === 'cancel') throw new ApiError({ kind: 'cancelled', message: 'Cancelled.' });
+      if (ctrl.signal.reason === 'timeout') throw new ApiError({ kind: 'timeout', message: 'The agents took too long. Try again.' });
+      throw new ApiError({ kind: 'network', message: 'Can’t reach Raahi’s server. Check your connection and try again.' });
+    }
+    if (!res.ok) {
+      let data = null;
+      try { data = await res.json(); } catch { /* not JSON */ }
+      const retryAfter = Number(res.headers.get('Retry-After')) || null;
+      const message = res.status === 429 && retryAfter ? `Too many requests. Wait ${retryAfter} seconds and try again.`
+        : data?.error?.message || `Raahi’s server returned an error (${res.status}).`;
+      throw new ApiError({ kind: 'http', status: res.status, code: data?.error?.code || '', message, retryAfter });
+    }
+    let result = null;
+    const handle = (line) => {
+      if (!line.trim()) return;
+      const msg = JSON.parse(line);
+      if (msg.type === 'event') onEvent?.(msg);
+      else if (msg.type === 'result') result = msg.data;
+      else if (msg.type === 'error') throw new ApiError({ kind: 'http', status: 500, message: msg.message });
+    };
+    if (res.body?.getReader) {
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let i;
+        while ((i = buf.indexOf('\n')) >= 0) {
+          handle(buf.slice(0, i));
+          buf = buf.slice(i + 1);
+        }
+      }
+      handle(buf);
+    } else {
+      (await res.text()).split('\n').forEach(handle);
+    }
+    if (!result) throw new ApiError({ kind: 'http', status: 500, message: 'The agents stopped without an answer. Try again.' });
+    return result;
+  } catch (e) {
+    if (e instanceof ApiError) throw e;
+    if (ctrl.signal.reason === 'cancel') throw new ApiError({ kind: 'cancelled', message: 'Cancelled.' });
+    if (ctrl.signal.reason === 'timeout') throw new ApiError({ kind: 'timeout', message: 'The agents took too long. Try again.' });
+    throw new ApiError({ kind: 'network', message: 'The connection dropped while the agents were working. Try again.' });
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', onAbort);
+  }
+}
+
 export const api = {
+  agentRoster: () => get('/api/agents', { timeout: 10000 }),
+  runAgents: (payload, opts) => stream('/api/agents/run', payload, opts),
+  twinPresets: () => get('/api/twin/scenarios', { timeout: 10000 }),
+  simulate: (payload, opts) => stream('/api/twin/simulate', payload, opts),
+  guardian: (payload, opts) => stream('/api/guardian/check', payload, opts),
+
   health: () => get('/api/health', { timeout: 10000 }),
   chat: (payload, opts) => post('/api/chat', payload, { timeout: 70000, ...opts }),
   plan: (tripRequest, opts) => post('/api/plan', tripRequest, opts),

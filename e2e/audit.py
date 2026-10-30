@@ -5,8 +5,9 @@ Run it against a running Raahi server, e.g. after `npm run build` and `cd backen
     python e2e/audit.py [BASE_URL]          # default http://localhost:5000
     RAAHI_ADMIN_KEY=... also audits the admin enquiry list (must match the server's ADMIN_TOKEN)
 
-1. Accessibility: runs axe-core (node_modules/axe-core, installed by `npm install`) on the main pages
-   and planner states at phone (390x844) and desktop (1440x900) sizes, against the WCAG 2.0/2.1/2.2
+1. Accessibility: runs axe-core (node_modules/axe-core, installed by `npm install`) on the main pages,
+   planner states, the agent pages (Travel Twin, Agent Control Center, Guardian) and the dark theme
+   at phone (390x844) and desktop (1440x900) sizes, against the WCAG 2.0/2.1/2.2
    A and AA rules plus axe's best-practice rules. Automated checks find only part of the problems;
    keyboard and screen-reader testing by a person is still needed.
 2. Page weight: what a first visit to the home page downloads, before and after scrolling to the bottom.
@@ -18,6 +19,7 @@ accessibility violations found (one per rule, page state and screen size).
 """
 import gzip
 import os
+import re
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -130,7 +132,8 @@ def run_states(page: Page, screen: str):
     for tab, wait_for in (("Budget", "Total (estimate)"),
                           ("Weather and roads", "Current road status could not be verified."),
                           ("Stays", "not quotes"),
-                          ("Food", "Local food")):
+                          ("Food", "Local food"),
+                          ("Packing", "Built by the packing agent")):
         page.get_by_role("tab", name=tab).click()
         expect(page.get_by_role("tabpanel")).to_contain_text(wait_for, timeout=40000)
         audit(page, screen, f"plan: {tab.lower()} tab")
@@ -160,7 +163,7 @@ def run_states(page: Page, screen: str):
     page.locator("#chat-input").fill("What's the weather in Hunza?")
     page.keyboard.press("Enter")
     expect(page.locator("section[aria-label='Chat with Raahi']")).to_contain_text(
-        "Open-Meteo", timeout=60000)
+        re.compile("Open-Meteo|couldn't get a forecast"), timeout=60000)
     audit(page, screen, "chat with a reply")
 
     show_plan_view(page, screen)
@@ -182,6 +185,41 @@ def run_states(page: Page, screen: str):
         page.get_by_role("button", name="Open enquiries").click()
         expect(page.get_by_role("heading", level=1, name="Enquiries")).to_be_visible()
         audit(page, screen, "admin enquiry list")
+
+
+def run_agent_states(page: Page, screen: str):
+    """The multi-agent pages (dark "mission" design), then the main pages with the dark theme."""
+    page.goto(BASE + "/twin", wait_until="domcontentloaded")
+    page.evaluate("localStorage.clear(); sessionStorage.clear()")
+    page.goto(BASE + "/twin", wait_until="networkidle")
+    audit(page, screen, "travel twin, empty")
+    page.get_by_role("button", name="Run the demo trip").click()
+    expect(page.locator("#twin-h")).to_have_text("Hunza Valley and Khunjerab Pass", timeout=60000)
+    audit(page, screen, "travel twin, demo run")
+    page.get_by_role("button", name="Khunjerab route unavailable on day 4").click()
+    expect(page.locator("#sim-h")).to_be_visible(timeout=60000)
+    audit(page, screen, "travel twin, what-if comparison")
+
+    page.goto(BASE + "/agents", wait_until="networkidle")
+    flow = page.get_by_role("group", name="Agent workflow")
+    flow.get_by_role("button", name=re.compile("Weather Intelligence")).first.click()
+    expect(page.get_by_text(re.compile(r"Tool calls \(\d+\)"))).to_be_visible()
+    audit(page, screen, "agent control center, task selected")
+
+    page.goto(BASE + "/guardian", wait_until="networkidle")
+    expect(page.get_by_role("heading", name="Day by day")).to_be_visible(timeout=60000)
+    audit(page, screen, "guardian, trip checked")
+
+    page.evaluate("localStorage.setItem('raahi:theme', JSON.stringify('dark'))")
+    for path, state, ready in (("/", "home, dark theme", None),
+                               ("/destinations/hunza", "destination page, dark theme", "Forecast"),
+                               ("/plan", "planner, dark theme", None),
+                               ("/trips", "my trips, dark theme", None)):
+        page.goto(BASE + path, wait_until="networkidle")
+        if ready:
+            expect(page.locator("aside").filter(has_text=ready)).to_contain_text(ready, timeout=25000)
+        audit(page, screen, state)
+    page.evaluate("localStorage.removeItem('raahi:theme')")
 
 
 # ---------------------------------------------------------------- page weight
@@ -263,11 +301,13 @@ def main() -> int:
             context = browser.new_context(**options)
             page = context.new_page()
             page.set_default_timeout(15000)
-            try:
-                run_states(page, screen)
-            except Exception as exc:  # report what was reached; a broken flow is itself a finding
-                print(f"  STOPPED: {str(exc).splitlines()[0][:200]}")
-                found.append((screen, "flow", {"id": "flow-stopped", "impact": "n/a", "help": str(exc)[:200], "nodes": []}))
+            for states in (run_states, run_agent_states):
+                try:
+                    states(page, screen)
+                except Exception as exc:  # report what was reached; a broken flow is itself a finding
+                    print(f"  STOPPED: {str(exc).splitlines()[0][:200]}")
+                    found.append((screen, "flow", {"id": "flow-stopped", "impact": "n/a", "help": str(exc)[:200],
+                                                   "nodes": []}))
             context.close()
         print("\nPage weight:")
         for screen in VIEWPORTS:

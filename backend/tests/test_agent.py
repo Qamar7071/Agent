@@ -75,7 +75,7 @@ def test_eval_03_is_the_pass_open_today_is_never_answered_yes():
     r = chat("Is Khunjerab Pass open today?")
     assert r["mode"] == "guided" and r["roads"]["status"] == "not_verified"
     assert r["reply"].startswith("**Current road status could not be verified.**")
-    assert "Khunjerab Pass (KKH, Sost–border): typically open May–October" in r["reply"]
+    assert "Khunjerab Pass (KKH, Sost–border): typically open April–November" in r["reply"]
     assert "Typical pattern, not live" in r["reply"] and "130" in r["reply"]
     assert "No closure report found does not mean the road is open." in r["reply"]
 

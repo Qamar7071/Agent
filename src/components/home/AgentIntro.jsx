@@ -34,7 +34,7 @@ export default function AgentIntro() {
         <figure className="self-start rounded-md border border-limestone-300 bg-limestone p-5 sm:p-6">
           <figcaption className="text-sm text-ink-600">Example conversation (from Raahi’s own planner rules)</figcaption>
           <div className="mt-4 flex flex-col gap-4 text-[15px]">
-            <p className="ml-auto max-w-[85%] rounded-md rounded-tr-sm bg-juniper px-4 py-2.5 text-white">
+            <p className="ml-auto max-w-[85%] rounded-md rounded-tr-sm bg-juniper px-4 py-2.5 text-on-juniper">
               Hunza jana hai 6 din ke liye, Lahore se. Hum 2 log hain, budget 1.5 lakh.
             </p>
             <ol className="flex flex-col gap-1.5 text-sm text-ink-600" aria-label="What Raahi checked">

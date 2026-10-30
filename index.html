@@ -6,6 +6,10 @@
     <title>Raahi: AI trip planner for Northern Pakistan</title>
     <meta name="description" content="Plan a realistic trip to Hunza, Skardu, Fairy Meadows, Deosai and the Karakoram Highway: drive days, overnight stops, season checks, live forecasts and honest cost estimates." />
     <meta name="theme-color" content="#173A2E" />
+    <script>
+      /* Apply the saved theme before the page paints (no flash). */
+      try { var t = localStorage.getItem('raahi:theme'); if (t === '"dark"' || t === '"light"') document.documentElement.dataset.theme = JSON.parse(t); } catch (e) {}
+    </script>
     <link rel="canonical" href="https://north-kappa-ivory.vercel.app/" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Raahi" />

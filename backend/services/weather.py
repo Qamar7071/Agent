@@ -102,8 +102,8 @@ def _round(v, nd=0):
     return round(v, nd) if nd else round(v)
 
 
-def forecast(dest_id: str, start: str | None = None, days: int | None = None) -> dict:
-    """Forecast for a destination, optionally for specific trip dates."""
+def forecast(dest_id: str, start: str | None = None, days: int | None = None, fresh: bool = False) -> dict:
+    """Forecast for a destination, optionally for specific trip dates. `fresh` skips a cached failure."""
     d = data.destination(dest_id)
     if not d:
         return {"available": False, "reason": f"Unknown destination '{dest_id}'."}
@@ -144,7 +144,7 @@ def forecast(dest_id: str, start: str | None = None, days: int | None = None) ->
                             f"destination is about {d['altitude_m']} m, so temperatures may differ.")
         return out
 
-    return http.cached(f"wx:{dest_id}:{s}:{e}", 1800, go)
+    return http.cached(f"wx:{dest_id}:{s}:{e}", 1800, go, refresh_failed=fresh)
 
 
 # ── Official alerts (PMD CAP) ─────────────────────────────────────────────────────
@@ -176,7 +176,7 @@ def _region_excerpt(text: str) -> str | None:
     return pick[:600] if pick else None
 
 
-def pmd_alerts(limit: int = 5) -> dict:
+def pmd_alerts(limit: int = 5, fresh: bool = False) -> dict:
     """Recent official PMD alerts that mention Gilgit-Baltistan / the KKH corridor."""
     base = {"source": "Pakistan Meteorological Department (CAP alert feed)", "source_url": PMD_FEED,
             "official": True}
@@ -218,7 +218,7 @@ def pmd_alerts(limit: int = 5) -> dict:
                 "alerts": alerts, "active_count": sum(1 for a in alerts if a.get("active")),
                 "note": "Weather alerts only. PMD does not publish road status in this feed."}
 
-    return http.cached("pmd-alerts", 1800, go)
+    return http.cached("pmd-alerts", 1800, go, refresh_failed=fresh)
 
 
 def _rfc822(s: str | None) -> str | None:

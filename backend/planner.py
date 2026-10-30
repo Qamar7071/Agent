@@ -9,8 +9,11 @@ It is a pure function with no network calls, so it is fast, testable and cannot 
 live data. Live weather and road information are attached separately
 (services/conditions.py), and the agent explains both.
 """
+import contextvars
 import heapq
 import math
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import date, timedelta
 from functools import lru_cache
 
@@ -45,6 +48,29 @@ class PlanError(ValueError):
 
 
 # ── Road network ──────────────────────────────────────────────────────────────────
+# Road legs treated as closed while planning (used by Travel Twin "what if" scenarios).
+# A context variable, so parallel simulations in other threads never see each other's closures.
+_closed_legs: contextvars.ContextVar[frozenset] = contextvars.ContextVar("raahi_closed_legs", default=frozenset())
+
+
+def leg_key(a: str, b: str) -> str:
+    return "|".join(sorted((a, b)))
+
+
+@contextmanager
+def closures(legs) -> Iterator[None]:
+    """Plan as if these road legs (keys from leg_key) were unavailable."""
+    token = _closed_legs.set(frozenset(legs or ()))
+    try:
+        yield
+    finally:
+        _closed_legs.reset(token)
+
+
+def reachable(a: str, b: str) -> bool:
+    return a == b or path(a, b) is not None
+
+
 @lru_cache(maxsize=1)
 def _graph() -> dict[str, list[tuple[str, dict]]]:
     g: dict[str, list[tuple[str, dict]]] = {}
@@ -81,7 +107,10 @@ def path(a: str, b: str) -> list[dict] | None:
             break
         if cost > best.get(node, math.inf):
             continue
+        closed = _closed_legs.get()
         for nxt, leg in g[node]:
+            if closed and leg_key(node, nxt) in closed:
+                continue
             c = cost + leg["hours"][1] + (leg.get("hike_hours") or [0, 0])[1] + 0.01
             if c < best.get(nxt, math.inf):
                 best[nxt] = c
@@ -145,7 +174,8 @@ def _move(hops: list[dict]) -> dict:
         "from": a, "to": b, "from_name": data.place_name(a), "to_name": data.place_name(b),
         "mode": "jeep" if "jeep" in modes else "drive", "km": km, "hours": [lo, hi],
         "time_label": _hours_label(lo, hi), "via": [data.place_name(h["to"]) for h in hops[:-1]],
-        "legs": [{"from_name": data.place_name(h["from"]), "to_name": data.place_name(h["to"]), "km": h["km"],
+        "legs": [{"from": h["from"], "to": h["to"], "key": leg_key(h["from"], h["to"]),
+                  "from_name": data.place_name(h["from"]), "to_name": data.place_name(h["to"]), "km": h["km"],
                   "hours": h["hours"], "mode": h["mode"], "note": h["note"]} for h in hops],
         "notes": notes, "maps_url": routing.maps_link(a, b),
         "status": "rough estimate" if rough else "approximate (curated)", "verified": False,

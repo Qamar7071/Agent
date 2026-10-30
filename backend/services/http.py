@@ -37,15 +37,22 @@ def post(url: str, **kw) -> requests.Response:
     return r
 
 
-def cached(key: str, ttl_s: float, fetch):
-    """Return a cached value or call fetch(). Failures (available=False) are cached briefly."""
+def _failed(value) -> bool:
+    return isinstance(value, dict) and value.get("available") is False
+
+
+def cached(key: str, ttl_s: float, fetch, refresh_failed: bool = False):
+    """Return a cached value or call fetch(). Failures (available=False) are cached briefly.
+
+    `refresh_failed` is for retries: a cached failure is ignored and the service asked again.
+    """
     now = time.time()
     with _lock:
         hit = _cache.get(key)
-        if hit and hit[0] > now:
+        if hit and hit[0] > now and not (refresh_failed and _failed(hit[1])):
             return hit[1]
     value = fetch()
-    ok = not (isinstance(value, dict) and value.get("available") is False)
+    ok = not _failed(value)
     with _lock:
         _cache[key] = (now + (ttl_s if ok else min(60, ttl_s)), value)
     return value

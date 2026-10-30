@@ -7,6 +7,12 @@ by daylight, overnight stops, season checks, a live forecast, honest road inform
 line-by-line cost estimate. You can change the plan by chat or by hand, save it, and send a
 booking enquiry.
 
+Behind the planner, a team of specialist agents (itinerary, weather, route, budget, stays,
+safety, packing, emissions, validation) works on each trip in parallel, and you can watch
+them do it. The **Travel Twin** tests a trip against what-ifs ("What if the Khunjerab route
+becomes unavailable on day 4?") on a copy and compares the two before you accept anything.
+The **Journey Guardian** re-checks a trip and scores each day's risk from documented factors.
+
 Raahi is careful about what it knows. Forecasts come from a live weather model with the time
 they were checked. Road status is never guessed: it says "Current road status could not be
 verified" and points to the official sources. Prices are estimates, not quotes. Nothing is
@@ -32,6 +38,13 @@ before this version: [docs/AUDIT.md](docs/AUDIT.md).
 | Saved trips | Saved in the database with a private key kept in your browser; reopen, update or delete from "My trips". |
 | Booking enquiries | Consent required, a reference like `RAH-7KQ2-M9XD`, status check and withdrawal; an admin page to review them. It is an enquiry, not a booking. |
 | Destination pages | One page per place with season, access, altitude, stays, forecast and sources, prerendered for search engines, plus `sitemap.xml` and `robots.txt`. |
+| Multi-agent planning | A Master Orchestrator picks the agents a request needs (a packing question doesn't run the budget agent), runs independent agents in parallel, has a Validation agent cross-check them, retries a failed weather lookup once, and asks you when a choice is yours (over budget, too few days). Works without an AI key; with one, the model only rewords the validated answer. |
+| Agent Control Center (`/agents`) | The workflow graph, each task's inputs, outputs, tool calls, timings, retries and errors, a timeline and the event log, all from real server events. The last 10 runs are kept in your browser. |
+| Travel Twin (`/twin`) | A copy of your trip, a 3D-style route view coloured by risk, and what-ifs: a road closed from a given day, heavy snow, budget up or down, days added or removed, a place inaccessible, more people, more adventure. Typed in English or Roman Urdu. Shows days, cost, hours, route, risk and emissions side by side with a recommendation; your plan changes only if you press Accept. |
+| Journey Guardian (`/guardian`) | Re-runs the weather, route and safety agents on a saved trip, your current plan or the Twin, scores each day 0–100 with the evidence for every point, and lists what changed since your last check. Re-checks every 30 minutes while the page is open and can notify you in the browser. |
+| Packing list | A Packing tab in the planner: items from your places, season, forecast and activities, each with its reason, ticks kept in your browser. |
+| Emissions | Transport CO2e for the plan and for coach, car and flight options, as a range with its assumptions and source. |
+| Light and dark theme | Follows your device, or choose light or dark. |
 
 ### What is live and what is not
 
@@ -45,6 +58,9 @@ before this version: [docs/AUDIT.md](docs/AUDIT.md).
 | Costs and stays | Raahi's cost assumptions (reviewed 27 Oct 2026) | No, estimates |
 | Places to stay and eat | OpenStreetMap contributors, through the Overpass API | Yes, but no prices or opening status |
 | Possible closures in the news | Tavily search, only if you add a key | Unverified reports |
+| Risk score (Twin, Guardian) | Raahi's weighted factors from the forecast, PMD alerts, seasons, drive length, daylight and altitude | Partly: live where the forecast and alerts are. A heuristic, not an official safety assessment |
+| Emissions | UK Government (DESNZ) 2025 conversion factors, with Raahi's mountain-road assumptions | No, estimates as ranges |
+| What-if scenarios | Your own assumptions | No, never presented as forecasts |
 
 ## Run it on your computer
 
@@ -101,6 +117,7 @@ important ones:
 | `ADMIN_TOKEN` | The admin page; enquiries stay off without it | a long random string |
 | `SITE_URL` | Canonical links and the sitemap | `https://your-domain.example` |
 | `TAVILY_API_KEY` | Road news search (optional) | |
+| `AGENT_RATE_PER_MIN` | Agent runs, simulations and Guardian checks per visitor per minute (default 20) | `20` |
 
 Keys only ever go in the backend. Anything starting with `VITE_` ends up in the website's
 JavaScript, so never put a key there ([.env.example](.env.example)).
@@ -145,18 +162,19 @@ with gunicorn). It was not tested in this upgrade.
 
 | Command | What it runs | Result on 28 Oct 2026 |
 |---|---|---|
-| `npm run build` | Production build, static destination pages, sitemap | OK: main script 229 KB (72 KB gzipped), planner 58 KB (17 KB gzipped) |
-| `npm run test:api` (venv active; once, in `backend/`: `pip install -r requirements-dev.txt`) | 102 backend tests, all offline: data, planner, budget, live-service parsing with recorded responses, places, storage, API, parser, agent with a scripted model, including the 10 evaluation scenarios | 102 passed |
+| `npm run build` | Production build, static destination pages, sitemap | OK on 30 Oct: main script 235 KB (74 KB gzipped), planner 67 KB (19 KB), Travel Twin 24 KB (8 KB), Agent Control Center 13 KB, Guardian 12 KB |
+| `npm run test:api` (venv active; once, in `backend/`: `pip install -r requirements-dev.txt`) | 139 backend tests, all offline: data, planner, budget, live-service parsing with recorded responses, places, storage, API, parser, agent with a scripted model (including the 10 evaluation scenarios), and the multi-agent system: task graph and events, intent routing, a failing agent, validation retries, unsupported claims, every scenario type, Khunjerab day 4, risk, eco, packing, Guardian, streaming | 139 passed (30 Oct) |
 | same, with `RAAHI_TEST_PG_URL=postgresql://…` | The storage tests also on Postgres 16 | passed (run before the stays and food update; storage code unchanged since) |
-| `npm run test:e2e` (server running; `pip install -r e2e/requirements.txt` and `python -m playwright install chromium` first) | 16 checks in a real browser: pages, navigation, form, chat, editing, tabs, saving, enquiry, admin, network errors, phone to desktop layouts, keyboard | 16 passed |
-| `npm run audit:a11y` (server running) | axe-core accessibility rules (WCAG 2.2 A and AA plus best practices) on 42 page states at phone and desktop sizes, and page weight | 0 violations |
+| `npm run test:e2e` (server running; `pip install -r e2e/requirements.txt` and `python -m playwright install chromium` first) | 21 checks in a real browser: pages, navigation, form, chat, editing, tabs, packing, saving, enquiry, admin, network errors, Travel Twin (demo, Khunjerab what-if, accept), Agent Control Center, Guardian, theme, phone to desktop layouts, keyboard | 21 passed (30 Oct) |
+| `npm run audit:a11y` (server running) | axe-core accessibility rules (WCAG 2.2 A and AA plus best practices) on 62 page states at phone and desktop sizes, including the agent pages and the dark theme, and page weight | 0 violations (30 Oct) |
 
-The browser checks ran against a local server in guided mode with SQLite, and the live
-weather, alert and routing services were reachable at the time. A first visit to the home
-page downloaded 806 KB on a phone and 812 KB on a desktop before scrolling, and 930–940 KB
-after scrolling to the bottom, against 8.5 MB for the old site. The local server sends text
-uncompressed; with compression, as on Vercel, the script drops from 224 KB to about 70 KB
-and the first load to about 625 KB.
+The browser checks ran against a local server in guided mode with SQLite. During the 30 Oct
+runs, most Open-Meteo requests from the test machine failed (rate-limited or timed out) and
+OpenStreetMap's Overpass servers could not be reached, so those paths were tested in their
+"unavailable" state; the tests accept either a live result or the honest failure message. A
+first visit to the home page downloaded about 830 KB on a desktop before scrolling and about
+955 KB after scrolling to the bottom, against 8.5 MB for the old site. The local server sends
+text uncompressed; with compression, as on Vercel, the first load is about 630 KB.
 
 What the tests do not show: how a real AI model behaves (the agent was tested with a
 scripted model, because no AI key was available for testing), that this version works on
@@ -169,7 +187,10 @@ screen reader too.
 
 ```
 api/index.py          Vercel entry point for the API
-backend/              Flask API, agent, planner, budget, storage, live services, tests
+backend/              Flask API, chat agent, planner, budget, storage, live services, tests
+backend/agents/       multi-agent system: orchestrator and the specialist agents
+backend/twin/         Travel Twin: scenario parser, simulation, comparison
+backend/guardian.py   Journey Guardian checks
 shared/               destinations.json: the one dataset used by the API and the website
 src/                  React website (pages, components, planner state, router, API client)
 public/               favicon and the optimised photos (WebP and social images)
@@ -206,6 +227,19 @@ To change destination facts, road legs, stays or cost assumptions, edit
   photos you own or have permission to use before any public or commercial use.
 - **Forecast points are approximate.** Each place uses one approximate coordinate, and
   mountain weather changes quickly with altitude.
+- **The risk score is a heuristic.** It adds documented factors from public data; it is not
+  an official safety assessment, cannot see live road conditions, and its confidence is never
+  above medium.
+- **What-ifs are only as good as Raahi's road data.** The Twin re-plans on Raahi's road
+  sections and cost assumptions; it does not model traffic, repair times or how long a closure
+  lasts.
+- **The Guardian only checks while its page is open.** There is no background job or push
+  service yet, so it cannot warn you when the site is closed.
+- **Not built yet (phase B):** Local Pulse community reports, the offline survival mode, the
+  interactive map page, accounts with roles, and the Emergency Assistance agent. The agent
+  roster lists them as planned.
+- **Emissions are estimates** from UK factors with Raahi's assumptions for mountain roads;
+  Pakistan publishes no equivalent set.
 - Python 3.12, which Vercel uses, was not tested here (tests ran on Python 3.13).
 
 ## Next steps
@@ -223,3 +257,6 @@ To change destination facts, road legs, stays or cost assumptions, edit
 7. Add database migrations (Alembic) before the next schema change.
 8. Only with a licensed operator's real API: live availability and booking, showing
    "confirmed" only when the operator confirms.
+9. Phase B of the agent platform: accounts with roles, Local Pulse reports with moderation
+   (feeding the risk score's community factor), offline mode, the map page and the Emergency
+   Assistance agent.

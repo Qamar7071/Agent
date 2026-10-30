@@ -11,6 +11,9 @@ const Plan = lazy(() => import('./pages/Plan.jsx'));
 const Trips = lazy(() => import('./pages/Trips.jsx'));
 const Destination = lazy(() => import('./pages/Destination.jsx'));
 const Admin = lazy(() => import('./pages/Admin.jsx'));
+const TravelTwin = lazy(() => import('./pages/TravelTwin.jsx'));
+const AgentControl = lazy(() => import('./pages/AgentControl.jsx'));
+const Guardian = lazy(() => import('./pages/Guardian.jsx'));
 
 function Loading() {
   return (
@@ -26,6 +29,9 @@ function Page() {
   if (path === '/plan') return <Plan />;
   if (path === '/trips') return <Trips />;
   if (path === '/admin') return <Admin />;
+  if (path === '/twin') return <TravelTwin />;
+  if (path === '/agents') return <AgentControl />;
+  if (path === '/guardian') return <Guardian />;
   const dest = match('/destinations/:id', path);
   if (dest) return <Destination id={dest.id} />;
   return <NotFound />;

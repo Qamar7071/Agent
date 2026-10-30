@@ -23,12 +23,15 @@ Admin (Authorization: Bearer ADMIN_TOKEN)
 
 Run locally:  pip install -r requirements.txt  &&  python app.py   (http://localhost:5000)
 """
+import json
 import logging
 import os
+import queue
 import re
+import threading
 import time
 
-from flask import Flask, g, jsonify, request, send_from_directory
+from flask import Flask, Response, g, jsonify, request, send_from_directory, stream_with_context
 from flask_cors import CORS
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from werkzeug.exceptions import HTTPException
@@ -38,7 +41,12 @@ import data
 import planner
 import storage
 from agent.runner import run_chat
-from schemas import (CONSENT_TEXT, CONSENT_VERSION, ChatRequest, EnquiryAdminUpdate, EnquiryIn, PlanUpdate,
+import guardian
+from agents.orchestrator import AGENTS, orchestrate
+from twin import scenarios as twin_scenarios
+from twin import segments as twin_segments
+from twin.simulation import simulate
+from schemas import (AgentRunIn, GuardianIn, TwinSimulateIn, CONSENT_TEXT, CONSENT_VERSION, ChatRequest, EnquiryAdminUpdate, EnquiryIn, PlanUpdate,
                      TripRequest, TripSave)
 from security import admin_status, client_ip, limiter
 from services import conditions, http, places, roads, weather
@@ -96,6 +104,32 @@ def rate(bucket: str, limit: int) -> None:
     if not ok:
         raise ApiError(429, "Too many requests. Please wait a moment and try again.", "rate_limited",
                        headers={"Retry-After": str(retry)})
+
+
+def respond(work, **kwargs):
+    """Run a multi-agent job. With ?stream=1 every execution event is sent as it happens (NDJSON),
+    followed by the result; otherwise the whole result (which includes the full trace) is returned."""
+    if request.args.get("stream") != "1":
+        return work(**kwargs)
+    events: queue.Queue = queue.Queue()
+
+    def job():
+        try:
+            events.put({"type": "result", "data": work(emit=events.put, **kwargs)})
+        except Exception:
+            logging.getLogger("raahi.api").exception("agent job failed")
+            events.put({"type": "error", "message": "Something went wrong while the agents were working."})
+        finally:
+            events.put(None)
+
+    threading.Thread(target=job, daemon=True).start()
+
+    def lines():
+        while (item := events.get()) is not None:
+            yield json.dumps(item, default=str, ensure_ascii=False) + "\n"
+
+    return Response(stream_with_context(lines()), mimetype="application/x-ndjson",
+                    headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
 
 
 def need_storage() -> None:
@@ -259,6 +293,64 @@ def create_app() -> Flask:
                 raise ApiError(400, f"{name} must be a whole number of rupees up to 1,000,000.", "validation")
             bounds.append(value)
         return places.stays(town, *bounds) if kind == "stay" else places.food(town)
+
+    # ── Multi-agent system ──
+    @app.get("/api/agents")
+    def agent_roster():
+        roster = [{"name": "orchestrator", "label": "Master Orchestrator", "depends_on": [],
+                   "description": "Reads the request, picks the agents it needs, runs them in parallel where it can, "
+                                  "validates and answers."}]
+        roster += [{"name": a.name, "label": a.label, "description": a.description, "depends_on": list(a.depends_on)}
+                   for a in AGENTS.values()]
+        roster += [{"name": "twin", "label": "Travel Twin", "depends_on": [],
+                    "description": "Copies a trip and applies a what-if scenario without touching the original."},
+                   {"name": "comparison", "label": "Comparison Engine", "depends_on": ["itinerary"],
+                    "description": "Compares the original and simulated trips day by day."}]
+        planned = [{"name": "local_pulse", "label": "Local Pulse", "status": "planned (phase B)"},
+                   {"name": "emergency", "label": "Emergency Assistance", "status": "planned (phase B)"}]
+        return {"agents": roster, "planned": planned}
+
+    @app.post("/api/agents/run")
+    def agents_run():
+        rate("agents", config.AGENT_RATE_PER_MIN)
+        b = parse(AgentRunIn, body())
+        state = b.state.model_dump(mode="json") if b.state else None
+        if b.request is not None:
+            from schemas import TripState
+            state = TripState().absorb(b.request).model_dump(mode="json")
+        if not b.message and state is None:
+            raise ApiError(400, "Send a message or a trip request.", "validation")
+        return respond(orchestrate, message=b.message, state=state, intent=b.intent,
+                       memory=b.memory.model_dump() if b.memory else None)
+
+    @app.get("/api/twin/scenarios")
+    def twin_presets():
+        return {"presets": twin_scenarios.PRESETS,
+                "roads": [{"id": s["id"], "name": s["name"], "destination": s.get("destination")}
+                          for s in twin_segments.all_segments()]}
+
+    @app.post("/api/twin/simulate")
+    def twin_simulate():
+        rate("agents", config.AGENT_RATE_PER_MIN)
+        b = parse(TwinSimulateIn, body())
+        if not b.scenario and not b.text:
+            raise ApiError(400, "Describe the scenario, e.g. 'What if the Khunjerab route is closed from day 4?'",
+                           "validation")
+        if b.scenario and b.scenario.type == "road_closed" and not twin_segments.get(b.scenario.segment or ""):
+            raise ApiError(400, "Unknown road section.", "validation")
+        if not b.scenario and b.text:
+            try:
+                twin_scenarios.parse(b.text)
+            except twin_scenarios.ScenarioError as exc:
+                raise ApiError(400, str(exc), "validation") from exc
+        return respond(simulate, request=b.request.model_dump(mode="json"),
+                       scenario=b.scenario.model_dump(exclude_none=True) if b.scenario else None, text=b.text)
+
+    @app.post("/api/guardian/check")
+    def guardian_check():
+        rate("agents", config.AGENT_RATE_PER_MIN)
+        b = parse(GuardianIn, body())
+        return respond(guardian.check, request=b.request.model_dump(mode="json"), previous=b.previous)
 
     # ── Planning ──
     @app.post("/api/chat")
