@@ -104,7 +104,7 @@ def _need_violations(needs: dict[str, int], m: dict) -> list[str]:
     return out
 
 
-def _sacrifices(m: dict, ref: dict | None, group_budget: int | None, must_do=()) -> list[str]:
+def _sacrifices(m: dict, ref: dict | None, group_budget: int | None, must_do=(), planned_days: int | None = None) -> list[str]:
     out = []
     if ref:
         gone = [d for d in ref["destinations"] if d not in m["destinations"] and d not in must_do]
@@ -125,6 +125,9 @@ def _sacrifices(m: dict, ref: dict | None, group_budget: int | None, must_do=())
         if m["days"] > ref["days"]:
             extra = m["days"] - ref["days"]
             out.append(f"{extra} day{'s' if extra != 1 else ''} longer.")
+    if planned_days and m["days"] > planned_days and not (ref and m["days"] > ref["days"]):
+        extra = m["days"] - planned_days
+        out.append(f"{extra} day{'s' if extra != 1 else ''} longer than the {planned_days} you planned.")
     if group_budget and m["budget_status"] == "over":
         out.append(f"Over the group budget: {m['budget_message']}")
     return out
@@ -268,7 +271,7 @@ def propose(base_request: dict, trip_type: str, profiles: list[dict], needs: dic
                    for d in merged["must_do"] if d not in o["m"]["destinations"]]
         o.update(match=max(0, min(100, match)), fits=fits, risk=risk,
                  sacrifices=violations + missing + _sacrifices(o["m"], None if o is options[0] else ref, base.budget_pkr,
-                                                              merged["must_do"]))
+                                                              merged["must_do"], base.days))
     best_opt = max(options, key=lambda o: (o["match"], -o["m"]["per_person"]))
     tracer.say(con, "decision",
                f"Best fit: Option {best_opt['id']} ({KINDS[best_opt['kind']]}), Group match {best_opt['match']}/100. "

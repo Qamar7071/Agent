@@ -15,6 +15,7 @@ const TravelTwin = lazy(() => import('./pages/TravelTwin.jsx'));
 const AgentControl = lazy(() => import('./pages/AgentControl.jsx'));
 const Guardian = lazy(() => import('./pages/Guardian.jsx'));
 const TripHub = lazy(() => import('./pages/TripHub.jsx'));
+const GroupRoom = lazy(() => import('./pages/GroupRoom.jsx'));
 
 function Loading() {
   return (
@@ -37,6 +38,8 @@ function Page() {
   if (dest) return <Destination id={dest.id} />;
   const trip = match('/trip/:id', path);
   if (trip) return <TripHub id={trip.id} />;
+  const group = match('/g/:code', path);
+  if (group) return <GroupRoom code={group.code} />;
   return <NotFound />;
 }
 
