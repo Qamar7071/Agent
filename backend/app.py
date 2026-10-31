@@ -41,12 +41,13 @@ import data
 import planner
 import storage
 from agent.runner import run_chat
+import companion
 import guardian
 from agents.orchestrator import AGENTS, orchestrate
 from twin import scenarios as twin_scenarios
 from twin import segments as twin_segments
 from twin.simulation import simulate
-from schemas import (AgentRunIn, GuardianIn, TwinSimulateIn, CONSENT_TEXT, CONSENT_VERSION, ChatRequest, EnquiryAdminUpdate, EnquiryIn, PlanUpdate,
+from schemas import (AgentRunIn, CompanionSettings, ExpenseSync, GuardianIn, NudgeWordingIn, TwinSimulateIn, CONSENT_TEXT, CONSENT_VERSION, ChatRequest, EnquiryAdminUpdate, EnquiryIn, PlanUpdate,
                      TripRequest, TripSave)
 from security import admin_status, client_ip, limiter
 from services import conditions, http, places, roads, weather
@@ -444,6 +445,52 @@ def create_app() -> Flask:
         except storage.NotFound as exc:
             raise ApiError(404, str(exc), "not_found") from exc
         return "", 204
+
+    # ── Safar Saathi: the trip companion (settings and shared expenses of a saved trip) ──
+    @app.get("/api/trips/<trip_id>/companion")
+    def companion_get(trip_id: str):
+        rate("companion", config.COMPANION_RATE_PER_MIN)
+        need_storage()
+        try:
+            return storage.get_companion(_trip_id(trip_id), trip_token())
+        except storage.NotFound as exc:
+            raise ApiError(404, str(exc), "not_found") from exc
+
+    @app.put("/api/trips/<trip_id>/companion")
+    def companion_put(trip_id: str):
+        rate("companion", config.COMPANION_RATE_PER_MIN)
+        need_storage()
+        settings = parse(CompanionSettings, body())
+        try:
+            return storage.put_companion_settings(_trip_id(trip_id), trip_token(), settings.model_dump(mode="json"))
+        except storage.NotFound as exc:
+            raise ApiError(404, str(exc), "not_found") from exc
+
+    @app.post("/api/trips/<trip_id>/expenses/sync")
+    def expenses_sync(trip_id: str):
+        rate("companion", config.COMPANION_RATE_PER_MIN)
+        need_storage()
+        sent = parse(ExpenseSync, body())
+        try:
+            current = storage.get_companion(_trip_id(trip_id), trip_token())
+            members = {m["id"] for m in (current["settings"] or {}).get("members", [])}
+            accepted, rejected = [], []
+            for e in sent.expenses:
+                if members and (e.paidBy not in members or any(m not in members for m in e.splitAmong)):
+                    rejected.append({"id": e.id, "reason": "Paid by or split with someone who is not in this group."})
+                else:
+                    accepted.append(e.model_dump())
+            out = storage.sync_expenses(trip_id, trip_token(), accepted)
+        except storage.NotFound as exc:
+            raise ApiError(404, str(exc), "not_found") from exc
+        out["rejected"] = rejected + out["rejected"]
+        return out
+
+    @app.post("/api/companion/wording")
+    def companion_wording():
+        rate("companion", config.COMPANION_RATE_PER_MIN)
+        w = parse(NudgeWordingIn, body())
+        return companion.reword(w.text, w.language)
 
     # ── Booking enquiries ──
     @app.get("/api/enquiries/consent")

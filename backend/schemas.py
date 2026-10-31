@@ -3,7 +3,7 @@ chat requests and the agent's tool arguments. Nothing reaches the planner, stora
 tool without passing through one of these models.
 """
 import re
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Annotated, Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
@@ -452,3 +452,89 @@ class EnquiryAdminUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     status: EnquiryStatus | None = None
     admin_note: Annotated[str, StringConstraints(strip_whitespace=True, max_length=1000)] | None = None
+
+
+# ── Safar Saathi (trip companion) ──────────────────────────────────────────────────
+ExpenseCategory = Literal["stay", "food", "transport", "activities", "shopping", "other"]
+MemberId = Annotated[str, StringConstraints(pattern=r"^[a-z0-9]{1,12}$")]
+ClientUuid = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")]
+MAX_RUPEES = 10_000_000
+
+
+class Member(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: MemberId
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
+    active: bool = True
+
+    @field_validator("name")
+    @classmethod
+    def _name(cls, v: str) -> str:
+        v = clean_text(v, 40)
+        if not v:
+            raise ValueError("Every member needs a name.")
+        return v
+
+
+class Adjustment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    altId: Literal["stay_down", "bus"]
+    fromDay: int = Field(ge=1, le=60)
+    appliedAt: datetime | None = None
+
+
+class CompanionSettings(BaseModel):
+    """What the group set when they pressed Start trip. No health or contact details."""
+    model_config = ConfigDict(extra="forbid")
+    members: list[Member] = Field(min_length=1, max_length=20)
+    budgetTotal: int | None = Field(default=None, ge=0, le=MAX_RUPEES * 10)
+    budgetBasis: Literal["total", "per_person"] = "total"
+    startDate: date | None = None
+    language: Literal["en", "ur"] = "en"
+    adjustments: list[Adjustment] = Field(default_factory=list, max_length=20)
+
+    @model_validator(mode="after")
+    def _unique(self) -> "CompanionSettings":
+        ids = [m.id for m in self.members]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Member ids must be unique.")
+        return self
+
+
+class ExpenseIn(BaseModel):
+    model_config = ConfigDict(extra="ignore")      # phones may add local fields such as syncStatus
+    id: ClientUuid
+    amountPkr: int = Field(ge=1, le=MAX_RUPEES)
+    category: ExpenseCategory
+    paidBy: MemberId
+    splitAmong: list[MemberId] = Field(default_factory=list, max_length=20)
+    note: Text120 | None = None
+    dayIndex: int = Field(ge=0, le=61)
+    createdAt: datetime
+    updatedAt: datetime
+    deleted: bool = False
+
+    @field_validator("note")
+    @classmethod
+    def _note(cls, v: str | None) -> str | None:
+        return clean_text(v, 120) or None
+
+    @field_validator("createdAt", "updatedAt")
+    @classmethod
+    def _aware(cls, v: datetime) -> datetime:
+        if v.tzinfo is None:
+            raise ValueError("Times must include a time zone (ISO 8601 with Z or an offset).")
+        return v
+
+
+class ExpenseSync(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expenses: list[ExpenseIn] = Field(default_factory=list, max_length=200)
+
+
+class NudgeWordingIn(BaseModel):
+    """The rule-based nudge text to reword. The numbers in it must survive unchanged."""
+    model_config = ConfigDict(extra="forbid")
+    ruleId: Literal["R1", "R2", "R3", "R4"]
+    language: Literal["en", "ur"] = "en"
+    text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=400)]

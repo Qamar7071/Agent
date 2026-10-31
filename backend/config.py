@@ -102,6 +102,7 @@ LIVE_RATE_PER_MIN = _num("LIVE_RATE_PER_MIN", 60, int)
 CHAT_RATE_PER_MIN = _num("CHAT_RATE_PER_MIN", 12, int)
 WRITE_RATE_PER_MIN = _num("WRITE_RATE_PER_MIN", 6, int)
 AGENT_RATE_PER_MIN = _num("AGENT_RATE_PER_MIN", 20, int)   # multi-agent runs, simulations, guardian checks
+COMPANION_RATE_PER_MIN = _num("COMPANION_RATE_PER_MIN", 40, int)   # Safar Saathi: settings, expense sync, wording
 
 
 def llm_providers() -> list[dict]:
