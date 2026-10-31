@@ -105,6 +105,7 @@ const STR = {
     gentle: 'Quick check',
     estimate: 'estimate',
     sourceCost: 'Raahi cost model',
+    sourceCostScaled: 'Raahi cost model, scaled to your budget',
     sourceBudget: 'from your budget',
     nudge: {
       R1: (f, name) => `${name ? `${name}, ` : ''}by day ${f.day} you’ve used ${f.spentPct}% of the budget (plan: ${f.plannedPct}%).`,
@@ -227,6 +228,7 @@ const STR = {
     gentle: 'Zara check karein',
     estimate: 'andaza',
     sourceCost: 'Raahi cost model',
+    sourceCostScaled: 'Raahi cost model, aap ke budget ke hisaab se',
     sourceBudget: 'aap ke budget se',
     nudge: {
       R1: (f, name) => `${name ? `${name}, ` : ''}Din ${f.day} tak ${f.spentPct}% budget lag chuka hai (plan: ${f.plannedPct}%).`,
@@ -271,7 +273,7 @@ export function optionLabel(option, lang) {
 
 export function optionSource(option, lang) {
   const s = strings(lang);
-  if (option.kind === 'stay_down' || option.kind === 'bus') return `${s.estimate}, ${s.sourceCost}`;
+  if (option.kind === 'stay_down' || option.kind === 'bus') return `${s.estimate}, ${option.scaled ? s.sourceCostScaled : s.sourceCost}`;
   if (option.kind === 'cap') return s.sourceBudget;
   return null;
 }

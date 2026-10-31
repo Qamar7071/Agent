@@ -13,6 +13,26 @@ them do it. The **Travel Twin** tests a trip against what-ifs ("What if the Khun
 becomes unavailable on day 4?") on a copy and compares the two before you accept anything.
 The **Journey Guardian** re-checks a trip and scores each day's risk from documented factors.
 
+During the trip, **Safar Saathi** (trip companion) keeps the group's spending: add an expense
+in three taps, see whether you are on pace with the plan, get a friendly early warning with
+costed choices, and settle up with the fewest payments. It works offline and in Roman Urdu.
+
+### 60-second demo (for judges, on a phone)
+
+1. **0–10 s.** Open the site, tap **Plan a trip**, open **Trip details**, tick Skardu, 7 days,
+   5 adults, budget Rs 1,50,000, **Build my plan**. The day-by-day plan appears.
+2. **10–20 s.** Tap **Start trip**. Everything is pre-filled (the first day is today); type
+   your name, choose **Roman Urdu**, **Safar shuru karein**. You are on Day 1.
+3. **20–30 s.** Tap **+ Kharcha**, type 6000, tap **Khana**, **Save**: three taps. The pace
+   bar moves, and a toast offers Undo.
+4. **30–45 s.** Add 90000 under **Rehaish**. Raahi first asks "Raqam sahi hai?" (it might be a
+   typo). Tap **Haan, sahi hai**: now the nudge says how far ahead of the plan you are and
+   offers choices for tomorrow, each with an estimated saving and its source. Pick one: the
+   plan and the pace change from tomorrow only.
+5. **45–60 s.** Open **Kharcha**: categories against the plan and **Hisaab**, who pays whom
+   in the fewest payments, ready to share. Switch the phone to airplane mode and add one
+   more expense: it is kept on the phone and syncs when the signal is back.
+
 Raahi is careful about what it knows. Forecasts come from a live weather model with the time
 they were checked. Road status is never guessed: it says "Current road status could not be
 verified" and points to the official sources. Prices are estimates, not quotes. Nothing is
@@ -37,6 +57,7 @@ before this version: [docs/AUDIT.md](docs/AUDIT.md).
 | Food | Local dishes worth trying in each area, and restaurants and cafés from OpenStreetMap near each stop. |
 | Saved trips | Saved in the database with a private key kept in your browser; reopen, update or delete from "My trips". |
 | Booking enquiries | Consent required, a reference like `RAH-7KQ2-M9XD`, status check and withdrawal; an admin page to review them. It is an enquiry, not a booking. |
+| Safar Saathi (`/trip/…`) | Start a saved or current plan as a trip: Today (budget pace against the plan, nudges with choices, tomorrow's Guardian risk with a Plan B, today's plan, end-of-day summary and tip), Spending (categories against the plan, every expense, settle up with the fewest payments, share), Plan. Expenses in 3 taps with a big number pad; works offline and syncs later without duplicates; English and Roman Urdu. Nudge rules R1–R4 are plain tested code; an AI may only reword them, keeping every number. |
 | Destination pages | One page per place with season, access, altitude, stays, forecast and sources, prerendered for search engines, plus `sitemap.xml` and `robots.txt`. |
 | Multi-agent planning | A Master Orchestrator picks the agents a request needs (a packing question doesn't run the budget agent), runs independent agents in parallel, has a Validation agent cross-check them, retries a failed weather lookup once, and asks you when a choice is yours (over budget, too few days). Works without an AI key; with one, the model only rewords the validated answer. |
 | Agent Control Center (`/agents`) | The workflow graph, each task's inputs, outputs, tool calls, timings, retries and errors, a timeline and the event log, all from real server events. The last 10 runs are kept in your browser. |
@@ -118,6 +139,7 @@ important ones:
 | `SITE_URL` | Canonical links and the sitemap | `https://your-domain.example` |
 | `TAVILY_API_KEY` | Road news search (optional) | |
 | `AGENT_RATE_PER_MIN` | Agent runs, simulations and Guardian checks per visitor per minute (default 20) | `20` |
+| `COMPANION_RATE_PER_MIN` | Safar Saathi settings, expense syncs and nudge wording per visitor per minute (default 40) | `40` |
 
 Keys only ever go in the backend. Anything starting with `VITE_` ends up in the website's
 JavaScript, so never put a key there ([.env.example](.env.example)).
@@ -160,13 +182,14 @@ with gunicorn). It was not tested in this upgrade.
 
 ## Tests
 
-| Command | What it runs | Result on 28 Oct 2026 |
+| Command | What it runs | Result |
 |---|---|---|
-| `npm run build` | Production build, static destination pages, sitemap | OK on 30 Oct: main script 235 KB (74 KB gzipped), planner 67 KB (19 KB), Travel Twin 24 KB (8 KB), Agent Control Center 13 KB, Guardian 12 KB |
-| `npm run test:api` (venv active; once, in `backend/`: `pip install -r requirements-dev.txt`) | 147 backend tests, all offline: data, planner, budget, live-service parsing with recorded responses, places, storage, API, parser, agent with a scripted model (including the 10 evaluation scenarios), and the multi-agent system: task graph and events, intent routing, a failing agent, validation retries, unsupported claims, every scenario type, Khunjerab day 4, risk, eco, packing, Guardian, streaming | 147 passed (30 Oct) |
+| `npm run build` | Production build, static destination pages, sitemap, service worker | OK on 31 Oct: main script 236 KB (74 KB gzipped), planner 67 KB (19 KB), Safar Saathi 67 KB (21 KB), Travel Twin 24 KB (8 KB), Agent Control Center 13 KB, Guardian 12 KB |
+| `npm run test:unit` | 27 tests of Safar Saathi's deterministic logic (Node's built-in runner, no extra packages): money format, trip days, pace scaling and prepaid money, nudge rules R1–R4 and their limits, the typo check first, split rounding (200 random cases reconcile to zero), fewest payments, sync merge | 27 passed (31 Oct) |
+| `npm run test:api` (venv active; once, in `backend/`: `pip install -r requirements-dev.txt`) | 158 backend tests, all offline: data, planner, budget, live-service parsing with recorded responses, places, storage, API, parser, agent with a scripted model (including the 10 evaluation scenarios), and the multi-agent system: task graph and events, intent routing, a failing agent, validation retries, unsupported claims, every scenario type, Khunjerab day 4, risk, eco, packing, Guardian, streaming; Safar Saathi settings, idempotent expense sync, last change wins, tombstones, refusals, and AI wording that must keep the numbers | 158 passed (31 Oct) |
 | same, with `RAAHI_TEST_PG_URL=postgresql://…` | The storage tests also on Postgres 16 | passed (run before the stays and food update; storage code unchanged since) |
-| `npm run test:e2e` (server running; `pip install -r e2e/requirements.txt` and `python -m playwright install chromium` first) | 21 checks in a real browser: pages, navigation, form, chat, editing, tabs, packing, saving, enquiry, admin, network errors, Travel Twin (demo, Khunjerab what-if, accept), Agent Control Center, Guardian, theme, phone to desktop layouts, keyboard | 21 passed (30 Oct) |
-| `npm run audit:a11y` (server running) | axe-core accessibility rules (WCAG 2.2 A and AA plus best practices) on 62 page states at phone and desktop sizes, including the agent pages and the dark theme, and page weight | 0 violations (30 Oct) |
+| `npm run test:e2e` (server running; `pip install -r e2e/requirements.txt` and `python -m playwright install chromium` first) | 24 checks in a real browser: pages, navigation, form, chat, editing, tabs, packing, saving, enquiry, admin, network errors, Travel Twin (demo, Khunjerab what-if, accept), Agent Control Center, Safar Saathi (start, a 3-tap expense under 5 seconds, pace, split, typo check then nudge, offline add, offline reload, sync once), Guardian, theme, phone to desktop layouts, keyboard | 24 passed (31 Oct) |
+| `npm run audit:a11y` (server running) | axe-core accessibility rules (WCAG 2.2 A and AA plus best practices) on 86 page states at phone and desktop sizes, including the agent pages, every Safar Saathi screen, Roman Urdu and the dark theme, and page weight | 0 violations (31 Oct) |
 
 The browser checks ran against a local server in guided mode with SQLite. During the 30 Oct
 runs, most Open-Meteo requests from the test machine failed (rate-limited or timed out) and
@@ -191,6 +214,10 @@ backend/              Flask API, chat agent, planner, budget, storage, live serv
 backend/agents/       multi-agent system: orchestrator and the specialist agents
 backend/twin/         Travel Twin: scenario parser, simulation, comparison
 backend/guardian.py   Journey Guardian checks
+backend/companion.py  Safar Saathi nudge wording (optional AI, numbers checked)
+backend/money.py      money as text: Rs 1,50,000
+src/lib/companion/    Safar Saathi logic: pace, nudges, split, local store, sync, words
+public/sw.js          service worker for offline use
 shared/               destinations.json: the one dataset used by the API and the website
 src/                  React website (pages, components, planner state, router, API client)
 public/               favicon and the optimised photos (WebP and social images)
@@ -243,6 +270,16 @@ To change destination facts, road legs, stays or cost assumptions, edit
   roster lists them as planned.
 - **Emissions are estimates** from UK factors with Raahi's assumptions for mountain roads;
   Pakistan publishes no equivalent set.
+- **Safar Saathi is one phone per trip for now.** Expenses sync to the server for saved trips,
+  but another phone can't join the trip yet (that is Phase 2, the Group Room). Trips started
+  without saving stay on the phone that started them.
+- **Pace uses the plan's shape.** Expected spending by a day comes from the cost model's day
+  costs scaled to your budget. If the group pays differently (say, every hotel in advance),
+  mark those as paid before the trip; they are then counted day by day.
+- **Saving estimates come from the cost model**, scaled down to the group's budget, not from
+  what the group actually pays, and they are labelled that way.
+- **Sync conflicts:** if two phones change the same expense, the later change by phone clock
+  wins.
 - Python 3.12, which Vercel uses, was not tested here (tests ran on Python 3.13).
 
 ## Next steps

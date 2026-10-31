@@ -92,7 +92,7 @@ function Hub({ id }) {
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-juniper-600">{s.appName} · {dayLabel}</p>
-          <h1 className="type-semiwide truncate text-2xl font-extrabold">{c.title}</h1>
+          <h1 className="type-semiwide line-clamp-2 break-words text-2xl font-extrabold">{c.title}</h1>
           <SyncBadge hub={hub} />
         </div>
         <button type="button" className="btn-outline shrink-0 px-3" onClick={() => setSettingsOpen(true)} aria-label={s.settings}>

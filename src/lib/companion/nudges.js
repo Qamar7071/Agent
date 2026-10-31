@@ -21,8 +21,12 @@ function sameLocalDay(a, b) {
   return x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate();
 }
 
-/** Savings from switching the remaining days to an alternative plan (cost-model estimates). */
-export function altSavings({ planned, alternatives = [], adjustments = [], fromDay }) {
+/**
+ * Savings from switching the remaining days to an alternative plan. The cost model gives the
+ * saving at its own prices; like the pace, it is scaled to the group's budget (never up), so a
+ * group spending well below the model's prices isn't promised savings it can't make.
+ */
+export function altSavings({ planned, alternatives = [], adjustments = [], fromDay, scale = 1 }) {
   const used = new Set(adjustments.map((a) => a.altId));
   const out = [];
   for (const alt of alternatives) {
@@ -34,11 +38,13 @@ export function altSavings({ planned, alternatives = [], adjustments = [], fromD
       const altTotal = (a.accommodation || 0) + (a.food || 0) + (a.transport || 0) + (a.activities || 0) + (a.guide || 0);
       saving += d.cost.total - altTotal;
     });
-    saving = Math.round(saving / 100) * 100;
+    const factor = Math.min(1, scale);
+    saving = Math.round((saving * factor) / 100) * 100;
     if (saving >= MIN_SAVING) {
       out.push({ id: `alt:${alt.id}`, kind: alt.id, label: alt.id,
         action: { type: 'apply_alt', altId: alt.id, fromDay },
-        estSavingPkr: saving, source: 'Raahi cost model (estimate)' });
+        estSavingPkr: saving, scaled: factor < 1,
+        source: factor < 1 ? 'Raahi cost model, scaled to your budget (estimate)' : 'Raahi cost model (estimate)' });
     }
   }
   return out.sort((a, b) => b.estSavingPkr - a.estSavingPkr);
@@ -53,7 +59,8 @@ export function candidates({ p, planned, alternatives, adjustments, lastExpense 
   const d = Math.min(p.dayIndex, p.days);
   const tomorrow = d + 1;
   const canChange = p.dayIndex >= 1 && tomorrow <= p.days;
-  const savers = canChange ? altSavings({ planned, alternatives, adjustments, fromDay: tomorrow }) : [];
+  const scale = B && p.planTotal ? B / p.planTotal : 1;
+  const savers = canChange ? altSavings({ planned, alternatives, adjustments, fromDay: tomorrow, scale }) : [];
 
   if (B && d >= 1) {
     const gap = p.spentPct - p.plannedPct;

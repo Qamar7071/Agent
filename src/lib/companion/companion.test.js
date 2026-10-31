@@ -105,8 +105,12 @@ describe('nudge rules', () => {
     const r1 = candidates(ctx([ex(72000, 2)], 2)).find((x) => x.ruleId === 'R1');
     const alt = r1.options.find((o) => o.kind === 'stay_down');
     assert.equal(alt.action.fromDay, 3);
-    assert.equal(alt.estSavingPkr, 10000);                  // days 3 and 4: 5,000 each, cost model
-    assert.equal(alt.source, 'Raahi cost model (estimate)');
+    // days 3 and 4 save 5,000 each at cost-model prices; the budget is 2/3 of the plan, so 6,667
+    assert.equal(alt.estSavingPkr, 6700);
+    assert.equal(alt.scaled, true);
+    assert.equal(alt.source, 'Raahi cost model, scaled to your budget (estimate)');
+    const big = candidates({ ...ctx([ex(160000, 2)], 2, 200000) }).find((x) => x.ruleId === 'R1');
+    assert.equal(big.options.find((o) => o.kind === 'stay_down').estSavingPkr, 10000);   // never scaled up
     assert.equal(r1.options.at(-1).kind, 'keep');
   });
   it('R2 fires when a category is above 110% of its share and the overrun is material', () => {

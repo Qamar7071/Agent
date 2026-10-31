@@ -30,5 +30,7 @@ python storage.py sql                    # print the Postgres schema
 | `agent/` | `runner.py` (tool loop and limits), `tools.py` (the 12 tools), `prompt.py` (instructions and context), `parser.py` (reads messages without AI), `guided.py` (answers without AI), `llm.py` (OpenAI-compatible client with fallback) |
 | `agents/` | The multi-agent system: `base.py` (Agent, Blackboard, Tracer with real events), `orchestrator.py` (intent, task plan, parallel runner, retries, decisions, answer), one file per specialist (memory, research, itinerary, weather, route, budget, accommodation, safety, packing, eco, validation), `common.py` |
 | `twin/` | Travel Twin: `scenarios.py` (parse English or Roman Urdu, apply to a copy), `segments.py` (road sections), `simulation.py` (run the affected agents), `comparison.py` (original against simulated) |
+| `companion.py` | Safar Saathi: optional AI rewording of a nudge, kept only if the numbers survive |
+| `money.py` | Money as text, the Pakistani way: `Rs 1,50,000` |
 | `guardian.py` | Journey Guardian: re-run weather, route and safety and list what changed since the last check |
 | `tests/` | pytest suite with fakes for every outside service, including the 10 agent evaluation scenarios and the multi-agent tests (`test_multiagent.py`) |
