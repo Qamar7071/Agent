@@ -19,6 +19,7 @@ from schemas import TripRequest
 from services import weather
 from twin import scenarios
 from twin.simulation import simulate
+from money import rs
 
 DEMO = "Plan a 5-day Hunza trip from Gilgit for 4 people with a PKR 150,000 budget, including Khunjerab Pass"
 
@@ -292,3 +293,53 @@ def test_twin_and_guardian_api_validate_input(client):
     assert ok.status_code == 200 and ok.get_json()["comparison"]["length"]["delta"] == 1
     g = client.post("/api/guardian/check", json={"request": req}).get_json()
     assert g["ok"] and g["decision"] in ("continue", "continue with precautions", "modify", "reconsider")
+
+
+# ── "How the agents decided": messages come from real steps and real results ─────────
+def _check_messages(run):
+    ids = {t["id"] for t in run["tasks"]}
+    seen = set()
+    for m in run["messages"]:
+        assert m["type"] in ("proposal", "concern", "decision") and m["summary"]
+        assert m["step"] in ids, m                                   # every message belongs to a real step
+        assert m["resolvesEventId"] is None or m["resolvesEventId"] in seen   # it can only answer an earlier one
+        seen.add(m["id"])
+    events = [e for e in run["events"] if e["type"] == "message"]
+    assert [e["message"]["id"] for e in events] == [m["id"] for m in run["messages"]]
+
+
+def test_agents_explain_the_plan_from_their_own_results():
+    r = orchestrator.orchestrate(DEMO)
+    run = r["run"]
+    _check_messages(run)
+    by = {}
+    for m in run["messages"]:
+        by.setdefault(m["agent"], []).append(m)
+    assert by["memory"][0]["summary"].startswith("Understood: 5 days from Gilgit")
+    budget = r["agents"]["budget"]
+    over = next(m for m in by["budget"] if m["type"] == "concern")
+    assert rs(budget["total"]) in over["summary"] and "estimate" in over["evidence"][0]["source"]
+    final = by["validation"][-1]
+    assert final["type"] == "decision" and final["resolvesEventId"] == over["id"]
+    assert any(m["agent"] == "safety" for m in run["messages"])
+
+
+def test_a_failed_agent_says_so_in_the_conversation(monkeypatch):
+    from agents.eco_agent import EcoAgent
+    monkeypatch.setattr(EcoAgent, "run", lambda self, bb, tracer, tid: (_ for _ in ()).throw(RuntimeError("no factors")))
+    run = orchestrator.orchestrate(DEMO)["run"]
+    eco = [m for m in run["messages"] if m["agent"] == "eco"]
+    assert eco and eco[0]["type"] == "concern" and "could not finish" in eco[0]["summary"]
+
+
+def test_twin_and_guardian_runs_explain_themselves():
+    sim = simulate(demo_request(), text="What if the Khunjerab route becomes unavailable on Day 4?")
+    _check_messages(sim["run"])
+    kinds = {(m["agent"], m["type"]) for m in sim["run"]["messages"]}
+    assert ("twin", "proposal") in kinds and ("comparison", "decision") in kinds
+    closed = [m["summary"] for m in sim["run"]["messages"] if "closed" in m["summary"]]
+    assert closed == ["Treated as closed: Khunjerab Pass road (Sost–border)."]    # not the shared Hunza–Sost leg
+    from guardian import check
+    g = check(demo_request())
+    _check_messages(g["run"])
+    assert g["run"]["messages"][-1]["type"] == "decision" and "not an official" in g["run"]["messages"][-1]["reason"]
