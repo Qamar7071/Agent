@@ -43,11 +43,13 @@ import storage
 from agent.runner import run_chat
 import companion
 import guardian
+from group import consensus
 from agents.orchestrator import AGENTS, orchestrate
 from twin import scenarios as twin_scenarios
 from twin import segments as twin_segments
 from twin.simulation import simulate
-from schemas import (AgentRunIn, CompanionSettings, ExpenseSync, GuardianIn, NudgeWordingIn, TwinSimulateIn, CONSENT_TEXT, CONSENT_VERSION, ChatRequest, EnquiryAdminUpdate, EnquiryIn, PlanUpdate,
+from schemas import (AgentRunIn, CompanionSettings, ConfirmIn, ExpenseSync, GroupCreate, GroupJoin, GuardianIn, MemberProfile,
+                     NeedsIn, NudgeWordingIn, TwinSimulateIn, VoteIn, CONSENT_TEXT, CONSENT_VERSION, ChatRequest, EnquiryAdminUpdate, EnquiryIn, PlanUpdate,
                      TripRequest, TripSave)
 from security import admin_status, client_ip, limiter
 from services import conditions, http, places, roads, weather
@@ -151,6 +153,21 @@ def need_admin() -> None:
 def enquiries_open() -> bool:
     """Enquiries are accepted only when they can be stored AND someone can review them."""
     return storage.enabled() and bool(config.ADMIN_TOKEN)
+
+
+def member_token() -> str | None:
+    token = request.headers.get("X-Member-Token", "")
+    return token if 16 <= len(token) <= 100 else None
+
+
+def trip_or_member() -> tuple[str | None, str | None]:
+    """A trip's own key (organizer) or a group member's key; at least one is needed."""
+    trip = request.headers.get("X-Trip-Token", "")
+    trip = trip if 16 <= len(trip) <= 100 else None
+    member = member_token()
+    if not trip and not member:
+        raise ApiError(401, "This trip's private key is missing.", "unauthorized")
+    return trip, member
 
 
 def trip_token() -> str:
@@ -451,8 +468,9 @@ def create_app() -> Flask:
     def companion_get(trip_id: str):
         rate("companion", config.COMPANION_RATE_PER_MIN)
         need_storage()
+        token, member = trip_or_member()
         try:
-            return storage.get_companion(_trip_id(trip_id), trip_token())
+            return storage.get_companion(_trip_id(trip_id), token, member)
         except storage.NotFound as exc:
             raise ApiError(404, str(exc), "not_found") from exc
 
@@ -461,8 +479,9 @@ def create_app() -> Flask:
         rate("companion", config.COMPANION_RATE_PER_MIN)
         need_storage()
         settings = parse(CompanionSettings, body())
+        token, member = trip_or_member()
         try:
-            return storage.put_companion_settings(_trip_id(trip_id), trip_token(), settings.model_dump(mode="json"))
+            return storage.put_companion_settings(_trip_id(trip_id), token, settings.model_dump(mode="json"), member)
         except storage.NotFound as exc:
             raise ApiError(404, str(exc), "not_found") from exc
 
@@ -471,8 +490,9 @@ def create_app() -> Flask:
         rate("companion", config.COMPANION_RATE_PER_MIN)
         need_storage()
         sent = parse(ExpenseSync, body())
+        token, member = trip_or_member()
         try:
-            current = storage.get_companion(_trip_id(trip_id), trip_token())
+            current = storage.get_companion(_trip_id(trip_id), token, member)
             members = {m["id"] for m in (current["settings"] or {}).get("members", [])}
             accepted, rejected = [], []
             for e in sent.expenses:
@@ -480,11 +500,139 @@ def create_app() -> Flask:
                     rejected.append({"id": e.id, "reason": "Paid by or split with someone who is not in this group."})
                 else:
                     accepted.append(e.model_dump())
-            out = storage.sync_expenses(trip_id, trip_token(), accepted)
+            out = storage.sync_expenses(trip_id, token, accepted, member)
         except storage.NotFound as exc:
             raise ApiError(404, str(exc), "not_found") from exc
         out["rejected"] = rejected + out["rejected"]
         return out
+
+    # ── Group Room ──
+    def _group_call(fn, *args, **kw):
+        need_storage()
+        try:
+            return fn(*args, **kw)
+        except storage.NotFound as exc:
+            raise ApiError(404, str(exc), "not_found") from exc
+        except storage.Forbidden as exc:
+            raise ApiError(403, str(exc), "forbidden") from exc
+
+    def _code(code: str) -> str:
+        c = storage.normalise_code(code)
+        if len(c) != 8:
+            raise ApiError(404, "No group with this code.", "not_found")
+        return c
+
+    @app.post("/api/groups")
+    def group_create():
+        rate("group", config.COMPANION_RATE_PER_MIN)
+        g = parse(GroupCreate, body())
+        out = _group_call(storage.create_group, g.tripId, trip_token(), g.tripType, g.name)
+        return {**out, "note": "Share the link or code. Anyone with it can join this group."}, 201
+
+    @app.get("/api/groups/<code>/preview")
+    def group_preview(code: str):
+        rate("group", config.COMPANION_RATE_PER_MIN)
+        return _group_call(storage.group_preview, _code(code))
+
+    @app.post("/api/groups/<code>/join")
+    def group_join(code: str):
+        rate("write", config.WRITE_RATE_PER_MIN)
+        j = parse(GroupJoin, body())
+        return _group_call(storage.join_group, _code(code), j.name), 201
+
+    @app.get("/api/groups/<code>")
+    def group_get(code: str):
+        rate("group", config.COMPANION_RATE_PER_MIN)
+        token, member = trip_or_member()
+        return _group_call(storage.group_view, _code(code), trip_token=token, member_token=member)
+
+    @app.put("/api/groups/<code>/profile")
+    def group_profile(code: str):
+        rate("group", config.COMPANION_RATE_PER_MIN)
+        prof = parse(MemberProfile, body())
+        if not member_token():
+            raise ApiError(401, "Your member key is missing.", "unauthorized")
+        _group_call(storage.set_profile, _code(code), member_token(), prof.model_dump())
+        return {"ok": True}
+
+    @app.put("/api/groups/<code>/needs")
+    def group_needs(code: str):
+        rate("group", config.COMPANION_RATE_PER_MIN)
+        n = parse(NeedsIn, body())
+        if not member_token():
+            raise ApiError(401, "Your member key is missing.", "unauthorized")
+        stored = _group_call(storage.set_needs, _code(code), member_token(), n.codes, n.show_name)
+        return {"ok": True, "stored": stored,
+                "note": "Saved without a link to you. Others see only totals, plus your name if you chose to show it."}
+
+    @app.delete("/api/groups/<code>/needs")
+    def group_needs_clear(code: str):
+        rate("group", config.COMPANION_RATE_PER_MIN)
+        token, member = trip_or_member()
+        _group_call(storage.clear_needs, _code(code), token, member)
+        return "", 204
+
+    @app.post("/api/groups/<code>/options")
+    def group_options(code: str):
+        rate("agents", config.AGENT_RATE_PER_MIN)
+        token, member = trip_or_member()
+        c = _code(code)
+        inputs = _group_call(storage.group_inputs, c, trip_token=token, member_token=member)
+
+        def work(emit=None):
+            out = consensus.propose(inputs["request"], inputs["trip_type"], inputs["profiles"], inputs["needs"], emit=emit)
+            options = {k: out[k] for k in ("options", "recommended", "reasons", "note", "generated_at")}
+            _group_call(storage.save_options, c, token, member, options, out["run"])
+            return {**options, "run": out["run"]}
+        return respond(work)
+
+    @app.get("/api/groups/<code>/run")
+    def group_run(code: str):
+        rate("group", config.COMPANION_RATE_PER_MIN)
+        token, member = trip_or_member()
+        run = _group_call(storage.group_run, _code(code), trip_token=token, member_token=member)
+        if not run:
+            raise ApiError(404, "The agents haven't proposed options for this group yet.", "not_found")
+        return {"run": run}
+
+    @app.post("/api/groups/<code>/vote")
+    def group_vote(code: str):
+        rate("group", config.COMPANION_RATE_PER_MIN)
+        v = parse(VoteIn, body())
+        if not member_token():
+            raise ApiError(401, "Your member key is missing.", "unauthorized")
+        _group_call(storage.cast_vote, _code(code), member_token(), v.option)
+        return {"ok": True}
+
+    @app.post("/api/groups/<code>/confirm")
+    def group_confirm(code: str):
+        rate("write", config.WRITE_RATE_PER_MIN)
+        cf = parse(ConfirmIn, body())
+        token, member = trip_or_member()
+        return _group_call(storage.confirm_option, _code(code), token, member, cf.option,
+                           lambda req: _build(TripRequest.model_validate(req)))
+
+    @app.get("/api/groups/<code>/plan")
+    def group_plan(code: str):
+        rate("group", config.COMPANION_RATE_PER_MIN)
+        if not member_token():
+            raise ApiError(401, "Your member key is missing.", "unauthorized")
+        return _group_call(storage.group_itinerary, _code(code), member_token())
+
+    @app.post("/api/groups/<code>/leave")
+    def group_leave(code: str):
+        rate("group", config.COMPANION_RATE_PER_MIN)
+        if not member_token():
+            raise ApiError(401, "Your member key is missing.", "unauthorized")
+        _group_call(storage.leave_group, _code(code), member_token())
+        return "", 204
+
+    @app.delete("/api/groups/<code>/members/<member_id>")
+    def group_remove(code: str, member_id: str):
+        rate("group", config.COMPANION_RATE_PER_MIN)
+        token, member = trip_or_member()
+        _group_call(storage.remove_member, _code(code), token, member, member_id[:12])
+        return "", 204
 
     @app.post("/api/companion/wording")
     def companion_wording():
