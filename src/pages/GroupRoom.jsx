@@ -1,12 +1,12 @@
 // Group Room: /g/new creates a group for a saved trip; /g/<code> lets anyone with the link join
 // with just a name, then shows the room.
 import { useEffect, useState } from 'react';
-import { Heart, Mountain, User, Users } from 'lucide-react';
+import { Check, Heart, Mountain, User, Users } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { useRouter } from '../lib/router.jsx';
 import { usePageMeta } from '../lib/seo.js';
-import { read } from '../lib/store.js';
 import { savedTrips } from '../lib/store.js';
+import { useLang } from '../lib/useLang.js';
 import { usePlanner } from '../context/PlannerContext.jsx';
 import { groupStrings } from '../lib/group/i18n.js';
 import { groupEntry, normaliseCode, rememberGroup } from '../lib/group/store.js';
@@ -16,13 +16,22 @@ import Notice from '../components/ui/Notice.jsx';
 
 const TYPE_ICON = { friends: Users, family: Heart, couple: Mountain, solo: User };
 
-function useLang() {
-  const [lang, setLangState] = useState(() => read('raahi:lang', 'en'));
-  const setLang = (l) => {
-    setLangState(l);
-    try { localStorage.setItem('raahi:lang', JSON.stringify(l)); } catch { /* ok */ }
-  };
-  return [lang, setLang];
+// The four steps of a group trip. It is a real sequence, so it is numbered.
+function Steps({ s, current = 0 }) {
+  return (
+    <ol className="mt-6 grid gap-x-4 gap-y-3 sm:grid-cols-4">
+      {s.steps.map(([title, text], i) => (
+        <li key={title} className="flex gap-3 sm:flex-col sm:gap-2">
+          <span className={`num flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${i < current ? 'bg-juniper-100 text-juniper-700' : i === current ? 'bg-juniper text-on-juniper' : 'border border-limestone-400 text-ink-600'}`}
+            aria-hidden="true">{i < current ? <Check size={16} /> : i + 1}</span>
+          <span className="min-w-0">
+            <span className="block font-semibold">{title}</span>
+            <span className="block text-sm text-ink-600">{text}</span>
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
 }
 
 function Create({ s }) {
@@ -62,12 +71,19 @@ function Create({ s }) {
       </div>
     );
   }
-  if (storageOff) return <Notice level="info" className="mt-6">{s.storageOff}</Notice>;
+  if (storageOff) return <><Steps s={s} /><Notice level="info" className="mt-6">{s.storageOff}</Notice></>;
   if (!fromTrip && !planner.itinerary) {
-    return <Notice level="info" className="mt-6" action={<button type="button" className="btn-primary" onClick={() => navigate('/plan')}>{s.planWithFriends}</button>}>{s.needSave}</Notice>;
+    return (
+      <>
+        <Steps s={s} />
+        <p className="mt-6 text-ink-700">{s.needPlan}</p>
+        <button type="button" className="btn-primary mt-3 min-h-[52px] text-base" onClick={() => navigate('/plan')}>{s.makePlanFirst}</button>
+      </>
+    );
   }
   return (
     <form onSubmit={create} className="mt-6 flex flex-col gap-6" noValidate>
+      <Steps s={s} current={1} />
       {!planner.savedTrip && !fromTrip && <p className="text-sm text-ink-600">{s.needSave}</p>}
       <fieldset>
         <legend className="field-label">{s.tripType}</legend>

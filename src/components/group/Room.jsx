@@ -1,13 +1,14 @@
 // The Group Room: who's in, what the group needs (anonymous), the agents' options with a Group
 // match and what each gives up, votes, and the organizer's final choice.
 import { useCallback, useEffect, useState } from 'react';
-import { Check, ChevronDown, Crown, Lock, RefreshCw, Share2, Sparkles, Users } from 'lucide-react';
+import { Check, ChevronDown, Crown, Lock, MessagesSquare, RefreshCw, Share2, Sparkles, Users } from 'lucide-react';
 import { api } from '../../lib/api.js';
 import { Link, useRouter } from '../../lib/router.jsx';
 import { metres, pkr } from '../../lib/format.js';
 import { forgetGroup, groupLink, myNeeds, prettyCode, saveMyNeeds } from '../../lib/group/store.js';
 import ProfileForm from './ProfileForm.jsx';
 import Notice from '../ui/Notice.jsx';
+import Avatar from '../ui/Avatar.jsx';
 
 export function ShareCard({ s, code, title }) {
   const [copied, setCopied] = useState(false);
@@ -42,22 +43,29 @@ function OptionCard({ o, s, view, me, onVote, onConfirm, busy, recommended }) {
   const mine = me.vote === o.id;
   const chosen = view.chosen === o.id;
   return (
-    <article className={`panel p-4 sm:p-5 ${chosen ? 'border-juniper-600 ring-2 ring-juniper-200' : ''}`} aria-labelledby={`opt-${o.id}`}>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-wide text-juniper-700">
-            Option {o.id}{recommended ? ` · ${s.recommended}` : ''}
-          </p>
-          <h3 id={`opt-${o.id}`} className="type-semiwide text-lg font-bold">{o.label}</h3>
-          <p className="text-sm text-ink-600">{o.title} · {s.days(o.days.length)}</p>
+    <article aria-labelledby={`opt-${o.id}`}
+      className={`panel relative p-4 sm:p-5 ${chosen ? 'border-juniper-600 ring-2 ring-juniper-200' : recommended ? 'border-juniper-500' : ''}`}>
+      {recommended && (
+        <p className="absolute -top-3 left-4 inline-flex items-center gap-1 rounded-full bg-juniper px-2.5 py-0.5 text-xs font-semibold text-on-juniper">
+          <Sparkles size={12} aria-hidden="true" /> {s.recommended}
+        </p>
+      )}
+      <div className="flex items-start gap-3">
+        <span className={`type-wide flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-xl font-extrabold ${recommended || chosen ? 'bg-juniper text-on-juniper' : 'bg-limestone-300 text-ink'}`}
+          aria-hidden="true">{o.id}</span>
+        <div className="min-w-0 flex-1">
+          <h3 id={`opt-${o.id}`} className="type-semiwide text-lg font-bold leading-tight">
+            <span className="sr-only">Option {o.id}{recommended ? `, ${s.recommended}` : ''}: </span>{o.label}
+          </h3>
+          <p className="text-sm text-ink-600">{o.title}, {s.days(o.days.length)}</p>
         </div>
-        <div className="text-right">
-          <p className="num text-2xl font-extrabold text-juniper-700">{o.match}<span className="text-sm text-ink-500">/100</span></p>
-          <p className="text-xs text-ink-600">{s.match}</p>
+        <div className="shrink-0 text-right">
+          <p className="num text-2xl font-extrabold leading-none text-juniper-700">{o.match}<span className="text-sm font-semibold text-ink-500">/100</span></p>
+          <p className="mt-1 text-xs text-ink-600">{s.match}</p>
         </div>
       </div>
-      <div className="mt-2 h-2 rounded-full bg-limestone-300" role="img" aria-label={`${s.match} ${o.match}/100`}>
-        <div className="h-2 rounded-full bg-juniper-600" style={{ width: `${o.match}%` }} />
+      <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-limestone-300" role="img" aria-label={`${s.match} ${o.match}/100`}>
+        <div className="h-full rounded-full bg-juniper-600" style={{ width: `${o.match}%` }} />
       </div>
       <p className="mt-2 text-xs text-ink-600">{s.fits(o.fits)}</p>
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4">
@@ -89,7 +97,12 @@ function OptionCard({ o, s, view, me, onVote, onConfirm, busy, recommended }) {
             {mine ? <><Check size={16} aria-hidden="true" /> {s.yourVote}</> : s.vote}
           </button>
         )}
-        {votes && <span className="text-sm text-ink-600">{s.votes(votes.count)}: {votes.names.join(', ')}</span>}
+        {votes && (
+          <span className="inline-flex items-center gap-2 text-sm text-ink-600">
+            <span className="flex -space-x-1.5">{votes.names.slice(0, 5).map((n) => <Avatar key={n} name={n} size={26} ring />)}</span>
+            {s.votes(votes.count)}: {votes.names.join(', ')}
+          </span>
+        )}
         {me.organizer && view.status !== 'confirmed' && (
           <button type="button" disabled={busy} className="btn-quiet ml-auto" onClick={() => onConfirm(o.id)}>
             <Crown size={16} aria-hidden="true" /> {s.confirm}
@@ -213,6 +226,7 @@ export default function Room({ code, entry, s, onLeft }) {
         <ul className="mt-2 divide-y divide-limestone-300">
           {active.map((m) => (
             <li key={m.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm">
+              <Avatar name={m.name} size={34} />
               <span className="min-w-0 flex-1 truncate font-medium">{m.name}{m.id === me.id ? ' (you)' : ''}</span>
               {m.organizer && <span className="text-xs font-semibold text-juniper-700">{s.organizer}</span>}
               <span className={`text-xs ${m.profile_done ? 'text-juniper-700' : 'text-ink-500'}`}>{m.profile_done ? `✓ ${s.ready}` : s.waiting}</span>
@@ -256,7 +270,14 @@ export default function Room({ code, entry, s, onLeft }) {
           <>
             {view.options.reasons?.length > 0 && <ul className="list-disc pl-5 text-sm text-ink-700">{view.options.reasons.map((r) => <li key={r}>{r}</li>)}</ul>}
             <p className="text-xs text-ink-500">{s.noteMatch}</p>
-            <Link to={`/decided?group=${code}`} className="link self-start text-sm">{s.howDecided}</Link>
+            <Link to={`/decided?group=${code}`}
+              className="group flex items-center gap-3 rounded-md border border-limestone-300 bg-paper p-3 hover:border-juniper-500">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-juniper-100 text-juniper-700" aria-hidden="true"><MessagesSquare size={20} /></span>
+              <span className="min-w-0">
+                <span className="block font-semibold group-hover:underline">{s.howDecided}</span>
+                <span className="block text-sm text-ink-600">{s.howDecidedHint}</span>
+              </span>
+            </Link>
           </>
         )}
       </section>

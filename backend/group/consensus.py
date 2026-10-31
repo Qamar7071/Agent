@@ -21,7 +21,7 @@ from group.profiles import HIGH_M, LONG_DRIVE_H, TREKS, merge
 from money import rs
 from schemas import TripRequest
 
-KINDS = {"best": "Best match for the group", "gentle": "Gentler and lower", "budget": "Budget version",
+KINDS = {"best": "Everyone’s answers combined", "gentle": "Gentler and lower", "budget": "Budget version",
          "fly": "Fly in, shorter drives", "relaxed": "More relaxed"}
 def members(n: int) -> str:
     return f"{n} member" if n == 1 else f"{n} members"
