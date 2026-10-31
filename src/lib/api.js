@@ -161,6 +161,13 @@ export const api = {
     request('PUT', `/api/trips/${id}`, { body: { title, request: tripRequest }, headers: { 'X-Trip-Token': token } }),
   deleteTrip: (id, token) => request('DELETE', `/api/trips/${id}`, { headers: { 'X-Trip-Token': token } }),
 
+  companionGet: (id, token) => get(`/api/trips/${id}/companion`, { headers: { 'X-Trip-Token': token }, timeout: 15000 }),
+  companionPut: (id, token, settings) =>
+    request('PUT', `/api/trips/${id}/companion`, { body: settings, headers: { 'X-Trip-Token': token }, timeout: 15000 }),
+  expensesSync: (id, token, expenses) =>
+    post(`/api/trips/${id}/expenses/sync`, { expenses }, { headers: { 'X-Trip-Token': token }, timeout: 20000 }),
+  nudgeWording: (payload) => post('/api/companion/wording', payload, { timeout: 15000 }),
+
   consent: () => get('/api/enquiries/consent', { timeout: 10000 }),
   sendEnquiry: (payload) => post('/api/enquiries', payload),
   enquiryStatus: (ref, token) => get(`/api/enquiries/${ref}`, { headers: { 'X-Enquiry-Token': token } }),

@@ -124,8 +124,8 @@ def test_guided_hotel_question_lists_matches_and_keeps_the_trip(osm):
     r = runner.run_chat(ChatRequest.model_validate({
         "message": "Hunza mein 5000 se 8000 tak hotel batao", "history": [], "state": state.model_dump(mode="json")}))
     assert r["mode"] == "guided"
-    assert "Places to stay in Karimabad (Hunza)** for PKR 5,000–8,000 a night" in r["reply"]
-    assert "Hunza Darbar Hotel** (Mid-range): PKR 8,000–15,000, fits your range" in r["reply"]
+    assert "Places to stay in Karimabad (Hunza)** for Rs 5,000–8,000 a night" in r["reply"]
+    assert "Hunza Darbar Hotel** (Mid-range): Rs 8,000–15,000, fits your range" in r["reply"]
     assert "Grand Peak Hotel" not in r["reply"]                              # premium type left out
     assert "Plain Hotel (Hotel): price level unknown" in r["reply"]
     assert r["state"]["destinations"] == ["skardu"]                          # trip unchanged
@@ -164,3 +164,10 @@ def test_provider_errors_are_reported_without_keys():
     text = '{"error": {"message": "Incorrect API key provided: gsk_abcdef123456. Get one at console"}}'
     assert _safe(text) == "Incorrect API key provided: [key]. Get one at console"
     assert "AIza" not in _safe('[{"error": {"message": "API key AIzaSyXXXXXXXX not valid"}}]')
+
+
+def test_money_is_written_the_pakistani_way():
+    from money import lakh, rs, rs_range
+    assert rs(150000) == "Rs 1,50,000" and rs(1500000) == "Rs 15,00,000" and rs(999) == "Rs 999"
+    assert lakh(10000000) == "1,00,00,000" and rs(-36100) == "-Rs 36,100" and rs(1234.6) == "Rs 1,235"
+    assert rs_range(7000, 18000) == "Rs 7,000–18,000" and rs_range(5000, 5000) == "Rs 5,000"

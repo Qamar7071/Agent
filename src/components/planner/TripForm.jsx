@@ -91,7 +91,7 @@ export default function TripForm({ onDone }) {
     if (!Number.isInteger(adults) || adults < 1 || adults > 20) e.adults = 'Enter 1 to 20 adults.';
     const kids = Number(v.children);
     if (!Number.isInteger(kids) || kids < 0 || kids > 12) e.children = 'Enter 0 to 12 children.';
-    if (v.budget_pkr !== '' && (!Number.isFinite(Number(v.budget_pkr)) || Number(v.budget_pkr) < 0)) e.budget_pkr = 'Enter an amount in PKR, or leave it empty.';
+    if (v.budget_pkr !== '' && (!Number.isFinite(Number(v.budget_pkr)) || Number(v.budget_pkr) < 0)) e.budget_pkr = 'Enter an amount in rupees, or leave it empty.';
     setErrors(e);
     return !Object.keys(e).length;
   };
@@ -194,7 +194,7 @@ export default function TripForm({ onDone }) {
 
       <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
         <div>
-          <label htmlFor="tf-budget" className="field-label">Budget in PKR (optional)</label>
+          <label htmlFor="tf-budget" className="field-label">Budget in Rs (optional)</label>
           <input id="tf-budget" type="number" inputMode="numeric" min="0" step="1000" placeholder="e.g. 150000" value={v.budget_pkr} onChange={(e) => set('budget_pkr')(e.target.value)} className="field num" aria-invalid={Boolean(errors.budget_pkr)} aria-describedby={errors.budget_pkr ? 'budget_pkr-err' : undefined} />
           {err('budget_pkr')}
         </div>

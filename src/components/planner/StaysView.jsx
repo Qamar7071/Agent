@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { api } from '../../lib/api.js';
-import { pkr, plural } from '../../lib/format.js';
+import { pkr, pkrRange, plural } from '../../lib/format.js';
 import PlaceList, { PLACE_TOWNS } from './PlaceList.jsx';
 
 const PRESETS = [
@@ -13,7 +13,7 @@ const PRESETS = [
 const num = (v) => (v === '' || v == null ? null : Math.max(0, Math.round(Number(v))));
 
 function rangeText({ min, max }) {
-  if (min && max) return `${pkr(min)}–${max.toLocaleString('en-US')}`;
+  if (min && max) return pkrRange(min, max);
   if (max) return `up to ${pkr(max)}`;
   if (min) return `${pkr(min)} or more`;
   return 'any price';
@@ -97,12 +97,12 @@ export default function StaysView({ stays, budget }) {
         {allowance && <p className="mt-1 text-sm text-ink-600">{allowance.message}</p>}
         <div className="mt-3 flex flex-wrap items-end gap-3">
           <div>
-            <label htmlFor="range-min" className="field-label">From (PKR)</label>
+            <label htmlFor="range-min" className="field-label">From (Rs)</label>
             <input id="range-min" className="field num w-32" inputMode="numeric" value={draft.min}
               onChange={(e) => setDraft({ ...draft, min: e.target.value.replace(/[^\d]/g, '') })} placeholder="0" />
           </div>
           <div>
-            <label htmlFor="range-max" className="field-label">To (PKR)</label>
+            <label htmlFor="range-max" className="field-label">To (Rs)</label>
             <input id="range-max" className="field num w-32" inputMode="numeric" value={draft.max}
               onChange={(e) => setDraft({ ...draft, max: e.target.value.replace(/[^\d]/g, '') })} placeholder="any" />
           </div>
@@ -144,7 +144,7 @@ export default function StaysView({ stays, budget }) {
                         {o.fit === false && <span className="ml-2 text-xs">Outside your range</span>}
                       </span>
                       <span className="num text-ink-700">
-                        {o.to ? `${pkr(o.from)}–${o.to.toLocaleString('en-US')}` : 'Arranged by your operator'}
+                        {o.to ? pkrRange(o.from, o.to) : 'Arranged by your operator'}
                       </span>
                     </li>
                   ))}

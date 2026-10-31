@@ -222,6 +222,60 @@ def run_agent_states(page: Page, screen: str):
     page.evaluate("localStorage.removeItem('raahi:theme')")
 
 
+def run_saathi_states(page: Page, screen: str):
+    """Safar Saathi (trip companion) screens, then its Today screen in the dark theme."""
+    from datetime import date, timedelta
+    page.goto(BASE + "/plan", wait_until="domcontentloaded")
+    page.evaluate("localStorage.clear(); sessionStorage.clear()")
+    page.goto(BASE + "/plan", wait_until="networkidle")
+    show_plan_view(page, screen)
+    page.get_by_role("button", name="Fill in trip details").first.click()
+    dialog = page.get_by_role("dialog", name="Trip details")
+    dialog.get_by_role("checkbox", name="Hunza Valley").click()
+    dialog.get_by_label("Total days, including travel").fill("6")
+    page.get_by_role("button", name="Build my plan").click()
+    expect(page.get_by_role("link", name="Start trip")).to_be_visible(timeout=30000)
+    page.get_by_role("link", name="Start trip").click()
+    expect(page.get_by_role("heading", name="Start your trip")).to_be_visible()
+    audit(page, screen, "safar saathi: start trip")
+    page.get_by_label("Your name").fill("Qamar")
+    page.locator("#budget-amount").fill("120000")
+    page.locator("#trip-start").fill((date.today() - timedelta(days=1)).isoformat())
+    page.get_by_role("button", name="Start trip").click()
+    expect(page.get_by_role("tab", name="Today")).to_be_visible()
+    audit(page, screen, "safar saathi: today, no expenses")
+    page.get_by_role("button", name="Add expense").click()
+    expect(page.get_by_role("dialog", name="Add expense")).to_be_visible()
+    audit(page, screen, "safar saathi: add expense sheet", scroll=False)
+    page.locator("#amount").fill("90000")
+    page.get_by_role("radio", name="Stay").click()
+    page.get_by_role("button", name="Save", exact=True).click()
+    expect(page.get_by_role("article", name="Quick check")).to_be_visible()
+    audit(page, screen, "safar saathi: today, quick check")
+    page.get_by_role("button", name="Yes, it’s right").click()
+    expect(page.get_by_role("article")).to_have_count(1)
+    audit(page, screen, "safar saathi: today, pace nudge")
+    page.get_by_role("button", name="Close the day").click()
+    audit(page, screen, "safar saathi: end of day")
+    page.get_by_role("tab", name="Spending").click()
+    audit(page, screen, "safar saathi: spending and settle up")
+    page.get_by_role("tab", name="Plan").click()
+    audit(page, screen, "safar saathi: plan tab")
+    page.get_by_role("button", name="Trip settings").click()
+    expect(page.get_by_role("dialog", name="Trip settings")).to_be_visible()
+    audit(page, screen, "safar saathi: trip settings", scroll=False)
+    page.get_by_role("radio", name="Roman Urdu").click()
+    page.keyboard.press("Escape")
+    page.get_by_role("tab", name="Aaj").click()
+    audit(page, screen, "safar saathi: today in Roman Urdu")
+    page.evaluate("localStorage.setItem('raahi:theme', JSON.stringify('dark'))")
+    page.reload(wait_until="networkidle")
+    audit(page, screen, "safar saathi: today, dark theme")
+    page.get_by_role("tab", name="Kharcha").click()
+    audit(page, screen, "safar saathi: spending, dark theme")
+    page.evaluate("localStorage.removeItem('raahi:theme')")
+
+
 # ---------------------------------------------------------------- page weight
 
 def kb(n: float) -> str:
@@ -301,7 +355,7 @@ def main() -> int:
             context = browser.new_context(**options)
             page = context.new_page()
             page.set_default_timeout(15000)
-            for states in (run_states, run_agent_states):
+            for states in (run_states, run_agent_states, run_saathi_states):
                 try:
                     states(page, screen)
                 except Exception as exc:  # report what was reached; a broken flow is itself a finding

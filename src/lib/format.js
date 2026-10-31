@@ -1,7 +1,15 @@
 export const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 export const MONTHS_SHORT = MONTHS.map((m) => m.slice(0, 3));
 
-export const pkr = (n) => (Number.isFinite(n) ? `PKR ${Math.round(n).toLocaleString('en-US')}` : '—');
+// Money the Pakistani way: Rs 1,50,000 (lakh grouping), whole rupees.
+export function lakh(n) {
+  const v = Math.round(Number(n) || 0);
+  const s = String(Math.abs(v));
+  const grouped = s.length > 3 ? `${s.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ',')},${s.slice(-3)}` : s;
+  return (v < 0 ? '-' : '') + grouped;
+}
+export const pkr = (n) => (Number.isFinite(n) ? (n < 0 ? `-Rs ${lakh(-n)}` : `Rs ${lakh(n)}`) : '—');
+export const pkrRange = (lo, hi) => (hi == null || Math.round(hi) === Math.round(lo) ? pkr(lo) : `Rs ${lakh(lo)}–${lakh(hi)}`);
 export const metres = (n) => (Number.isFinite(n) ? `${n.toLocaleString('en-US')} m` : '—');
 export const km = (n) => (Number.isFinite(n) ? `${n.toLocaleString('en-US')} km` : null);
 

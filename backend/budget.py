@@ -8,6 +8,7 @@ often it applies (per day, per night, once), and `verified: false`.
 import math
 
 import data
+from money import rs, rs_range
 
 # Which curated stay tiers count as each accommodation level.
 TIER_MATCH = {
@@ -203,7 +204,7 @@ def _n(count: int, word: str, plural: str | None = None) -> str:
 def _quantity(line, rates, *, people, vehicles, jeeps, rooms, children, factor) -> str:
     n = line["units"]
     ppl = _n(people, "person", "people")
-    rate = f"PKR {rates[0]:,}" if len(rates) == 1 else (f"PKR {rates[0]:,}–{rates[-1]:,}" if rates else "")
+    rate = f"{rs(rates[0])}" if len(rates) == 1 else (f"{rs_range(rates[0], rates[-1])}" if rates else "")
     key = line["id"]
     if key == "vehicle":
         return f"{_n(n, 'day')} × {_n(vehicles, 'vehicle')} × {rate}"
@@ -243,7 +244,7 @@ def stay_allowance(comparison: dict, subtotal: int, rooms_amount: int, room_nigh
     if per_room_night == 0:
         msg = "After transport, food and activities, your budget leaves nothing for rooms."
     else:
-        msg = (f"To stay within your budget, rooms can cost up to about PKR {per_room_night:,} per room per night "
+        msg = (f"To stay within your budget, rooms can cost up to about {rs(per_room_night)} per room per night "
                f"({rooms} room{'s' if rooms > 1 else ''} for {nights} night{'s' if nights > 1 else ''}), "
                "if everything else costs what the estimate assumes.")
     return {"per_room_night": per_room_night, "rooms": rooms, "nights": nights, "status": "estimate", "message": msg}
@@ -259,11 +260,11 @@ def compare(req, total: int, people: int) -> dict:
         mine, theirs, unit = total, req.budget_pkr, "in total"
     diff = _round(mine - theirs)
     if diff <= 0:
-        status, msg = "within", f"About PKR {abs(diff):,} under your budget of PKR {theirs:,} {unit}."
+        status, msg = "within", f"About {rs(abs(diff))} under your budget of {rs(theirs)} {unit}."
     elif diff <= 0.1 * theirs:
-        status, msg = "tight", f"About PKR {diff:,} over your budget of PKR {theirs:,} {unit}: close, but tight."
+        status, msg = "tight", f"About {rs(diff)} over your budget of {rs(theirs)} {unit}: close, but tight."
     else:
-        status, msg = "over", f"About PKR {diff:,} over your budget of PKR {theirs:,} {unit}."
+        status, msg = "over", f"About {rs(diff)} over your budget of {rs(theirs)} {unit}."
     return {"status": status, "budget": theirs, "basis": req.budget_basis, "difference": diff, "message": msg,
             "budget_total_equivalent": theirs * people if req.budget_basis == "per_person" else theirs}
 
@@ -272,24 +273,24 @@ def assumptions(req) -> list[str]:
     cm = data.cost_model()
     out = []
     if req.transport in ("car", "flight"):
-        out.append(f"Hired 4×4 with driver: PKR {cm['vehicle_per_day']:,} per vehicle per day, one vehicle per "
+        out.append(f"Hired 4×4 with driver: {rs(cm['vehicle_per_day'])} per vehicle per day, one vehicle per "
                    f"{cm['vehicle_seats']} travellers (fuel and driver included in the assumption).")
     if req.transport == "flight":
-        out.append(f"Flights: PKR {cm['flight_pp_oneway']:,} per person each way. Northern flights are "
+        out.append(f"Flights: {rs(cm['flight_pp_oneway'])} per person each way. Northern flights are "
                    "weather-dependent and fares change.")
     if req.transport == "bus":
-        out.append(f"Public coach: PKR {cm['bus_pp_per_leg']:,} per person per travel day; local taxis "
-                   f"PKR {cm['local_transport_per_day']:,} per sightseeing day for the group.")
+        out.append(f"Public coach: {rs(cm['bus_pp_per_leg'])} per person per travel day; local taxis "
+                   f"{rs(cm['local_transport_per_day'])} per sightseeing day for the group.")
     out.append(f"Rooms: midpoints of Raahi's indicative ranges for {STAY_LABEL[req.accommodation]} at each place "
-               f"(or PKR {cm['room_per_night_by_tier'][req.accommodation]:,} where there is no range); "
+               f"(or {rs(cm['room_per_night_by_tier'][req.accommodation])} where there is no range); "
                f"{cm['room_sleeps']} adults per room, children share.")
-    out.append(f"Food: PKR {cm['food_pp_day']:,} per adult per day; children about "
+    out.append(f"Food: {rs(cm['food_pp_day'])} per adult per day; children about "
                f"{int(cm['child_food_factor'] * 100)}%.")
-    out.append(f"Sightseeing allowance: PKR {cm['activities_pp_day']:,} per person per sightseeing day.")
-    out.append(f"Jeeps (Fairy Meadows track, Askole, day trips without a hired 4×4): PKR {cm['excursion_jeep']:,} "
+    out.append(f"Sightseeing allowance: {rs(cm['activities_pp_day'])} per person per sightseeing day.")
+    out.append(f"Jeeps (Fairy Meadows track, Askole, day trips without a hired 4×4): {rs(cm['excursion_jeep'])} "
                f"per jeep, up to {cm['jeep_seats']} people.")
     if req.guide:
-        out.append(f"Local guide: PKR {cm['guide_per_day']:,} per sightseeing day for the group.")
+        out.append(f"Local guide: {rs(cm['guide_per_day'])} per sightseeing day for the group.")
     out.append(f"Contingency: {cm['contingency_pct']}% on top for delays, closures and price changes.")
     out.append("All figures are planning assumptions, not live prices or quotes.")
     return out

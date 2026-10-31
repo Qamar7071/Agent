@@ -17,8 +17,8 @@ import threading
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import (Column, DateTime, ForeignKey, Index, MetaData, String, Table, Text, create_engine, delete,
-                        insert, select, update)
+from sqlalchemy import (Boolean, Column, DateTime, ForeignKey, Index, Integer, MetaData, String, Table, Text,
+                        create_engine, delete, insert, select, update)
 from sqlalchemy.pool import NullPool
 
 import config
@@ -58,6 +58,31 @@ enquiries = Table(
     Column("updated_at", DateTime(timezone=True), nullable=False),
 )
 Index("ix_enquiries_status_created", enquiries.c.status, enquiries.c.created_at)
+
+# Safar Saathi (trip companion): the group's settings and its shared expenses for a saved trip.
+companions = Table(
+    "companions", metadata,
+    Column("trip_id", String(32), ForeignKey("trips.id", ondelete="CASCADE"), primary_key=True),
+    Column("settings_json", Text, nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+)
+
+expenses = Table(
+    "expenses", metadata,
+    Column("id", String(36), primary_key=True),          # made on the phone, so retries are idempotent
+    Column("trip_id", String(32), ForeignKey("trips.id", ondelete="CASCADE"), nullable=False),
+    Column("amount_pkr", Integer, nullable=False),
+    Column("category", String(16), nullable=False),
+    Column("paid_by", String(12), nullable=False),
+    Column("split_among", Text, nullable=False),
+    Column("note", String(120), nullable=True),
+    Column("day_index", Integer, nullable=False),
+    Column("deleted", Boolean, nullable=False, default=False),   # kept as a tombstone so other phones learn of it
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+)
+Index("ix_expenses_trip", expenses.c.trip_id)
+MAX_EXPENSES_PER_TRIP = 3000
 
 REF_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"   # no 0/O or 1/I look-alikes
 _engine = None
@@ -179,7 +204,78 @@ def delete_trip(trip_id: str, token: str) -> None:
     get_trip(trip_id, token)
     with engine().begin() as c:
         c.execute(update(enquiries).where(enquiries.c.trip_id == trip_id).values(trip_id=None))
+        c.execute(delete(expenses).where(expenses.c.trip_id == trip_id))      # SQLite doesn't cascade by default
+        c.execute(delete(companions).where(companions.c.trip_id == trip_id))
         c.execute(delete(trips).where(trips.c.id == trip_id))
+
+
+# ── Safar Saathi ──────────────────────────────────────────────────────────────────
+def _aware(dt: datetime) -> datetime:
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def _iso_ms(dt: datetime) -> str:
+    """Millisecond precision, the same as the phone's clock: sync compares these times."""
+    return _aware(dt).isoformat(timespec="milliseconds")
+
+
+def _expense_out(row) -> dict:
+    return {"id": row.id, "amountPkr": row.amount_pkr, "category": row.category, "paidBy": row.paid_by,
+            "splitAmong": json.loads(row.split_among), "note": row.note, "dayIndex": row.day_index,
+            "deleted": bool(row.deleted), "createdAt": _iso_ms(row.created_at), "updatedAt": _iso_ms(row.updated_at)}
+
+
+def get_companion(trip_id: str, token: str) -> dict:
+    """The group's settings (or None before anyone pressed Start trip) and every expense, tombstones included."""
+    get_trip(trip_id, token)
+    with engine().connect() as c:
+        row = c.execute(select(companions).where(companions.c.trip_id == trip_id)).first()
+        rows = c.execute(select(expenses).where(expenses.c.trip_id == trip_id)
+                         .order_by(expenses.c.created_at, expenses.c.id)).all()
+    return {"settings": json.loads(row.settings_json) if row else None,
+            "settings_updated_at": _iso(row.updated_at) if row else None,
+            "expenses": [_expense_out(r) for r in rows]}
+
+
+def put_companion_settings(trip_id: str, token: str, settings: dict) -> dict:
+    get_trip(trip_id, token)
+    now = _now()
+    text = json.dumps(settings, ensure_ascii=False)
+    with engine().begin() as c:
+        exists = c.execute(select(companions.c.trip_id).where(companions.c.trip_id == trip_id)).first()
+        if exists:
+            c.execute(update(companions).where(companions.c.trip_id == trip_id).values(settings_json=text, updated_at=now))
+        else:
+            c.execute(insert(companions).values(trip_id=trip_id, settings_json=text, updated_at=now))
+    return {"settings": settings, "settings_updated_at": _iso(now)}
+
+
+def sync_expenses(trip_id: str, token: str, items: list[dict]) -> dict:
+    """Merge expenses sent by a phone. Same id twice = one expense (safe to retry after a lost
+    connection). If two phones changed the same expense, the later change wins. An id that
+    belongs to another trip is refused. Returns the trip's full list, tombstones included."""
+    get_trip(trip_id, token)
+    rejected = []
+    with engine().begin() as c:
+        count = len(c.execute(select(expenses.c.id).where(expenses.c.trip_id == trip_id)).all())
+        for it in items:
+            row = c.execute(select(expenses).where(expenses.c.id == it["id"])).first()
+            values = {"amount_pkr": it["amountPkr"], "category": it["category"], "paid_by": it["paidBy"],
+                      "split_among": json.dumps(it["splitAmong"]), "note": it.get("note"),
+                      "day_index": it["dayIndex"], "deleted": bool(it.get("deleted")),
+                      "updated_at": it["updatedAt"]}
+            if row is None:
+                if count >= MAX_EXPENSES_PER_TRIP:
+                    rejected.append({"id": it["id"], "reason": "This trip has reached its expense limit."})
+                    continue
+                c.execute(insert(expenses).values(id=it["id"], trip_id=trip_id, created_at=it["createdAt"], **values))
+                count += 1
+            elif row.trip_id != trip_id:
+                rejected.append({"id": it["id"], "reason": "This id belongs to another trip."})
+            elif _aware(it["updatedAt"]) > _aware(row.updated_at):
+                c.execute(update(expenses).where(expenses.c.id == it["id"]).values(**values))
+    out = get_companion(trip_id, token)
+    return {"expenses": out["expenses"], "rejected": rejected, "synced_at": _iso(_now())}
 
 
 # ── Enquiries ─────────────────────────────────────────────────────────────────────

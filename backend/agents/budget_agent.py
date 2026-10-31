@@ -9,6 +9,7 @@ from itertools import product
 import planner
 from agents.base import Agent, AgentResult
 from agents.common import plan_of
+from money import rs
 
 
 def _total(req, closures) -> tuple[int, dict]:
@@ -73,7 +74,7 @@ class BudgetAgent(Agent):
                             cmp["budget_total_equivalent"], bb.closures)
         verdict = {"within": "within budget", "tight": "just over budget", "over": "over budget",
                    "no_budget": "no budget given"}[cmp["status"]]
-        summary = f"About PKR {b['total']:,} in total (PKR {b['per_person']:,} per person): {verdict}"
+        summary = f"About {rs(b['total'])} in total ({rs(b['per_person'])} per person): {verdict}"
         if fit and fit["fits"] and fit["best"]["change"]:
             summary += "; found changes that fit"
         issues = [] if cmp["status"] in ("within", "no_budget") else [

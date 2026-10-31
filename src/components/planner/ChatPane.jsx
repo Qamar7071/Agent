@@ -168,7 +168,7 @@ export default function ChatPane({ onShowPlan, onOpenForm }) {
         )}
         {!started && !chatBusy && (
           <div className="flex flex-wrap gap-2" aria-label="Example requests">
-            {['7 days in Hunza and Attabad from Islamabad in May, 2 adults, PKR 200,000', 'Skardu and Deosai in July, family of 4', 'Weather in Fairy Meadows this week', 'Is the road to Skardu open?'].map((s) => (
+            {['7 days in Hunza and Attabad from Islamabad in May, 2 adults, Rs 2,00,000', 'Skardu and Deosai in July, family of 4', 'Weather in Fairy Meadows this week', 'Is the road to Skardu open?'].map((s) => (
               <button key={s} type="button" className="chip text-left" onClick={() => send(s)}>{s}</button>
             ))}
           </div>

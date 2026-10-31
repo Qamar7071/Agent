@@ -22,6 +22,7 @@ import data
 from clock import today_pk
 from schemas import TripRequest
 from services import http, routing
+from money import rs
 
 DRIVE_DAY_CAP_H = 12.5          # longest sensible mountain driving day (upper estimate)
 MERGE_MOVE_H = 4                # shorter moves happen on the morning of a sightseeing day
@@ -521,7 +522,7 @@ def build(req: TripRequest, *, with_savings: bool = True) -> dict:
         cost["assumptions"].insert(1, f"Fares from {req.origin} can be higher than from Islamabad or need a connection.")
     if with_savings and cost["comparison"]["status"] in ("over", "tight"):
         cost["savings"] = _savings(req, cost["total"])
-        tip = "; ".join(f"{s['label'].lower()} (saves about PKR {s['saves_pkr']:,})" for s in cost["savings"][:3])
+        tip = "; ".join(f"{s['label'].lower()} (saves about {rs(s['saves_pkr'])})" for s in cost["savings"][:3])
         warnings.append(_w("warning" if cost["comparison"]["status"] == "tight" else "danger", "budget",
                            cost["comparison"]["message"] + (f" Options: {tip}." if tip else "")))
 

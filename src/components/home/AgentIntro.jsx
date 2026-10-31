@@ -49,7 +49,7 @@ export default function AgentIntro() {
               </p>
               <p className="mt-2">
                 If you fly to Gilgit you get three full days in Hunza and a spare day in case the flight is delayed.
-                Both options cost more than PKR 150,000 for two; the Budget tab shows where to save. Shall I plan the
+                Both options cost more than Rs 1,50,000 for two; the Budget tab shows where to save. Shall I plan the
                 flight version?
               </p>
             </div>

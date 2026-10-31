@@ -59,10 +59,10 @@ def test_eval_01_three_day_trip_for_two_asks_where_then_plans_honestly(ai, monke
 def test_eval_02_insufficient_budget_is_flagged_with_costed_options(ai):
     llm = ai.script([tool_call("create_itinerary", {"destinations": ["hunza"], "days": 7, "adults": 2,
                                                     "budget_pkr": 40000, "budget_basis": "total"}),
-                     say("PKR 40,000 won't cover this; here are the cheapest options.")])
+                     say("Rs 40,000 won't cover this; here are the cheapest options.")])
     r = chat("Hunza for a week, 2 of us, total budget 40,000")
     plan = tool_results(llm)[0]["plan"]
-    assert "over your budget of PKR 40,000 in total" in plan["budget"]["comparison"]
+    assert "over your budget of Rs 40,000 in total" in plan["budget"]["comparison"]
     assert plan["budget"]["savings"] and all(s["saves_pkr"] > 0 for s in plan["budget"]["savings"])
     assert r["itinerary"]["budget"]["comparison"]["status"] == "over"
     per_person = TripRequest(destinations=["hunza"], days=7, adults=2, budget_pkr=40000, budget_basis="per_person")

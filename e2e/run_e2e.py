@@ -8,6 +8,7 @@ after `npm run build`. Uses guided mode unless an AI key is configured on that s
 
 Each check prints PASS or FAIL; the exit code is the number of failures.
 """
+import json
 import os
 import re
 import sys
@@ -163,7 +164,7 @@ def tabs(page):
     expect(page.get_by_role("tabpanel")).to_contain_text("Current road status could not be verified.", timeout=40000)
     page.get_by_role("tab", name="Stays").click()
     expect(page.get_by_role("tabpanel")).to_contain_text("not quotes")
-    page.get_by_role("button", name="Mid-range: PKR 7,000–18,000").click()
+    page.get_by_role("button", name="Mid-range: Rs 7,000–18,000").click()
     expect(page.get_by_text("Fits your range").first).to_be_visible()
     page.get_by_role("tab", name="Food").click()
     expect(page.get_by_role("tabpanel")).to_contain_text("Local food", timeout=40000)
@@ -311,13 +312,105 @@ def network_error(page):
         re.compile("Open-Meteo|couldn't get a forecast"), timeout=40000)
 
 
+def saathi_trip(page, start_offset=-1):
+    """Plan, save and start a 6-day Hunza trip that began yesterday (so today is day 2)."""
+    from datetime import date, timedelta
+    fresh(page, "/plan")
+    page.get_by_role("button", name="Fill in trip details").first.click()
+    dialog = page.get_by_role("dialog", name="Trip details")
+    dialog.get_by_role("checkbox", name="Hunza Valley").click()
+    dialog.get_by_label("Total days, including travel").fill("6")
+    page.get_by_role("button", name="Build my plan").click()
+    expect(page.get_by_role("button", name="Save trip")).to_be_visible(timeout=30000)
+    page.get_by_role("button", name="Save trip").click()
+    expect(page.get_by_role("button", name="Saved")).to_be_visible(timeout=15000)
+    page.get_by_role("link", name="Start trip").click()
+    expect(page.get_by_role("heading", name="Start your trip")).to_be_visible()
+    page.get_by_label("Your name").fill("Qamar")
+    page.get_by_label("Name of person 2").fill("Sara")
+    page.locator("#budget-amount").fill("120000")
+    page.locator("#trip-start").fill((date.today() + timedelta(days=start_offset)).isoformat())
+    page.get_by_role("button", name="Start trip").click()
+    expect(page.get_by_role("tab", name="Today")).to_be_visible()
+
+
+def add_expense(page, amount, category, payer=None, *, keypad=False):
+    page.get_by_role("button", name="Add expense").click()                     # tap 1
+    if keypad:
+        for k in amount:
+            page.get_by_role("button", name=k, exact=True).click()
+    else:
+        page.locator("#amount").fill(amount)
+    page.get_by_role("radio", name=category).click()                            # tap 2
+    if payer:
+        page.get_by_role("radiogroup", name="Who paid?").get_by_role("radio", name=payer).click()
+    page.get_by_role("button", name="Save", exact=True).click()                 # tap 3
+
+
+@check("Safar Saathi: start a saved trip, add an expense in 3 taps, pace and split update")
+def saathi(page):
+    saathi_trip(page)
+    expect(page.get_by_text("Day 2 of 6")).to_be_visible()
+    expect(page.get_by_text("All synced")).to_be_visible(timeout=15000)
+    started = time.time()
+    add_expense(page, "2400", "Food", keypad=True)
+    expect(page.get_by_role("status")).to_contain_text("Rs 2,400 · Food · paid by Qamar")
+    assert time.time() - started < 5, "adding an expense took more than 5 seconds"
+    expect(page.locator("#pace-h").locator("..")).to_contain_text("Rs 2,400")
+    add_expense(page, "1000", "Transport", "Sara")
+    page.get_by_role("tab", name="Spending").click()
+    settle = page.locator("section[aria-labelledby='settle-h']")
+    expect(settle).to_contain_text("Sara pays Qamar")
+    expect(settle).to_contain_text("Rs 700")            # Qamar paid 2,400, Sara 1,000; each owes 1,700
+    page.get_by_role("tab", name="Today").click()
+
+
+@check("Safar Saathi: a big expense is checked first, then the pace nudge offers choices")
+def saathi_nudges(page):
+    add_expense(page, "90000", "Stay")
+    expect(page.get_by_role("article", name="Quick check")).to_be_visible()
+    expect(page.get_by_role("article")).to_have_count(1)
+    page.get_by_role("button", name="Yes, it’s right").click()
+    nudge = page.get_by_role("article").filter(has_text="of the budget (plan:")
+    expect(nudge).to_have_attribute("aria-label", re.compile("Over plan|Go carefully"))
+    expect(nudge.get_by_role("button", name="Keep the plan")).to_be_visible()
+    savers = nudge.get_by_role("button", name=re.compile("saves about Rs"))
+    if savers.count():
+        expect(savers.first).to_contain_text("estimate, Raahi cost model")
+    nudge.get_by_role("button", name="Keep the plan").click()
+    expect(page.get_by_role("article")).to_have_count(0)
+
+
+@check("Safar Saathi: expenses added offline survive a reload and sync once")
+def saathi_offline(page):
+    import requests
+    trip = json.loads(page.evaluate("localStorage.getItem('raahi:trips')"))[0]
+    page.wait_for_timeout(1000)                     # let the service worker take control
+    page.context.set_offline(True)
+    page.evaluate("window.dispatchEvent(new Event('offline'))")
+    add_expense(page, "650", "Food")
+    expect(page.get_by_text("1 waiting to sync")).to_be_visible()
+    page.reload(wait_until="domcontentloaded")
+    expect(page.get_by_text("1 waiting to sync")).to_be_visible(timeout=15000)
+    page.context.set_offline(False)
+    page.evaluate("window.dispatchEvent(new Event('online'))")
+    expect(page.get_by_text("All synced")).to_be_visible(timeout=20000)
+    comp = requests.get(f"{BASE}/api/trips/{trip['id']}/companion", headers={"X-Trip-Token": trip["token"]}, timeout=15).json()
+    amounts = sorted(e["amountPkr"] for e in comp["expenses"] if not e["deleted"])
+    assert amounts == [650, 1000, 2400, 90000], amounts
+    page.goto(BASE + "/trips", wait_until="networkidle")
+    page.once("dialog", lambda d: d.accept())
+    page.locator("section[aria-labelledby='saved-h'] li").first.get_by_role("button", name="Delete").click()
+    expect(page.get_by_text("No saved trips in this browser yet.")).to_be_visible(timeout=15000)
+
+
 @check("no horizontal overflow from phone to desktop, and the phone menu works")
 def responsive(page):
     try:
         overflow = []
         for width, height in ((360, 740), (390, 844), (768, 1024), (1024, 768), (1440, 900)):
             page.set_viewport_size({"width": width, "height": height})
-            for path in ("/", "/plan", "/destinations/hunza", "/trips", "/twin", "/agents", "/guardian"):
+            for path in ("/", "/plan", "/destinations/hunza", "/trips", "/twin", "/agents", "/guardian", "/trip/new?from=plan"):
                 page.goto(BASE + path, wait_until="networkidle")
                 over = page.evaluate("document.documentElement.scrollWidth - window.innerWidth")
                 if over > 1:
@@ -352,7 +445,7 @@ def main() -> int:
         page = browser.new_context(viewport={"width": 1440, "height": 900}).new_page()
         page.set_default_timeout(15000)
         for fn in (home, navigation, month_filter, destination_page, seo, form_validation, form_plan, chat_flow,
-                   edit_day, tabs, packing, saved_trip, enquiry, admin, network_error, travel_twin, agent_control,
+                   edit_day, tabs, packing, saved_trip, enquiry, admin, network_error, travel_twin, agent_control, saathi, saathi_nudges, saathi_offline,
                    guardian, theme, responsive, keyboard):
             fn(page)
         browser.close()

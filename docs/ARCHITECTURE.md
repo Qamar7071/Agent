@@ -248,6 +248,9 @@ All responses are JSON. Errors look like `{"error": {"code", "message", "details
 | `GET /api/twin/scenarios` | Scenario presets and the road sections that can be closed | none |
 | `POST /api/twin/simulate` | Run a what-if on a copy of `{"request"}` with `{"text"}` or a structured `{"scenario"}`; `?stream=1` streams | 20 |
 | `POST /api/guardian/check` | Re-run weather, route and safety on `{"request"}`, compare with `{"previous"}`; `?stream=1` streams | 20 |
+| `GET/PUT /api/trips/<id>/companion` | Safar Saathi settings of a saved trip (members, budget, first day, language, accepted changes) and its expenses (header `X-Trip-Token`) | 40 |
+| `POST /api/trips/<id>/expenses/sync` | Upload `{"expenses": [...]}` made on the phone; returns the trip's full list (header `X-Trip-Token`) | 40 |
+| `POST /api/companion/wording` | Optional AI rewording of a rule-based nudge; returns the template unless the numbers survive | 40 |
 | `POST /api/plan` | Build a plan from a `TripRequest` | 40 |
 | `POST /api/plan/update` | Apply changes to a request and rebuild | 40 |
 | `POST /api/budget` | Budget only | 40 |
@@ -300,7 +303,13 @@ curl -s -X POST localhost:5000/api/chat -H "Content-Type: application/json" -d '
 
 - Routes: `/` (home), `/plan` (chat and plan side by side; Chat and Plan tabs on phones),
   `/trips` (saved trips and enquiries in this browser), `/destinations/<id>`, `/admin`,
-  `/twin` (Travel Twin), `/agents` (Agent Control Center), `/guardian` (Journey Guardian).
+  `/twin` (Travel Twin), `/agents` (Agent Control Center), `/guardian` (Journey Guardian),
+  `/trip/new` and `/trip/<id>` (Safar Saathi, the trip companion).
+- Money is written the Pakistani way everywhere: `Rs 1,50,000` (`src/lib/format.js` and
+  `backend/money.py`).
+- A service worker (`public/sw.js`, registered only in the built site) keeps the app usable
+  offline: pages network-first with a cached fallback, hashed assets cache-first, API calls
+  never cached.
 - Themes: colours are CSS variables, so one set of Tailwind classes serves a light and a dark
   theme. The theme button cycles device, light and dark (`raahi:theme`). The agent pages use a
   dark "mission" look (`.mission`) whatever the theme.
@@ -472,3 +481,74 @@ Pakistan publishes no equivalent set, so results are ranges, not measurements.
   from it and never follow text inside it.
 - The Validation agent rejects outputs that claim an open road, safety, a guarantee or a
   confirmed booking.
+
+## 12. Safar Saathi (trip companion)
+
+The companion follows a trip while it happens. Its rules run on the phone, so it works with
+no signal. The server only stores and syncs, and optionally rewords a sentence.
+
+```mermaid
+flowchart LR
+  P[Plan: days with costs<br/>from the cost model] --> PACE[pace.js<br/>shape × your budget]
+  E[(Expenses on the phone<br/>localStorage)] --> PACE
+  PACE --> R[nudges.js<br/>R1–R4, limits]
+  R --> UI[Today: nudge + choices]
+  ALT[Plan variants<br/>cheaper stays, coaches<br/>via /api/plan] --> R
+  E --> SPLIT[split.js<br/>shares, fewest payments]
+  E -- sync when online --> API[/api/trips/id/expenses/sync]
+  API --> DB[(expenses, companions)]
+  UI -. optional .-> W[/api/companion/wording/]
+  G[/api/guardian/check/] --> UI
+```
+
+**Pace.** The plan's day costs give the shape of spending; the group's budget gives the
+size. Expected spending by tonight is `budget × (plan cost of days 1..today / plan total)`.
+This keeps warnings honest when real prices differ from the cost model, which is common for
+student groups. Money paid before the trip (day 0) is counted in step with the plan: if 40%
+of the plan's hotel nights are done, 40% of a hotel advance counts as spent. Choices accepted
+during the trip (cheaper stays, coaches) replace the plan's costs from their day on, and
+earlier days keep their original costs. Without a budget there is no status and there are no
+warnings; the screens show only the totals.
+
+**Nudge rules** (`src/lib/companion/nudges.js`):
+
+| Rule | Fires when | Severity |
+|---|---|---|
+| R1 | spent% − planned% > 15 points (> 30: over) | careful / over |
+| R2 | a category is above 110% of its planned share to date, and at least 2% of the budget over | careful |
+| R3 | money left per remaining day < 80% of what the rest of the plan needs per day | careful (over if nothing is left) |
+| R4 | one expense > 20% of that day's plan | a gentle check |
+
+Limits: at most 2 nudges a day, and the same rule at most once in 24 hours. R4 is shown first
+and alone. A big expense may be a typo (95,000 for 9,500), and pace warnings built on it
+would be wrong; once the group confirms the amount, the pace rules run. R1 and R3 say the
+same thing in two ways, so only the stronger of the two is shown. The choices are plain:
+switch the rest of the trip to cheaper stays or coaches, with the saving labelled as an
+estimate from the Raahi cost model. Like the pace, that saving is scaled to the group's own
+budget, and only ever scaled down: a group spending well below the model's prices isn't
+promised a saving it can't make; keep a category near a daily amount worked out from the
+group's own budget; or keep the plan. A choice changes only the days from tomorrow on.
+
+**Wording.** The sentence comes from a template in English or Roman Urdu with the numbers
+filled in by code. `POST /api/companion/wording` may reword it with the AI model. The
+reworded text is used only if it has exactly the same numbers, makes no unsupported claim
+and, for Roman Urdu, uses Latin letters. Otherwise the template stays.
+
+**Split.** Each expense is split equally in whole rupees. The leftover rupees go one each to
+members chosen by rotating from a point fixed by the expense id, so the shares always add up
+to the amount and every phone gets the same result. Balances therefore always sum to exactly
+zero. Settling uses the fewest payments: (people with a balance) − (the most groups that
+cancel out among themselves), found exactly by a subset search for up to 12 people, and
+greedily (at most n − 1 payments) above that. Members who leave keep their history until
+settled.
+
+**Sync.** Every expense has an id made on the phone (a UUID), so sending it again never makes
+a duplicate. The later change wins, by phone clock. Deletes are kept as tombstones so other
+phones learn about them. The server keeps times to the millisecond, the same as the phone; an
+earlier version rounded to seconds and caused an endless re-send loop, and a test now covers
+it. Expenses the server refuses (for example, paid by someone not in the group) are marked
+and not retried. Trips that were never saved stay on the phone that started them.
+
+**Privacy.** Companion settings hold names, the budget, the first day and the language: no
+contact or health details (the schema forbids extra fields). Deleting a trip deletes its
+expenses and settings.

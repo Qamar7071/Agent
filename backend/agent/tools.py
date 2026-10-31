@@ -22,6 +22,7 @@ import planner
 import storage
 from schemas import TripRef, TripRequest, TripState, UpdateOp
 from services import places, roads, routing, weather
+from money import lakh, rs
 
 log = logging.getLogger("raahi.tools")
 
@@ -244,7 +245,7 @@ def get_destination_details(args: DestinationArgs, ctx: ToolContext) -> dict:
         "recommended_days": d["recommended_days"], "visit_costs": d["visit_costs"],
         "bad_weather_alternative": d["bad_weather_alternative"],
         "stays": {"base": stay.get("base"), "note": stay.get("note"), "price_note": stay.get("price_note"),
-                  "options": [{"name": o["name"], "tier": o["tier"], "pkr_per_night": f"{o['from']:,}–{o['to']:,}",
+                  "options": [{"name": o["name"], "tier": o["tier"], "pkr_per_night": f"{lakh(o['from'])}–{lakh(o['to'])}",
                                "status": o["price_status"]} for o in stay.get("options", [])]},
         "sources": d["sources"], "last_reviewed": d["last_reviewed"], "record_note": d["record_note"]}}
 
@@ -430,7 +431,7 @@ def create_booking_enquiry(args: EnquiryDraftArgs, ctx: ToolContext) -> dict:
         when = r.get("start_date") or (planner.MONTHS[r["travel_month"] - 1] if r.get("travel_month") else "dates open")
         summary = (f"{plan['title']}: {len(plan['days'])} days from {r['origin']}, {when}, {r['adults']} adult(s)"
                    + (f" and {r['children']} child(ren)" if r.get("children") else "")
-                   + f", estimated PKR {plan['budget']['total']:,}.")
+                   + f", estimated {rs(plan['budget']['total'])}.")
     draft = {"message": args.message or "I'd like help arranging this trip. Please contact me with options.",
              "contact_method": args.contact_method, "summary": summary}
     ctx.artifacts["enquiry_draft"] = draft
@@ -590,9 +591,9 @@ def summarize(name: str, result: dict, args: dict) -> str:
         return f"Road status: not verified (no live official feed); {n} active PMD alerts checked"
     if name in ("create_itinerary", "update_itinerary", "get_saved_trip"):
         p = result.get("plan", {})
-        return f"Itinerary: {p.get('title')} — {len(p.get('days', []))} days, about PKR {p.get('budget', {}).get('total', 0):,} (estimate)"
+        return f"Itinerary: {p.get('title')} — {len(p.get('days', []))} days, about {rs(p.get('budget', {}).get('total', 0))} (estimate)"
     if name == "estimate_trip_budget":
-        return f"Budget estimate: about PKR {result.get('total', 0):,} ({result.get('comparison', {}).get('status')})"
+        return f"Budget estimate: about {rs(result.get('total', 0))} ({result.get('comparison', {}).get('status')})"
     if name == "get_route_information":
         c = result.get("curated_estimate") or {}
         return f"Route {result.get('from')} → {result.get('to')}: {c.get('km', '?')} km, {c.get('time', '?')} (approx.)"

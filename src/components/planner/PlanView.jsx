@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BookmarkCheck, Mail, Pencil, Printer, Save } from 'lucide-react';
+import { BookmarkCheck, Footprints, Mail, Pencil, Printer, Save } from 'lucide-react';
 import { usePlanner } from '../../context/PlannerContext.jsx';
 import { MONTHS, dayLabel, pkr, plural } from '../../lib/format.js';
 import Notice from '../ui/Notice.jsx';
@@ -117,6 +117,7 @@ export default function PlanView({ onOpenForm }) {
           <button type="button" onClick={onOpenForm} className="btn-outline"><Pencil size={16} aria-hidden="true" /> Trip details</button>
           <Link to="/twin?from=plan" className="btn-outline">Travel Twin</Link>
           <SaveButton />
+          <Link to="/trip/new?from=plan" className="btn-outline"><Footprints size={16} aria-hidden="true" /> Start trip</Link>
           <button type="button" onClick={() => openEnquiry({})} className="btn-primary"><Mail size={16} aria-hidden="true" /> Send enquiry</button>
           <button type="button" onClick={() => window.print()} className="btn-quiet" aria-label="Print the plan"><Printer size={16} aria-hidden="true" /></button>
         </div>

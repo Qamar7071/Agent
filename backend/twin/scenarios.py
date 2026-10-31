@@ -16,6 +16,7 @@ from agents.common import leg_keys_by_day
 from agents.research_agent import season_fit
 from services import routing
 from twin import segments
+from money import rs
 
 PRESETS = [
     {"type": "road_closed", "label": "A road becomes unavailable", "example": "What if the Khunjerab route is closed from day 4?"},
@@ -194,8 +195,8 @@ def apply(req, spec: dict, base_plan: dict) -> dict:
         base_total = budget_total(req) or base_plan["budget"]["total"]
         target = int(round(base_total * (1 + spec["percent"] / 100), -2))
         if budget_total(req) is None:
-            assumptions.append(f"No budget was set, so the current estimate (PKR {base_total:,}) is used as the budget.")
-        assumptions.append(f"New budget: PKR {target:,} in total ({spec['percent']:+d}%).")
+            assumptions.append(f"No budget was set, so the current estimate ({rs(base_total)}) is used as the budget.")
+        assumptions.append(f"New budget: {rs(target)} in total ({spec['percent']:+d}%).")
         upd.update(budget_pkr=target, budget_basis="total")
         hints["budget_target"] = target
         fit = fit_to_budget(req.model_copy(update=upd), target)
@@ -209,7 +210,7 @@ def apply(req, spec: dict, base_plan: dict) -> dict:
         else:
             notes.append("The current plan already fits the new budget.")
         if not fit["fits"]:
-            notes.append(f"Even the cheapest version found is about PKR {fit['shortfall']:,} over the new budget.")
+            notes.append(f"Even the cheapest version found is about {rs(fit['shortfall'])} over the new budget.")
         run_agents |= {"accommodation"}
         confidence, why = "high", "Costs come from Raahi's assumptions; the search tries stay level, transport and length."
     elif t == "days_change":
