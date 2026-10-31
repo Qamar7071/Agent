@@ -8,7 +8,9 @@
 4. Return the reply plus the structured results (itinerary, forecasts, road status,
    enquiry draft) taken from the tools themselves, never from the model's prose.
 """
+import json
 import logging
+import re
 import time
 
 import config
@@ -19,11 +21,61 @@ log = logging.getLogger("raahi.agent")
 HISTORY_TURNS = 12
 HISTORY_CHARS = 1500
 
+# Claims Raahi can never support. A match that follows a negation in the same sentence
+# ("I can't say the road is open") is fine; anything else sends the turn to guided mode.
+UNSUPPORTED = [
+    re.compile(r"\b(road|roads|highway|kkh|pass|route|track)\b[^.!?\n]{0,60}?\b(is|are)\s+(now\s+|currently\s+|fully\s+)?"
+               r"(open|clear|passable|safe to (drive|travel))\b", re.I),
+    re.compile(r"\b(booking|reservation|room|seat|ticket)s?\b[^.!?\n]{0,30}?\b(is|are|has been|have been)\s+"
+               r"(confirmed|booked|reserved)\b", re.I),
+    re.compile(r"\b(i|we)('ve| have)?\s+(booked|reserved|confirmed)\b", re.I),
+    re.compile(r"\bguaranteed\s+(availability|price|seat|room|safe)", re.I),
+]
+ROAD_TOPIC = re.compile(r"\b(road|roads|kkh|karakoram|highway|landslides?|sarak|sadak|rasta|raasta|pass|route)\b", re.I)
+NEGATION = re.compile(r"\b(not|n't|cannot|never|no|unable|can't|couldn't|unverified|without)\b", re.I)
+# Typical-pattern statements ("usually open April to November") are allowed: they are seasonal, not live.
+SEASONAL = re.compile(r"\b(usually|typically|normally|generally|seasonal(ly)?|season|months?|january|february|march|"
+                      r"april|may|june|july|august|september|october|november|december)\b", re.I)
+
+
+def unsupported_claim(text: str) -> str | None:
+    """Return the first claim Raahi cannot support, unless the sentence negates it."""
+    for pattern in UNSUPPORTED:
+        for m in pattern.finditer(text or ""):
+            start = max(text.rfind(".", 0, m.start()), text.rfind("\n", 0, m.start())) + 1
+            end = min([i for i in (text.find(".", m.end()), text.find("\n", m.end())) if i >= 0] or [len(text)])
+            sentence = text[start:end]
+            if NEGATION.search(text[start:m.end()]) or (pattern is UNSUPPORTED[0] and SEASONAL.search(sentence)):
+                continue
+            return m.group(0)
+    return None
+
 
 def _text(content) -> str:
     if isinstance(content, list):          # some providers return content parts
         return "".join(p.get("text", "") for p in content if isinstance(p, dict)).strip()
     return (content or "").strip()
+
+
+def prefetch(message: str, ctx: tools.ToolContext) -> list[tuple[str, dict]]:
+    """Tool calls the server makes before the model answers, so facts never depend on the model
+    choosing to look them up: road questions get the road tool, weather questions the forecast,
+    and a new trip with a place and a length gets its itinerary."""
+    found = parser.intents(message)
+    st = ctx.state
+    calls: list[tuple[str, dict]] = []
+    if "road" in found and ROAD_TOPIC.search(message):     # not "is the restaurant open"
+        calls.append(("get_road_status", {}))
+    if "weather" in found:
+        for d in st.destinations[:2]:
+            args = {"destination": d}
+            if st.start_date:
+                args["start_date"] = st.start_date.isoformat()
+            calls.append(("get_weather_forecast", args))
+    if "plan" in found and st.destinations and (st.days or st.start_date) and not st.plan() \
+            and not found & {"weather", "road", "stays", "food"}:
+        calls.append(("create_itinerary", {}))
+    return calls
 
 
 def _ai(body: ChatRequest, ctx: tools.ToolContext, deadline: float) -> tuple[str, str, str]:
@@ -34,6 +86,15 @@ def _ai(body: ChatRequest, ctx: tools.ToolContext, deadline: float) -> tuple[str
 
     provider = model = None
     used = 0
+    pre = prefetch(body.message, ctx)
+    if pre:
+        calls = [{"id": f"raahi-{i}", "type": "function", "function": {"name": n, "arguments": json.dumps(a)}}
+                 for i, (n, a) in enumerate(pre)]
+        messages.append({"role": "assistant", "content": None, "tool_calls": calls})
+        for call in calls:
+            result = tools.execute(call["function"]["name"], call["function"]["arguments"], ctx)
+            used += 1
+            messages.append({"role": "tool", "tool_call_id": call["id"], "content": tools.to_json(result)})
     for _step in range(config.AGENT_MAX_STEPS):
         allow_tools = used < config.AGENT_MAX_TOOL_CALLS
         try:
@@ -94,6 +155,13 @@ def run_chat(body: ChatRequest) -> dict:
         try:
             reply, provider, model = _ai(body, ctx, deadline)
             mode = "ai"
+            claim = unsupported_claim(reply)
+            if claim:
+                log.warning("AI reply rejected for an unsupported claim: %r", claim)
+                ctx.trace.append({"tool": "honesty_check", "ok": False, "ms": 0,
+                                  "summary": f"Rejected the AI wording for an unsupported claim: “{claim}”"})
+                reply, mode = None, "guided"
+                notice = "The AI's wording made a claim Raahi can't support, so Raahi answered in guided mode."
         except llm.LLMUnavailable as exc:
             notice = "The AI model did not respond, so Raahi answered in guided mode."
             ai_error = str(exc)[:600]

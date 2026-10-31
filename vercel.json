@@ -17,7 +17,7 @@
     },
     {
       "source": "/((?!api/|assets/|images/).*)",
-      "destination": "/spa.html"
+      "destination": "/spa"
     }
   ],
   "headers": [

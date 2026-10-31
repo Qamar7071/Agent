@@ -163,7 +163,7 @@ with gunicorn). It was not tested in this upgrade.
 | Command | What it runs | Result on 28 Oct 2026 |
 |---|---|---|
 | `npm run build` | Production build, static destination pages, sitemap | OK on 30 Oct: main script 235 KB (74 KB gzipped), planner 67 KB (19 KB), Travel Twin 24 KB (8 KB), Agent Control Center 13 KB, Guardian 12 KB |
-| `npm run test:api` (venv active; once, in `backend/`: `pip install -r requirements-dev.txt`) | 139 backend tests, all offline: data, planner, budget, live-service parsing with recorded responses, places, storage, API, parser, agent with a scripted model (including the 10 evaluation scenarios), and the multi-agent system: task graph and events, intent routing, a failing agent, validation retries, unsupported claims, every scenario type, Khunjerab day 4, risk, eco, packing, Guardian, streaming | 139 passed (30 Oct) |
+| `npm run test:api` (venv active; once, in `backend/`: `pip install -r requirements-dev.txt`) | 147 backend tests, all offline: data, planner, budget, live-service parsing with recorded responses, places, storage, API, parser, agent with a scripted model (including the 10 evaluation scenarios), and the multi-agent system: task graph and events, intent routing, a failing agent, validation retries, unsupported claims, every scenario type, Khunjerab day 4, risk, eco, packing, Guardian, streaming | 147 passed (30 Oct) |
 | same, with `RAAHI_TEST_PG_URL=postgresql://…` | The storage tests also on Postgres 16 | passed (run before the stays and food update; storage code unchanged since) |
 | `npm run test:e2e` (server running; `pip install -r e2e/requirements.txt` and `python -m playwright install chromium` first) | 21 checks in a real browser: pages, navigation, form, chat, editing, tabs, packing, saving, enquiry, admin, network errors, Travel Twin (demo, Khunjerab what-if, accept), Agent Control Center, Guardian, theme, phone to desktop layouts, keyboard | 21 passed (30 Oct) |
 | `npm run audit:a11y` (server running) | axe-core accessibility rules (WCAG 2.2 A and AA plus best practices) on 62 page states at phone and desktop sizes, including the agent pages and the dark theme, and page weight | 0 violations (30 Oct) |
@@ -216,9 +216,12 @@ To change destination facts, road legs, stays or cost assumptions, edit
   their private keys. Clearing the browser's data loses access.
 - **Rate limits are per server instance** and kept in memory, so on Vercel they are
   approximate.
-- **The AI mode was not tried with a real model** in this upgrade. Small models may use tools
-  poorly; the server-side checks and the guided fallback limit the damage, but test with your
-  chosen model.
+- **The AI mode was tried with a real model only briefly** (gpt-oss-120b on Groq, 30 Oct 2026,
+  five prompts). That test found answers from memory and invented hotel amenities, which led
+  to the server-side pre-fetch and the claim check; test again after any model change.
+- **Groq's free tier allows about 8,000 tokens a minute** for gpt-oss-120b, per account. One
+  chat question uses about 4,000–9,000 tokens, so two visitors at once can push the AI into
+  guided mode for a minute. Groq's paid Developer plan raises the limit.
 - **Free services have conditions.** Open-Meteo's free API is for non-commercial use only
   (under 10,000 calls a day), and the public OSRM server is best-effort with no guarantee.
   A commercial launch needs Open-Meteo's paid API and a self-hosted router.
