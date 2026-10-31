@@ -7,6 +7,7 @@ and the result says so.
 from agents.base import Agent, AgentResult
 from agents.common import plan_of
 from services import places
+from money import rs
 
 
 class AccommodationAgent(Agent):
@@ -35,7 +36,7 @@ class AccommodationAgent(Agent):
                           "openstreetmap": {"available": live.get("available"), "count": live.get("count"),
                                             "reason": live.get("reason")}})
         n_fit = sum(1 for t in towns for o in t["options"] if o.get("fits_budget"))
-        summary = (f"{len(towns)} overnight towns; {n_fit} curated stays fit about PKR {allowance:,} per room-night"
+        summary = (f"{len(towns)} overnight towns; {n_fit} curated stays fit about {rs(allowance)} per room-night"
                    if allowance else f"{len(towns)} overnight towns with indicative stays")
         return AgentResult(True, {"towns": towns, "allowance_per_room_night": allowance,
                                   "note": "Indicative ranges, not quotes. Availability is not known: confirm with the place."},

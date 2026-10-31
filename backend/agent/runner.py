@@ -138,7 +138,7 @@ def _suggestions(state: TripState, artifacts: dict) -> list[str]:
     if "travellers" in missing:
         return ["Just me", "2 adults", "2 adults and 2 kids"]
     if "budget" in missing:
-        return ["Budget PKR 150,000 total", "PKR 60,000 per person", "No fixed budget"]
+        return ["Budget Rs 1,50,000 total", "Rs 60,000 per person", "No fixed budget"]
     return ["Plan it", "Weather for my trip"]
 
 

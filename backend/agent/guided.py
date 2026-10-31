@@ -11,8 +11,9 @@ import data
 from agent import parser
 from clock import PKT
 from agent.tools import ToolContext, execute
+from money import rs, rs_range
 
-EXAMPLES = ("Plan 6 days in Hunza from Islamabad in May for 2 people, budget PKR 150,000",
+EXAMPLES = ("Plan 6 days in Hunza from Islamabad in May for 2 people, budget Rs 1,50,000",
             "Weather in Skardu this week", "Is the road to Hunza open?")
 
 
@@ -112,7 +113,7 @@ def ask(ctx: ToolContext, lead: str = "") -> str:
         "dates": "When are you travelling? Exact dates are best; a month is fine for now.",
         "days": "How many days do you have in total, including travel?",
         "travellers": "How many people are travelling (and any children)?",
-        "budget": "What is your budget in PKR, and is it in total or per person?",
+        "budget": "What is your budget in rupees, and is it in total or per person?",
     }
     picked = [questions[m] for m in missing if m in questions][:2]
     return (lead + " " if lead else "") + " ".join(picked)
@@ -128,7 +129,7 @@ def plan_text(plan: dict, ctx: ToolContext) -> str:
         move = f": {d['moves'][0]}" if d.get("moves") else ""
         lines.append(f"- Day {d['day']}{when}: {d['title']}{move}{night}")
     b = plan["budget"]
-    lines.append(f"\nEstimated cost: about **PKR {b['total']:,}** (PKR {b['per_person']:,} per person). "
+    lines.append(f"\nEstimated cost: about **{rs(b['total'])}** ({rs(b['per_person'])} per person). "
                  "This is an estimate from Raahi's assumptions, not a quote.")
     if b.get("comparison") and not any(w.startswith(b["comparison"]) for w in plan.get("warnings", [])):
         lines.append(b["comparison"])
@@ -200,13 +201,13 @@ def route_text(res: dict) -> str:
 def budget_text(res: dict) -> str:
     if not res.get("ok"):
         return f"I couldn't estimate the budget: {res.get('error')}"
-    out = [f"Estimated total: **PKR {res['total']:,}** (PKR {res['per_person']:,} per person). Estimate, not a quote."]
+    out = [f"Estimated total: **{rs(res['total'])}** ({rs(res['per_person'])} per person). Estimate, not a quote."]
     for l in res["lines"][:7]:
-        out.append(f"- {l['item']}: PKR {l['amount']:,} ({l['how']})")
+        out.append(f"- {l['item']}: {rs(l['amount'])} ({l['how']})")
     if res.get("comparison", {}).get("message"):
         out.append(res["comparison"]["message"])
     for s in res.get("savings", [])[:2]:
-        out.append(f"- To save: {s['label'].lower()} (about PKR {s['saves_pkr']:,})")
+        out.append(f"- To save: {s['label'].lower()} (about {rs(s['saves_pkr'])})")
     return "\n".join(out)
 
 
@@ -229,8 +230,8 @@ def range_text(rng: dict | None) -> str:
         return ""
     lo, hi = rng.get("min"), rng.get("max")
     if lo and hi:
-        return f"PKR {lo:,}–{hi:,}"
-    return f"up to PKR {hi:,}" if hi else f"PKR {lo:,} or more"
+        return f"{rs_range(lo, hi)}"
+    return f"up to {rs(hi)}" if hi else f"{rs(lo)} or more"
 
 
 def places_text(res: dict, ctx: ToolContext) -> str:
@@ -251,7 +252,7 @@ def places_text(res: dict, ctx: ToolContext) -> str:
             if not shown:
                 lines.append("- None of the places in Raahi's guide usually fit this range.")
             for o in shown:
-                price = f"PKR {o['from']:,}–{o['to']:,}" if o.get("to") else "arranged by your operator"
+                price = f"{rs_range(o['from'], o['to'])}" if o.get("to") else "arranged by your operator"
                 fit = {True: ", fits your range", False: ", outside your range"}.get(o.get("in_range"), "")
                 lines.append(f"- **{o['name']}** ({o['tier']}): {price}{fit}")
             if others:

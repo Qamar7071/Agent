@@ -163,7 +163,7 @@ def tabs(page):
     expect(page.get_by_role("tabpanel")).to_contain_text("Current road status could not be verified.", timeout=40000)
     page.get_by_role("tab", name="Stays").click()
     expect(page.get_by_role("tabpanel")).to_contain_text("not quotes")
-    page.get_by_role("button", name="Mid-range: PKR 7,000–18,000").click()
+    page.get_by_role("button", name="Mid-range: Rs 7,000–18,000").click()
     expect(page.get_by_text("Fits your range").first).to_be_visible()
     page.get_by_role("tab", name="Food").click()
     expect(page.get_by_role("tabpanel")).to_contain_text("Local food", timeout=40000)

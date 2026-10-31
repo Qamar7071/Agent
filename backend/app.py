@@ -50,6 +50,7 @@ from schemas import (AgentRunIn, GuardianIn, TwinSimulateIn, CONSENT_TEXT, CONSE
                      TripRequest, TripSave)
 from security import admin_status, client_ip, limiter
 from services import conditions, http, places, roads, weather
+from money import rs
 
 VERSION = "2.0.0"
 HEX32 = re.compile(r"^[0-9a-f]{32}$")
@@ -471,7 +472,7 @@ def create_app() -> Flask:
             when = r.get("start_date") or "dates open"
             summary = (f"{plan['title']}: {len(plan['days'])} days from {r['origin']}, {when}, {r['adults']} adult(s)"
                        + (f", {r['children']} child(ren)" if r["children"] else "")
-                       + f", estimate PKR {plan['budget']['total']:,}")
+                       + f", estimate {rs(plan['budget']['total'])}")
             request_json = enq.request.model_dump(mode="json")
         record, token = storage.create_enquiry(
             name=enq.name, contact_method=enq.contact_method, contact_value=enq.contact_value, message=enq.message,

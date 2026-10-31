@@ -76,7 +76,7 @@ function Compare({ sim, onAccept, onReject, busy }) {
       </p>
       <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
         <Delta label="Days" a={c.length.original} b={c.length.simulated} good="none" />
-        <Delta label="Cost (PKR)" a={c.cost.original} b={c.cost.simulated} fmt={(v) => v?.toLocaleString('en-US')} />
+        <Delta label="Cost" a={c.cost.original} b={c.cost.simulated} fmt={pkr} />
         <Delta label="Hours on the move" a={c.time.original[1]} b={c.time.simulated[1]} fmt={(v) => `${v} h`} />
         {c.risk && <Delta label="Risk score" a={c.risk.original} b={c.risk.simulated} fmt={(v) => `${v}/100`} />}
         {c.eco && <Delta label="CO2e (kg, high)" a={c.eco.original[1]} b={c.eco.simulated[1]} />}
@@ -242,7 +242,7 @@ export default function TravelTwin() {
         <form className="m-card mt-8 p-4 sm:p-5" onSubmit={(e) => { e.preventDefault(); if (message.trim()) runAgents({ message }, message.slice(0, 60)); }}>
           <label htmlFor="twin-msg" className="m-label">Describe your trip</label>
           <textarea id="twin-msg" rows={2} value={message} onChange={(e) => setMessage(e.target.value)} maxLength={2000}
-            placeholder="e.g. 6 days in Skardu from Islamabad for 2 people in May, budget PKR 150,000"
+            placeholder="e.g. 6 days in Skardu from Islamabad for 2 people in May, budget Rs 1,50,000"
             className="mt-2 block w-full resize-y rounded-md border border-white/15 bg-black/30 px-3 py-2.5 text-base text-ink placeholder:text-ink-500 focus:border-[#4CC9F0] focus:outline-none" />
           <div className="mt-3 flex flex-wrap gap-2">
             <button type="submit" className="btn bg-[#4CC9F0] text-[#04121A] hover:bg-[#7DD8F5]" disabled={busy || !message.trim()}>

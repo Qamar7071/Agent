@@ -36,6 +36,7 @@ from agents.validation_agent import FORBIDDEN, ValidationAgent
 from agents.weather_agent import WeatherAgent
 from schemas import TripState
 from services import http
+from money import rs
 
 log = logging.getLogger("raahi.orchestrator")
 
@@ -213,7 +214,7 @@ def compose(bb: Blackboard, intent: str) -> str:
     lines = [f"**{plan['title']}**: {len(plan['days'])} days. {plan['summary']}"]
     b = r.get("budget")
     if b:
-        lines.append(f"Estimated cost: PKR {b['total']:,} (PKR {b['per_person']:,} per person), an estimate, not a quote. "
+        lines.append(f"Estimated cost: {rs(b['total'])} ({rs(b['per_person'])} per person), an estimate, not a quote. "
                      + (b["comparison"].get("message") or ""))
     w = r.get("weather")
     if w:

@@ -25,6 +25,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const span = (ms) => `${MONTHS[ms[0] - 1]}–${MONTHS[ms[ms.length - 1] - 1]}`;
 const metres = (n) => `${Number(n).toLocaleString('en-US')} m`;
+const lakh = (n) => { const s = String(Math.round(Math.abs(n))); return s.length > 3 ? `${s.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ',')},${s.slice(-3)}` : s; };
 
 function preload(id) {
   const s = sizes[id];
@@ -94,7 +95,7 @@ for (const d of data.destinations) {
   <h3>If the weather turns</h3>
   <p>${esc(d.bad_weather_alternative)}</p>
   ${stay ? `<h2>Where to stay</h2>${stay.note ? `<p>${esc(stay.note)}</p>` : ''}
-  <ul>${stay.options.map((o) => `<li>${esc(o.name)} (${esc(o.tier)})${o.to ? `: PKR ${o.from.toLocaleString('en-US')}–${o.to.toLocaleString('en-US')} a night, indicative` : ''}</li>`).join('')}</ul>
+  <ul>${stay.options.map((o) => `<li>${esc(o.name)} (${esc(o.tier)})${o.to ? `: Rs ${lakh(o.from)}–${lakh(o.to)} a night, indicative` : ''}</li>`).join('')}</ul>
   <p>${esc(stay.price_note)}</p>` : ''}
   <h2>Sources</h2>
   <ul>${d.sources.map((s) => `<li><a href="${esc(s.url)}">${esc(s.label)}</a></li>`).join('')}</ul>

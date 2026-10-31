@@ -3,7 +3,7 @@ import { ExternalLink, RefreshCw } from 'lucide-react';
 import { Link } from '../lib/router.jsx';
 import { api } from '../lib/api.js';
 import { byId, seasonalRouteFor, stays } from '../lib/data.js';
-import { metres, monthSpan, pkr } from '../lib/format.js';
+import { metres, monthSpan, pkr, pkrRange } from '../lib/format.js';
 import { usePageMeta } from '../lib/seo.js';
 import { creditLine, photos } from '../data/photos.js';
 import Photo from '../components/ui/Photo.jsx';
@@ -106,7 +106,7 @@ export default function Destination({ id }) {
                 {stay.options.map((o) => (
                   <li key={o.name} className="flex flex-wrap justify-between gap-x-4 gap-y-1 px-4 py-2.5">
                     <span><span className="font-medium">{o.name}</span> <span className="text-xs text-ink-500">{o.tier}</span></span>
-                    <span className="num text-ink-700">{o.to ? `${pkr(o.from)}–${o.to.toLocaleString('en-US')} a night` : 'Arranged by your operator'}</span>
+                    <span className="num text-ink-700">{o.to ? `${pkrRange(o.from, o.to)} a night` : 'Arranged by your operator'}</span>
                   </li>
                 ))}
               </ul>

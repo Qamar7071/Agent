@@ -10,7 +10,7 @@ const RUNS = 'raahi:runs:v1';
 export function demoRequest(now = new Date()) {
   const d = new Date(now.getTime() + 5 * 86400000);
   const when = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
-  return `Plan a 5-day Hunza trip from Gilgit starting ${when} for 4 people with a PKR 150,000 budget, including Khunjerab Pass`;
+  return `Plan a 5-day Hunza trip from Gilgit starting ${when} for 4 people with a Rs 1,50,000 budget, including Khunjerab Pass`;
 }
 
 export const savedRuns = () => read(RUNS, []);

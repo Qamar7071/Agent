@@ -17,6 +17,7 @@ from agents.base import Blackboard, Tracer
 from agents.orchestrator import AGENTS, Runner
 from schemas import TripRequest, TripState
 from twin import comparison, scenarios
+from money import rs
 
 BASELINE_AGENTS = ["itinerary", "weather", "safety", "eco"]
 ORDER = ["research", "itinerary", "weather", "route", "budget", "accommodation", "eco", "safety", "packing"]
@@ -37,7 +38,7 @@ def _recommend(cmp: dict, spec: dict, sim: dict, notes: list[str]) -> dict:
     if t:
         parts.append(f"up to {abs(t):g} h {'more' if t > 0 else 'less'} on the road")
     d = cmp["cost"]["delta"]
-    parts.append(f"costs PKR {abs(d):,} {'more' if d > 0 else 'less'}" if d else "costs the same")
+    parts.append(f"costs {rs(abs(d))} {'more' if d > 0 else 'less'}" if d else "costs the same")
     if cmp["budget_status"][0] != cmp["budget_status"][1]:
         parts.append(f"budget check: {cmp['budget_status'][0]} → {cmp['budget_status'][1]}")
     if cmp.get("risk"):
@@ -113,7 +114,7 @@ def simulate(request: dict, scenario: dict | None = None, text: str | None = Non
     cmp = comparison.compare(original, simulated)
     tracer.finish(cmp_tid, {"days_changed": cmp["days_changed"], "cost_delta": cmp["cost"]["delta"],
                             "risk_delta": (cmp.get("risk") or {}).get("delta")},
-                  f"{cmp['days_changed']} day(s) differ; cost {cmp['cost']['delta']:+,} PKR")
+                  f"{cmp['days_changed']} day(s) differ; cost {('+' if cmp['cost']['delta'] > 0 else '−' if cmp['cost']['delta'] < 0 else '±')}{rs(abs(cmp['cost']['delta']))}")
     rec = _recommend(cmp, spec, simulated, applied["notes"])
     tracer.finish(orch, {"recommendation": rec["action"]}, "Proposed an alternative and is waiting for your decision"
                   if rec["action"] != "keep" else "No change needed",

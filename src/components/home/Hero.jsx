@@ -7,7 +7,7 @@ import { usePlanner } from '../../context/PlannerContext.jsx';
 import { useRouter } from '../../lib/router.jsx';
 
 const examples = [
-  '6 days in Hunza from Lahore in April, 2 of us, PKR 150,000',
+  '6 days in Hunza from Lahore in April, 2 of us, Rs 1,50,000',
   'Skardu and Deosai in July with my family',
   'Fairy Meadows next month, budget 80k per person',
 ];
