@@ -1,7 +1,7 @@
 // Safar Saathi: the trip companion. /trip/new starts one; /trip/<id> is the hub with three tabs
 // (Aaj, Kharcha, Plan), a big "+ Kharcha" button and quiet background sync.
 import { useEffect, useState } from 'react';
-import { Cloud, CloudOff, ListChecks, Plus, RefreshCw, Settings, Sun, Wallet } from 'lucide-react';
+import { Cloud, CloudOff, ListChecks, MessagesSquare, Plus, RefreshCw, Settings, Sun, Wallet } from 'lucide-react';
 import { Link } from '../lib/router.jsx';
 import { usePageMeta } from '../lib/seo.js';
 import { pkr } from '../lib/format.js';
@@ -119,9 +119,14 @@ function Hub({ id }) {
             {tab === key && key === 'plan' && <PlanTab hub={view} />}
           </div>
         ))}
-        <p className="mt-8 text-center">
-          <Link to="/agents" className="link text-sm">{s.seeAgents}</Link>
-        </p>
+        <Link to={`/decided?trip=${c.id}`}
+          className="group mt-8 flex items-center gap-3 rounded-md border border-limestone-300 bg-paper p-3 hover:border-juniper-500">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-juniper-100 text-juniper-700" aria-hidden="true"><MessagesSquare size={20} /></span>
+          <span className="min-w-0">
+            <span className="block font-semibold group-hover:underline">{s.seeAgents}</span>
+            <span className="block text-sm text-ink-600">{s.seeAgentsHint}</span>
+          </span>
+        </Link>
       </div>
 
       {tab !== 'plan' && (

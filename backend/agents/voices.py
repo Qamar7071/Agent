@@ -20,6 +20,16 @@ def _names(ids) -> str:
     return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1] if names else ""
 
 
+_CHANGE = {"transport": {"bus": "public coaches", "car": "a hired car", "flight": "flying north"},
+           "accommodation": {"budget": "budget stays", "mid": "mid-range stays", "premium": "premium stays"}}
+
+
+def _change_words(change: dict) -> str:
+    """{"accommodation": "budget", "days": 9} -> "budget stays and 9 days" (plain words, not field names)."""
+    parts = [f"{v} days" if k == "days" else _CHANGE.get(k, {}).get(v, f"{k} {v}") for k, v in change.items()]
+    return parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + " and " + parts[-1] if parts else ""
+
+
 def _month(req) -> int | None:
     return req.start_date.month if req.start_date else req.travel_month
 
@@ -30,6 +40,12 @@ def speak(name: str, out: dict, bb, tracer, tid: str) -> None:
         _SPEAK.get(name, lambda *a: None)(out, bb, tracer, tid)
     except Exception:          # pragma: no cover - defensive
         log.debug("voice for %s failed", name, exc_info=True)
+
+
+_FIELD = {"adults": "group size", "children": "group size", "budget_pkr": "budget", "budget_basis": "budget",
+          "days": "days", "destinations": "places", "origin": "starting point", "start_date": "dates",
+          "travel_month": "month", "transport": "transport", "accommodation": "stays", "pace": "pace",
+          "interests": "interests", "accessibility": "access needs", "food": "food"}
 
 
 def _remember(bb, key: str, mid: str) -> str:
@@ -52,9 +68,17 @@ def _memory(out, bb, tracer, tid):
     who = f", {people} {'person' if people == 1 else 'people'}" if people else ""
     tracer.say(tid, "proposal", f"Understood: {days}{' from ' + st['origin'] if st.get('origin') else ''} to "
                f"{_names(dests)}{who}{when}{budget}.",
-               evidence=[{"source": "Your message", "detail": "you told me: " + ", ".join(out.get("stated_now", [])[:6])}])
+               evidence=[{"source": "Your message", "detail": "you told me: " + ", ".join(
+                   dict.fromkeys(_FIELD.get(f, f.replace("_", " ")) for f in out.get("stated_now", []))) if out.get("stated_now")
+                   else "nothing new; I used what I already knew"}])
     if out.get("missing"):
-        tracer.say(tid, "concern", f"Still unknown: {', '.join(out['missing'])}. I used sensible defaults and will say which.")
+        try:
+            _, assumed = bb.state.to_request()
+        except Exception:          # not enough to plan yet: nothing is assumed
+            assumed = []
+        assumed = [a for a in assumed if not a.startswith("no travel dates")]   # already said: dates are unknown
+        tracer.say(tid, "concern", f"Still unknown: {', '.join(out['missing'])}."
+                   + (f" Until you say, I'm assuming {', '.join(assumed[:4])}." if assumed else ""))
 
 
 def _research(out, bb, tracer, tid):
@@ -96,7 +120,8 @@ def _itinerary(out, bb, tracer, tid):
 
 def _weather(out, bb, tracer, tid):
     if not out.get("available"):
-        tracer.say(tid, "concern", f"No forecast was used: {out.get('reason') or 'unavailable'} Typical seasonal patterns only.",
+        why = (out.get("reason") or "unavailable").rstrip(".")
+        tracer.say(tid, "concern", f"No forecast was used ({why[:1].lower() + why[1:]}). I used typical seasonal patterns only.",
                    evidence=[{"source": "Open-Meteo", "detail": "forecasts reach about 16 days ahead"}])
     else:
         impacts = out.get("impacts") or []
@@ -137,8 +162,8 @@ def _budget(out, bb, tracer, tid):
         fit = out.get("fit") or {}
         best = fit.get("best") or {}
         if best.get("change"):
-            change = ", ".join(f"{k} → {v}" for k, v in best["change"].items())
-            text = (f"The cheapest changes that fit: {change}, about {rs(best['total'])}." if fit.get("fits")
+            change = _change_words(best["change"])
+            text = (f"The fewest changes that fit: {change}, about {rs(best['total'])}." if fit.get("fits")
                     else f"Even the cheapest version I found ({change}) is about {rs(best['total'])}, "
                          f"{rs(fit.get('shortfall', 0))} over.")
             tracer.say(tid, "proposal", text, resolves=mid,
@@ -155,8 +180,8 @@ def _accommodation(out, bb, tracer, tid):
     if not towns:
         return
     if allowance == 0 and bb.request and bb.request.budget_pkr:
-        tracer.say(tid, "concern", "At Raahi's estimates the budget leaves nothing for rooms.",
-                   resolves=None, evidence=[{"source": "Raahi cost model (estimate)", "detail": "after transport and food"}])
+        tracer.say(tid, "concern", "With this plan, transport and food use up the whole budget, so nothing is left for rooms.",
+                   evidence=[{"source": "Raahi cost model (estimate)", "detail": "budget minus transport, food and entries"}])
     else:
         tracer.say(tid, "proposal", f"Stays checked in {len(towns)} overnight town(s)"
                    + (f"; up to about {rs(allowance)} per room-night fits the budget." if allowance else "."),
