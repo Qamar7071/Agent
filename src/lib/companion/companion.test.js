@@ -6,6 +6,7 @@ import { lakh, pkr, pkrRange } from '../format.js';
 import { evaluate, candidates, altSavings, MAX_PER_DAY } from './nudges.js';
 import { addDays, dayCost, pace, plannedDays, tripDay } from './pace.js';
 import { balances, settle, shares, summary } from './split.js';
+import { addExpense, budgetTotalFrom, createCompanion, deleteExpense, markRejected, mergeServer, pendingExpenses } from './store.js';
 
 // A 5-day plan: day 1 and 5 are drive days (transport heavy), days 2–4 sightseeing.
 const DAYS = [
@@ -147,6 +148,16 @@ describe('nudge rules', () => {
     const later = evaluate({ ...c, history: yesterday });
     assert.ok(later.every((n) => !first.some((f) => f.ruleId === n.ruleId)));  // same rules still blocked
   });
+  it('checks a big single expense first and alone, before any pace warning', () => {
+    const now = new Date('2026-11-12T10:00:00').getTime();
+    const big = ex(95000, 2, { category: 'stay' });
+    const c = { ...ctx([big], 2, 100000, big), now };
+    assert.ok(candidates(c).some((x) => x.ruleId === 'R1'));
+    const shown = evaluate({ ...c, history: [] });
+    assert.deepEqual(shown.map((x) => x.ruleId), ['R4']);
+    const confirmed = evaluate({ ...c, lastExpense: null, history: shown });       // after "Yes, it's right"
+    assert.deepEqual(confirmed.map((x) => x.ruleId), ['R1']);                       // one slot left today
+  });
   it('never offers a saving of zero or a change already accepted', () => {
     const none = altSavings({ planned, alternatives: [ALT_STAY], adjustments: [{ altId: 'stay_down', fromDay: 2 }], fromDay: 3 });
     assert.deepEqual(none, []);
@@ -189,5 +200,54 @@ describe('group split', () => {
   it('ignores deleted expenses and unknown payers', () => {
     const b = balances([{ id: 'd', amountPkr: 900, paidBy: 'a', deleted: true }, { id: 'u', amountPkr: 900, paidBy: 'nobody' }], members);
     assert.ok(b.every((x) => x.net === 0));
+  });
+});
+
+describe('local store and sync merge', () => {
+  const itinerary = { title: 'T', request: { adults: 2 }, days: DAYS.map((d) => ({ ...d, title: `D${d.day}`, moves: [] })), budget: {} };
+  const settings = { members: [{ id: 'm1', name: 'Q' }, { id: 'm2', name: 'S' }], budgetTotal: 100000, startDate: '2026-11-10' };
+  const server = { id: 'a'.repeat(32), token: 't' };
+  const t = (iso) => new Date(iso);
+
+  it('marks what the server accepted as synced, even if the server rounds the time', () => {
+    let c = createCompanion({ trip: server, itinerary, settings, now: t('2026-11-11T08:00:00Z') });
+    let e;
+    [c, e] = addExpense(c, { amountPkr: 500, category: 'food', paidBy: 'm1' }, t('2026-11-11T08:00:01.234Z'));
+    assert.equal(pendingExpenses(c).length, 1);
+    const fromServer = [{ ...e, updatedAt: '2026-11-11T08:00:01+00:00' }];        // seconds only
+    c = mergeServer(c, fromServer, new Date(), [e]);
+    assert.equal(pendingExpenses(c).length, 0);
+  });
+  it('keeps a change made here after sending, and takes newer changes from other phones', () => {
+    let c = createCompanion({ trip: server, itinerary, settings });
+    let e;
+    [c, e] = addExpense(c, { amountPkr: 500, category: 'food', paidBy: 'm1' }, t('2026-11-11T08:00:00Z'));
+    const sent = [...c.expenses];
+    c = deleteExpense(c, e.id, t('2026-11-11T08:00:05Z'));                         // changed while the request was out
+    c = mergeServer(c, [{ ...e, updatedAt: '2026-11-11T08:00:00.000Z' }], new Date(), sent);
+    assert.equal(c.expenses[0].deleted, true);
+    assert.equal(pendingExpenses(c).length, 1);
+    const other = { ...e, amountPkr: 650, deleted: false, updatedAt: '2026-11-11T09:00:00.000Z' };
+    c = mergeServer(c, [other]);
+    assert.equal(c.expenses[0].amountPkr, 650);
+  });
+  it('does not retry an expense the server refused', () => {
+    let c = createCompanion({ trip: server, itinerary, settings });
+    let e;
+    [c, e] = addExpense(c, { amountPkr: 500, category: 'food', paidBy: 'm1' });
+    c = markRejected(c, [{ id: e.id, reason: 'not in this group' }]);
+    assert.equal(pendingExpenses(c).length, 0);
+    assert.equal(c.expenses[0].syncStatus, 'rejected');
+  });
+  it('trips not saved on the server stay local', () => {
+    let c = createCompanion({ itinerary, settings });
+    [c] = addExpense(c, { amountPkr: 500, category: 'food', paidBy: 'm1' });
+    assert.ok(c.id.startsWith('local-'));
+    assert.equal(pendingExpenses(c).length, 0);
+  });
+  it('turns a per-person budget into a group total', () => {
+    assert.equal(budgetTotalFrom('30000', 'per_person', 5), 150000);
+    assert.equal(budgetTotalFrom('150000', 'total', 5), 150000);
+    assert.equal(budgetTotalFrom('', 'total', 5), null);
   });
 });

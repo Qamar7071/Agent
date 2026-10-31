@@ -46,6 +46,14 @@ def test_the_same_expense_sent_twice_is_stored_once(client):
     assert len(r.get_json()["expenses"]) == 1 and r.get_json()["expenses"][0]["amountPkr"] == 2400
 
 
+def test_sync_times_keep_milliseconds_like_the_phone(client):
+    tid, key = saved(client)
+    client.put(f"/api/trips/{tid}/companion", json=SETTINGS, headers=key)
+    at = datetime(2026, 11, 10, 9, 0, 1, 234000, tzinfo=timezone.utc)
+    out = client.post(f"/api/trips/{tid}/expenses/sync", json={"expenses": [expense(at=at)]}, headers=key).get_json()
+    assert out["expenses"][0]["updatedAt"] == "2026-11-10T09:00:01.234+00:00"
+
+
 def test_later_change_wins_and_deletes_reach_other_phones(client):
     tid, key = saved(client)
     client.put(f"/api/trips/{tid}/companion", json=SETTINGS, headers=key)

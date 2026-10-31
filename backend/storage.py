@@ -214,10 +214,15 @@ def _aware(dt: datetime) -> datetime:
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
+def _iso_ms(dt: datetime) -> str:
+    """Millisecond precision, the same as the phone's clock: sync compares these times."""
+    return _aware(dt).isoformat(timespec="milliseconds")
+
+
 def _expense_out(row) -> dict:
     return {"id": row.id, "amountPkr": row.amount_pkr, "category": row.category, "paidBy": row.paid_by,
             "splitAmong": json.loads(row.split_among), "note": row.note, "dayIndex": row.day_index,
-            "deleted": bool(row.deleted), "createdAt": _iso(row.created_at), "updatedAt": _iso(row.updated_at)}
+            "deleted": bool(row.deleted), "createdAt": _iso_ms(row.created_at), "updatedAt": _iso_ms(row.updated_at)}
 
 
 def get_companion(trip_id: str, token: str) -> dict:

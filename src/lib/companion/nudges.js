@@ -117,6 +117,10 @@ export function evaluate({ p, planned, alternatives, adjustments, lastExpense, h
   const fresh = candidates({ p, planned, alternatives, adjustments, lastExpense })
     .filter((c) => !recent.has(c.ruleId))
     .sort((a, b) => SEVERITY[b.severity] - SEVERITY[a.severity] || order[a.ruleId] - order[b.ruleId]);
+  // A big single expense is checked first, alone: if it was a typo (95,000 for 9,500), pace
+  // warnings would be wrong. Once the group confirms it, the pace rules run again.
+  const check = fresh.find((c) => c.ruleId === 'R4');
+  if (check) return [{ ...check, id: newId(), createdAt: new Date(now).toISOString(), dismissed: false, choice: null }];
   // R1 and R3 say the same thing in two ways; show the stronger one only.
   const picked = [];
   for (const c of fresh) {

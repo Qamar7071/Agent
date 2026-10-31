@@ -137,6 +137,7 @@ write('robots.txt', `User-agent: *
 Allow: /
 Disallow: /admin
 Disallow: /trips
+Disallow: /trip/
 Disallow: /api/
 
 Sitemap: ${SITE}/sitemap.xml

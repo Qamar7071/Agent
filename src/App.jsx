@@ -14,6 +14,7 @@ const Admin = lazy(() => import('./pages/Admin.jsx'));
 const TravelTwin = lazy(() => import('./pages/TravelTwin.jsx'));
 const AgentControl = lazy(() => import('./pages/AgentControl.jsx'));
 const Guardian = lazy(() => import('./pages/Guardian.jsx'));
+const TripHub = lazy(() => import('./pages/TripHub.jsx'));
 
 function Loading() {
   return (
@@ -34,6 +35,8 @@ function Page() {
   if (path === '/guardian') return <Guardian />;
   const dest = match('/destinations/:id', path);
   if (dest) return <Destination id={dest.id} />;
+  const trip = match('/trip/:id', path);
+  if (trip) return <TripHub id={trip.id} />;
   return <NotFound />;
 }
 
@@ -45,7 +48,7 @@ function Layout() {
       <Suspense fallback={<Loading />}>
         <Page />
       </Suspense>
-      {path !== '/plan' && <Footer />}
+      {path !== '/plan' && !path.startsWith('/trip/') && <Footer />}
     </>
   );
 }
