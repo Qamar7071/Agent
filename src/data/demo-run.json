@@ -1,0 +1,1772 @@
+{
+ "label": "Recorded run",
+ "recorded_at": "2026-10-31T14:44:57.128+00:00",
+ "message": "Plan a 10-day trip to Skardu from Islamabad for 5 friends with a budget of Rs 5,00,000",
+ "note": "A real run of Raahi's agents, recorded on this date and played back when a live run fails or is slow. It is not live.",
+ "answer": "**Skardu & Upper Kachura**: 10 days. 10 days from Islamabad: 4 mainly travel days and 6 days to explore. Drive times are approximate and prices are estimates.\n\nEstimated cost: Rs 9,04,200 (Rs 1,80,800 per person), an estimate, not a quote. About Rs 4,04,200 over your budget of Rs 5,00,000 in total.\n\nWeather: No travel dates yet: forecasts need dates.\n\nRisk: Moderate (20/100, heuristic, confidence low). Continue with precautions: start early, keep a spare day and check conditions locally.\n\nTransport emissions: about 580–753 kg CO2e (estimate); lowest option: Public coaches.\n\nPacking list: 12 items, based on typical conditions, not a forecast.\n\nYour decision needed: About Rs 4,04,200 over your budget of Rs 5,00,000 in total.\n\nRoad status: current road status could not be verified. Check NHMP (130) on the morning you travel.",
+ "run": {
+  "id": "67cf7c8e4b75",
+  "kind": "plan",
+  "started_at": "2026-10-31T14:44:57.128+00:00",
+  "ended_at": "2026-10-31T14:45:06.101+00:00",
+  "duration_ms": 8973,
+  "tasks": [
+   {
+    "id": "orchestrator-1",
+    "agent": "orchestrator",
+    "label": "Master Orchestrator",
+    "task": "Understand the request, delegate, validate, answer",
+    "status": "waiting_for_approval",
+    "depends_on": [],
+    "initiated_by": "user",
+    "queued_at": "2026-10-31T14:44:57.128+00:00",
+    "started_at": "2026-10-31T14:44:57.128+00:00",
+    "ended_at": "2026-10-31T14:45:06.100+00:00",
+    "duration_ms": 8972,
+    "inputs": {
+     "message": "Plan a 10-day trip to Skardu from Islamabad for 5 friends with a budget of Rs 5,00,000",
+     "intent": null
+    },
+    "outputs": {
+     "intent": "plan",
+     "agents": [
+      "research",
+      "itinerary",
+      "weather",
+      "route",
+      "budget",
+      "accommodation",
+      "eco",
+      "safety",
+      "packing"
+     ],
+     "verdict": "needs_approval"
+    },
+    "contribution": "Coordinated the agents and returned one validated answer",
+    "tool_calls": [
+     {
+      "name": "plan.tasks",
+      "ok": true,
+      "ms": 0,
+      "detail": "Intent 'plan': research, itinerary, weather, route, budget, accommodation, eco, safety, packing",
+      "t": "2026-10-31T14:44:57.136+00:00"
+     }
+    ],
+    "errors": [],
+    "retries": 0,
+    "note": null
+   },
+   {
+    "id": "memory-2",
+    "agent": "memory",
+    "label": "Memory",
+    "task": "Reads the request into the trip state, adds saved preferences (with consent) and keeps trips apart.",
+    "status": "completed",
+    "depends_on": [],
+    "initiated_by": "orchestrator",
+    "queued_at": "2026-10-31T14:44:57.128+00:00",
+    "started_at": "2026-10-31T14:44:57.128+00:00",
+    "ended_at": "2026-10-31T14:44:57.136+00:00",
+    "duration_ms": 7,
+    "inputs": {
+     "message": "Plan a 10-day trip to Skardu from Islamabad for 5 friends with a budget of Rs 5,00,000"
+    },
+    "outputs": {
+     "stated_now": [
+      "adults",
+      "budget_pkr",
+      "days",
+      "destinations",
+      "origin"
+     ],
+     "applied_preferences": [],
+     "missing": [
+      "dates"
+     ]
+    },
+    "contribution": "Understood adults, budget_pkr, days, destinations, origin",
+    "tool_calls": [
+     {
+      "name": "parser.extract",
+      "ok": true,
+      "ms": 7,
+      "detail": "",
+      "t": "2026-10-31T14:44:57.135+00:00"
+     },
+     {
+      "name": "state.merge",
+      "ok": true,
+      "ms": 0,
+      "detail": "",
+      "t": "2026-10-31T14:44:57.135+00:00"
+     }
+    ],
+    "errors": [],
+    "retries": 0,
+    "note": null
+   },
+   {
+    "id": "research-3",
+    "agent": "research",
+    "label": "Travel Research",
+    "task": "Destination facts, seasonality, nearby add-ons and alternatives, with sources.",
+    "status": "completed",
+    "depends_on": [
+     "memory-2"
+    ],
+    "initiated_by": "orchestrator",
+    "queued_at": "2026-10-31T14:44:57.136+00:00",
+    "started_at": "2026-10-31T14:44:57.136+00:00",
+    "ended_at": "2026-10-31T14:44:57.136+00:00",
+    "duration_ms": 0,
+    "inputs": {
+     "destinations": [
+      "skardu"
+     ],
+     "days": 10,
+     "start": "—",
+     "travellers": 5,
+     "transport": "car",
+     "budget_pkr": 500000,
+     "uses": [
+      "memory"
+     ]
+    },
+    "outputs": {
+     "out_of_season": [],
+     "live_research": false,
+     "data_reviewed": "2026-10-27"
+    },
+    "contribution": "Skardu & Upper Kachura: unknown (no dates yet); 1 nearby add-ons",
+    "tool_calls": [
+     {
+      "name": "guide.destination(skardu)",
+      "ok": true,
+      "ms": 0,
+      "detail": "",
+      "t": "2026-10-31T14:44:57.136+00:00"
+     }
+    ],
+    "errors": [],
+    "retries": 0,
+    "note": null
+   },
+   {
+    "id": "itinerary-4",
+    "agent": "itinerary",
+    "label": "Itinerary Planner",
+    "task": "Builds the day-by-day plan along the real road network and checks it is realistic.",
+    "status": "completed",
+    "depends_on": [
+     "memory-2",
+     "research-3"
+    ],
+    "initiated_by": "orchestrator",
+    "queued_at": "2026-10-31T14:44:57.136+00:00",
+    "started_at": "2026-10-31T14:44:57.136+00:00",
+    "ended_at": "2026-10-31T14:44:57.139+00:00",
+    "duration_ms": 2,
+    "inputs": {
+     "destinations": [
+      "skardu"
+     ],
+     "days": 10,
+     "start": "—",
+     "travellers": 5,
+     "transport": "car",
+     "budget_pkr": 500000,
+     "uses": [
+      "memory",
+      "research"
+     ]
+    },
+    "outputs": {
+     "brief": {
+      "title": "Skardu & Upper Kachura",
+      "days": 10,
+      "feasible": true,
+      "minimum_days": 5,
+      "travel_hours": [
+       32,
+       38
+      ],
+      "total_pkr": 904200,
+      "per_person_pkr": 180800,
+      "transport": "car"
+     }
+    },
+    "contribution": "10-day plan: 4 mainly travel days, 6 to explore",
+    "tool_calls": [
+     {
+      "name": "planner.build",
+      "ok": true,
+      "ms": 2,
+      "detail": "",
+      "t": "2026-10-31T14:44:57.139+00:00"
+     }
+    ],
+    "errors": [],
+    "retries": 0,
+    "note": null
+   },
+   {
+    "id": "weather-5",
+    "agent": "weather",
+    "label": "Weather Intelligence",
+    "task": "Forecasts and official alerts for each day, their uncertainty and the effect on plans.",
+    "status": "completed",
+    "depends_on": [
+     "itinerary-4"
+    ],
+    "initiated_by": "orchestrator",
+    "queued_at": "2026-10-31T14:44:57.136+00:00",
+    "started_at": "2026-10-31T14:44:57.139+00:00",
+    "ended_at": "2026-10-31T14:44:57.592+00:00",
+    "duration_ms": 452,
+    "inputs": {
+     "destinations": [
+      "skardu"
+     ],
+     "days": 10,
+     "start": "—",
+     "travellers": 5,
+     "transport": "car",
+     "budget_pkr": 500000,
+     "uses": [
+      "itinerary"
+     ]
+    },
+    "outputs": {
+     "available": false,
+     "reason": "No travel dates yet: forecasts need dates.",
+     "forecast_days": 0,
+     "weather_risk_days": 0
+    },
+    "contribution": "No dates, so no forecast; gave seasonal notes and checked official alerts",
+    "tool_calls": [
+     {
+      "name": "pmd.alerts",
+      "ok": true,
+      "ms": 452,
+      "detail": "",
+      "t": "2026-10-31T14:44:57.592+00:00"
+     }
+    ],
+    "errors": [],
+    "retries": 0,
+    "note": null
+   },
+   {
+    "id": "route-6",
+    "agent": "route",
+    "label": "Route Optimizer",
+    "task": "Road sections, drive times, a live routing cross-check and alternative routes.",
+    "status": "completed",
+    "depends_on": [
+     "itinerary-4"
+    ],
+    "initiated_by": "orchestrator",
+    "queued_at": "2026-10-31T14:44:57.136+00:00",
+    "started_at": "2026-10-31T14:44:57.140+00:00",
+    "ended_at": "2026-10-31T14:44:58.035+00:00",
+    "duration_ms": 895,
+    "inputs": {
+     "destinations": [
+      "skardu"
+     ],
+     "days": 10,
+     "start": "—",
+     "travellers": 5,
+     "transport": "car",
+     "budget_pkr": 500000,
+     "uses": [
+      "itinerary"
+     ]
+    },
+    "outputs": {
+     "road_km": 1380,
+     "travel_hours": [
+      32,
+      38
+     ],
+     "closures": []
+    },
+    "contribution": "4 travel legs, 1380 km by road, 32–38 h on the move; live routing checked 3 of 3",
+    "tool_calls": [
+     {
+      "name": "osrm.route(islamabad→chilas)",
+      "ok": true,
+      "ms": 633,
+      "detail": "",
+      "t": "2026-10-31T14:44:57.773+00:00"
+     },
+     {
+      "name": "osrm.route(chilas→islamabad)",
+      "ok": true,
+      "ms": 131,
+      "detail": "",
+      "t": "2026-10-31T14:44:57.904+00:00"
+     },
+     {
+      "name": "osrm.route(chilas→skardu)",
+      "ok": true,
+      "ms": 130,
+      "detail": "",
+      "t": "2026-10-31T14:44:58.035+00:00"
+     }
+    ],
+    "errors": [],
+    "retries": 0,
+    "note": null
+   },
+   {
+    "id": "budget-7",
+    "agent": "budget",
+    "label": "Budget Intelligence",
+    "task": "Itemised estimate for the group and per person, the budget check and cheaper options.",
+    "status": "completed",
+    "depends_on": [
+     "itinerary-4"
+    ],
+    "initiated_by": "orchestrator",
+    "queued_at": "2026-10-31T14:44:57.136+00:00",
+    "started_at": "2026-10-31T14:44:57.142+00:00",
+    "ended_at": "2026-10-31T14:44:57.149+00:00",
+    "duration_ms": 7,
+    "inputs": {
+     "destinations": [
+      "skardu"
+     ],
+     "days": 10,
+     "start": "—",
+     "travellers": 5,
+     "transport": "car",
+     "budget_pkr": 500000,
+     "uses": [
+      "itinerary"
+     ]
+    },
+    "outputs": {
+     "total": 904200,
+     "per_person": 180800,
+     "status": "over"
+    },
+    "contribution": "About Rs 9,04,200 in total (Rs 1,80,800 per person): over budget; found changes that fit",
+    "tool_calls": [
+     {
+      "name": "planner.price(Public coaches)",
+      "ok": true,
+      "ms": 0,
+      "detail": "",
+      "t": "2026-10-31T14:44:57.143+00:00"
+     },
+     {
+      "name": "planner.price(Budget stays)",
+      "ok": true,
+      "ms": 0,
+      "detail": "",
+      "t": "2026-10-31T14:44:57.144+00:00"
+     },
+     {
+      "name": "planner.price(Fly north)",
+      "ok": true,
+      "ms": 0,
+      "detail": "",
+      "t": "2026-10-31T14:44:57.144+00:00"
+     },
+     {
+      "name": "optimizer.fit_to_budget",
+      "ok": true,
+      "ms": 5,
+      "detail": "",
+      "t": "2026-10-31T14:44:57.149+00:00"
+     }
+    ],
+    "errors": [],
+    "retries": 0,
+    "note": null
+   },
+   {
+    "id": "accommodation-8",
+    "agent": "accommodation",
+    "label": "Accommodation Research",
+    "task": "Stays for each overnight town that fit the budget, from the guide and OpenStreetMap.",
+    "status": "completed",
+    "depends_on": [
+     "itinerary-4"
+    ],
+    "initiated_by": "orchestrator",
+    "queued_at": "2026-10-31T14:44:57.136+00:00",
+    "started_at": "2026-10-31T14:44:57.149+00:00",
+    "ended_at": "2026-10-31T14:45:06.098+00:00",
+    "duration_ms": 8948,
+    "inputs": {
+     "destinations": [
+      "skardu"
+     ],
+     "days": 10,
+     "start": "—",
+     "travellers": 5,
+     "transport": "car",
+     "budget_pkr": 500000,
+     "uses": [
+      "itinerary"
+     ]
+    },
+    "outputs": {
+     "allowance_per_room_night": 0,
+     "towns": 2
+    },
+    "contribution": "2 overnight towns with indicative stays",
+    "tool_calls": [
+     {
+      "name": "stays(chilas)",
+      "ok": true,
+      "ms": 2475,
+      "detail": "",
+      "t": "2026-10-31T14:44:59.625+00:00"
+     },
+     {
+      "name": "stays(skardu)",
+      "ok": true,
+      "ms": 6472,
+      "detail": "",
+      "t": "2026-10-31T14:45:06.097+00:00"
+     }
+    ],
+    "errors": [],
+    "retries": 0,
+    "note": null
+   },
+   {
+    "id": "eco-9",
+    "agent": "eco",
+    "label": "Eco-Impact",
+    "task": "Estimated transport emissions of the plan and its alternatives, with cost and time alongside.",
+    "status": "completed",
+    "depends_on": [
+     "itinerary-4"
+    ],
+    "initiated_by": "orchestrator",
+    "queued_at": "2026-10-31T14:44:57.136+00:00",
+    "started_at": "2026-10-31T14:44:57.151+00:00",
+    "ended_at": "2026-10-31T14:44:57.153+00:00",
+    "duration_ms": 1,
+    "inputs": {
+     "destinations": [
+      "skardu"
+     ],
+     "days": 10,
+     "start": "—",
+     "travellers": 5,
+     "transport": "car",
+     "budget_pkr": 500000,
+     "uses": [
+      "itinerary"
+     ]
+    },
+    "outputs": {
+     "lowest": "Public coaches",
+     "kg_co2e": [
+      580,
+      753
+     ]
+    },
+    "contribution": "This plan: about 580–753 kg CO2e from transport (116–151 per person); lowest option: Public coaches",
+    "tool_calls": [
+     {
+      "name": "eco.footprint",
+      "ok": true,
+      "ms": 0,
+      "detail": "",
+      "t": "2026-10-31T14:44:57.151+00:00"
+     },
+     {
+      "name": "planner.build(bus)",
+      "ok": true,
+      "ms": 1,
+      "detail": "",
+      "t": "2026-10-31T14:44:57.153+00:00"
+     },
+     {
+      "name": "planner.build(flight)",
+      "ok": true,
+      "ms": 0,
+      "detail": "",
+      "t": "2026-10-31T14:44:57.153+00:00"
+     }
+    ],
+    "errors": [],
+    "retries": 0,
+    "note": null
+   },
+   {
+    "id": "safety-10",
+    "agent": "safety",
+    "label": "Predictive Safety",
+    "task": "Transparent day-by-day risk score from forecasts, alerts, seasons, drive length and altitude.",
+    "status": "completed",
+    "depends_on": [
+     "itinerary-4",
+     "weather-5"
+    ],
+    "initiated_by": "orchestrator",
+    "queued_at": "2026-10-31T14:44:57.136+00:00",
+    "started_at": "2026-10-31T14:45:06.099+00:00",
+    "ended_at": "2026-10-31T14:45:06.099+00:00",
+    "duration_ms": 0,
+    "inputs": {
+     "destinations": [
+      "skardu"
+     ],
+     "days": 10,
+     "start": "—",
+     "travellers": 5,
+     "transport": "car",
+     "budget_pkr": 500000,
+     "uses": [
+      "itinerary",
+      "weather"
+     ]
+    },
+    "outputs": {
+     "overall": {
+      "score": 20,
+      "category": "Moderate",
+      "worst_day": 1,
+      "action": "Continue with precautions: start early, keep a spare day and check conditions locally."
+     },
+     "confidence": "low"
+    },
+    "contribution": "Overall Moderate (20/100, worst day 1); 0 day(s) need changes; confidence low",
+    "tool_calls": [
+     {
+      "name": "roads.status",
+      "ok": true,
+      "ms": 0,
+      "detail": "",
+      "t": "2026-10-31T14:45:06.099+00:00"
+     },
+     {
+      "name": "risk.assess",
+      "ok": true,
+      "ms": 0,
+      "detail": "",
+      "t": "2026-10-31T14:45:06.099+00:00"
+     }
+    ],
+    "errors": [],
+    "retries": 0,
+    "note": null
+   },
+   {
+    "id": "packing-11",
+    "agent": "packing",
+    "label": "Packing Intelligence",
+    "task": "A checklist from the places, season, forecast and activities, with the reason for each item.",
+    "status": "completed",
+    "depends_on": [
+     "itinerary-4",
+     "weather-5"
+    ],
+    "initiated_by": "orchestrator",
+    "queued_at": "2026-10-31T14:44:57.136+00:00",
+    "started_at": "2026-10-31T14:45:06.099+00:00",
+    "ended_at": "2026-10-31T14:45:06.099+00:00",
+    "duration_ms": 0,
+    "inputs": {
+     "destinations": [
+      "skardu"
+     ],
+     "days": 10,
+     "start": "—",
+     "travellers": 5,
+     "transport": "car",
+     "budget_pkr": 500000,
+     "uses": [
+      "itinerary",
+      "weather"
+     ]
+    },
+    "outputs": {
+     "basis": "typical conditions, not a forecast",
+     "items": 12
+    },
+    "contribution": "12 items (7 essential), based on typical conditions, not a forecast",
+    "tool_calls": [
+     {
+      "name": "rules.packing",
+      "ok": true,
+      "ms": 0,
+      "detail": "",
+      "t": "2026-10-31T14:45:06.099+00:00"
+     }
+    ],
+    "errors": [],
+    "retries": 0,
+    "note": null
+   },
+   {
+    "id": "validation-12",
+    "agent": "validation",
+    "label": "Validation",
+    "task": "Cross-checks every agent, rejects unsupported claims and asks for retries or a decision.",
+    "status": "waiting_for_approval",
+    "depends_on": [
+     "memory-2",
+     "research-3",
+     "itinerary-4",
+     "weather-5",
+     "route-6",
+     "budget-7",
+     "accommodation-8",
+     "eco-9",
+     "safety-10",
+     "packing-11"
+    ],
+    "initiated_by": "orchestrator",
+    "queued_at": "2026-10-31T14:45:06.099+00:00",
+    "started_at": "2026-10-31T14:45:06.099+00:00",
+    "ended_at": "2026-10-31T14:45:06.100+00:00",
+    "duration_ms": 0,
+    "inputs": {
+     "destinations": [
+      "skardu"
+     ],
+     "days": 10,
+     "start": "—",
+     "travellers": 5,
+     "transport": "car",
+     "budget_pkr": 500000
+    },
+    "outputs": {
+     "verdict": "needs_approval",
+     "checks_passed": 9,
+     "checks": 10,
+     "decisions": 1
+    },
+    "contribution": "9/10 checks passed; verdict: needs approval",
+    "tool_calls": [
+     {
+      "name": "validate.cross_check",
+      "ok": true,
+      "ms": 0,
+      "detail": "",
+      "t": "2026-10-31T14:45:06.100+00:00"
+     }
+    ],
+    "errors": [],
+    "retries": 0,
+    "note": null
+   }
+  ],
+  "edges": [
+   {
+    "from": "memory-2",
+    "to": "research-3",
+    "kind": "data"
+   },
+   {
+    "from": "memory-2",
+    "to": "itinerary-4",
+    "kind": "data"
+   },
+   {
+    "from": "research-3",
+    "to": "itinerary-4",
+    "kind": "data"
+   },
+   {
+    "from": "itinerary-4",
+    "to": "weather-5",
+    "kind": "data"
+   },
+   {
+    "from": "itinerary-4",
+    "to": "route-6",
+    "kind": "data"
+   },
+   {
+    "from": "itinerary-4",
+    "to": "budget-7",
+    "kind": "data"
+   },
+   {
+    "from": "itinerary-4",
+    "to": "accommodation-8",
+    "kind": "data"
+   },
+   {
+    "from": "itinerary-4",
+    "to": "eco-9",
+    "kind": "data"
+   },
+   {
+    "from": "itinerary-4",
+    "to": "safety-10",
+    "kind": "data"
+   },
+   {
+    "from": "weather-5",
+    "to": "safety-10",
+    "kind": "data"
+   },
+   {
+    "from": "itinerary-4",
+    "to": "packing-11",
+    "kind": "data"
+   },
+   {
+    "from": "weather-5",
+    "to": "packing-11",
+    "kind": "data"
+   },
+   {
+    "from": "memory-2",
+    "to": "validation-12",
+    "kind": "data"
+   },
+   {
+    "from": "research-3",
+    "to": "validation-12",
+    "kind": "data"
+   },
+   {
+    "from": "itinerary-4",
+    "to": "validation-12",
+    "kind": "data"
+   },
+   {
+    "from": "weather-5",
+    "to": "validation-12",
+    "kind": "data"
+   },
+   {
+    "from": "route-6",
+    "to": "validation-12",
+    "kind": "data"
+   },
+   {
+    "from": "budget-7",
+    "to": "validation-12",
+    "kind": "data"
+   },
+   {
+    "from": "accommodation-8",
+    "to": "validation-12",
+    "kind": "data"
+   },
+   {
+    "from": "eco-9",
+    "to": "validation-12",
+    "kind": "data"
+   },
+   {
+    "from": "safety-10",
+    "to": "validation-12",
+    "kind": "data"
+   },
+   {
+    "from": "packing-11",
+    "to": "validation-12",
+    "kind": "data"
+   }
+  ],
+  "events": [
+   {
+    "t": "2026-10-31T14:44:57.128+00:00",
+    "ms": 0,
+    "task": "orchestrator-1",
+    "type": "queued"
+   },
+   {
+    "t": "2026-10-31T14:44:57.128+00:00",
+    "ms": 0,
+    "task": "orchestrator-1",
+    "type": "running"
+   },
+   {
+    "t": "2026-10-31T14:44:57.128+00:00",
+    "ms": 0,
+    "task": "memory-2",
+    "type": "queued"
+   },
+   {
+    "t": "2026-10-31T14:44:57.128+00:00",
+    "ms": 0,
+    "task": "memory-2",
+    "type": "running"
+   },
+   {
+    "t": "2026-10-31T14:44:57.135+00:00",
+    "ms": 7,
+    "task": "memory-2",
+    "type": "tool",
+    "tool": {
+     "name": "parser.extract",
+     "ok": true,
+     "ms": 7,
+     "detail": "",
+     "t": "2026-10-31T14:44:57.135+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:44:57.135+00:00",
+    "ms": 7,
+    "task": "memory-2",
+    "type": "tool",
+    "tool": {
+     "name": "state.merge",
+     "ok": true,
+     "ms": 0,
+     "detail": "",
+     "t": "2026-10-31T14:44:57.135+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:44:57.135+00:00",
+    "ms": 7,
+    "task": "memory-2",
+    "type": "message",
+    "message": {
+     "id": "m1",
+     "runId": "67cf7c8e4b75",
+     "step": "memory-2",
+     "agent": "memory",
+     "type": "proposal",
+     "summary": "Understood: 10 days from Islamabad to Skardu, 5 people, budget Rs 5,00,000 in total.",
+     "reason": null,
+     "evidence": [
+      {
+       "source": "Your message",
+       "detail": "you told me: group size, budget, days, places, starting point"
+      }
+     ],
+     "resolvesEventId": null,
+     "t": "2026-10-31T14:44:57.135+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:44:57.136+00:00",
+    "ms": 7,
+    "task": "memory-2",
+    "type": "message",
+    "message": {
+     "id": "m2",
+     "runId": "67cf7c8e4b75",
+     "step": "memory-2",
+     "agent": "memory",
+     "type": "concern",
+     "summary": "Still unknown: dates. Until you say, I'm assuming travelling by road with a hired car, mid-range stays, a balanced pace.",
+     "reason": null,
+     "evidence": [],
+     "resolvesEventId": null,
+     "t": "2026-10-31T14:44:57.136+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:44:57.136+00:00",
+    "ms": 7,
+    "task": "memory-2",
+    "type": "completed"
+   },
+   {
+    "t": "2026-10-31T14:44:57.136+00:00",
+    "ms": 7,
+    "task": "orchestrator-1",
+    "type": "tool",
+    "tool": {
+     "name": "plan.tasks",
+     "ok": true,
+     "ms": 0,
+     "detail": "Intent 'plan': research, itinerary, weather, route, budget, accommodation, eco, safety, packing",
+     "t": "2026-10-31T14:44:57.136+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:44:57.136+00:00",
+    "ms": 7,
+    "task": "research-3",
+    "type": "queued"
+   },
+   {
+    "t": "2026-10-31T14:44:57.136+00:00",
+    "ms": 7,
+    "task": "itinerary-4",
+    "type": "queued"
+   },
+   {
+    "t": "2026-10-31T14:44:57.136+00:00",
+    "ms": 8,
+    "task": "weather-5",
+    "type": "queued"
+   },
+   {
+    "t": "2026-10-31T14:44:57.136+00:00",
+    "ms": 8,
+    "task": "route-6",
+    "type": "queued"
+   },
+   {
+    "t": "2026-10-31T14:44:57.136+00:00",
+    "ms": 8,
+    "task": "budget-7",
+    "type": "queued"
+   },
+   {
+    "t": "2026-10-31T14:44:57.136+00:00",
+    "ms": 8,
+    "task": "accommodation-8",
+    "type": "queued"
+   },
+   {
+    "t": "2026-10-31T14:44:57.136+00:00",
+    "ms": 8,
+    "task": "eco-9",
+    "type": "queued"
+   },
+   {
+    "t": "2026-10-31T14:44:57.136+00:00",
+    "ms": 8,
+    "task": "safety-10",
+    "type": "queued"
+   },
+   {
+    "t": "2026-10-31T14:44:57.136+00:00",
+    "ms": 8,
+    "task": "packing-11",
+    "type": "queued"
+   },
+   {
+    "t": "2026-10-31T14:44:57.136+00:00",
+    "ms": 8,
+    "task": "research-3",
+    "type": "running"
+   },
+   {
+    "t": "2026-10-31T14:44:57.136+00:00",
+    "ms": 8,
+    "task": "research-3",
+    "type": "tool",
+    "tool": {
+     "name": "guide.destination(skardu)",
+     "ok": true,
+     "ms": 0,
+     "detail": "",
+     "t": "2026-10-31T14:44:57.136+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:44:57.136+00:00",
+    "ms": 8,
+    "task": "research-3",
+    "type": "completed"
+   },
+   {
+    "t": "2026-10-31T14:44:57.136+00:00",
+    "ms": 8,
+    "task": "itinerary-4",
+    "type": "running"
+   },
+   {
+    "t": "2026-10-31T14:44:57.139+00:00",
+    "ms": 10,
+    "task": "itinerary-4",
+    "type": "tool",
+    "tool": {
+     "name": "planner.build",
+     "ok": true,
+     "ms": 2,
+     "detail": "",
+     "t": "2026-10-31T14:44:57.139+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:44:57.139+00:00",
+    "ms": 11,
+    "task": "itinerary-4",
+    "type": "message",
+    "message": {
+     "id": "m3",
+     "runId": "67cf7c8e4b75",
+     "step": "itinerary-4",
+     "agent": "itinerary",
+     "type": "proposal",
+     "summary": "10 days: 4 mainly for travel, 6 to explore; the longest drive is up to 12 hours.",
+     "reason": null,
+     "evidence": [
+      {
+       "source": "Raahi planner",
+       "detail": "curated road legs, daylight-timed departures"
+      }
+     ],
+     "resolvesEventId": null,
+     "t": "2026-10-31T14:44:57.139+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:44:57.139+00:00",
+    "ms": 11,
+    "task": "itinerary-4",
+    "type": "completed"
+   },
+   {
+    "t": "2026-10-31T14:44:57.139+00:00",
+    "ms": 11,
+    "task": "weather-5",
+    "type": "running"
+   },
+   {
+    "t": "2026-10-31T14:44:57.140+00:00",
+    "ms": 12,
+    "task": "route-6",
+    "type": "running"
+   },
+   {
+    "t": "2026-10-31T14:44:57.142+00:00",
+    "ms": 14,
+    "task": "budget-7",
+    "type": "running"
+   },
+   {
+    "t": "2026-10-31T14:44:57.143+00:00",
+    "ms": 15,
+    "task": "budget-7",
+    "type": "tool",
+    "tool": {
+     "name": "planner.price(Public coaches)",
+     "ok": true,
+     "ms": 0,
+     "detail": "",
+     "t": "2026-10-31T14:44:57.143+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:44:57.144+00:00",
+    "ms": 15,
+    "task": "budget-7",
+    "type": "tool",
+    "tool": {
+     "name": "planner.price(Budget stays)",
+     "ok": true,
+     "ms": 0,
+     "detail": "",
+     "t": "2026-10-31T14:44:57.144+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:44:57.144+00:00",
+    "ms": 16,
+    "task": "budget-7",
+    "type": "tool",
+    "tool": {
+     "name": "planner.price(Fly north)",
+     "ok": true,
+     "ms": 0,
+     "detail": "",
+     "t": "2026-10-31T14:44:57.144+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:44:57.149+00:00",
+    "ms": 21,
+    "task": "budget-7",
+    "type": "tool",
+    "tool": {
+     "name": "optimizer.fit_to_budget",
+     "ok": true,
+     "ms": 5,
+     "detail": "",
+     "t": "2026-10-31T14:44:57.149+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:44:57.149+00:00",
+    "ms": 21,
+    "task": "budget-7",
+    "type": "message",
+    "message": {
+     "id": "m4",
+     "runId": "67cf7c8e4b75",
+     "step": "budget-7",
+     "agent": "budget",
+     "type": "concern",
+     "summary": "Estimate Rs 9,04,200 (Rs 1,80,800 per person): About Rs 4,04,200 over your budget of Rs 5,00,000 in total.",
+     "reason": null,
+     "evidence": [
+      {
+       "source": "Raahi cost model (estimate)",
+       "detail": "transport, stays, food, entries, contingency"
+      }
+     ],
+     "resolvesEventId": null,
+     "t": "2026-10-31T14:44:57.149+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:44:57.149+00:00",
+    "ms": 21,
+    "task": "budget-7",
+    "type": "message",
+    "message": {
+     "id": "m5",
+     "runId": "67cf7c8e4b75",
+     "step": "budget-7",
+     "agent": "budget",
+     "type": "proposal",
+     "summary": "The fewest changes that fit: budget stays and public coaches, about Rs 4,23,500.",
+     "reason": null,
+     "evidence": [
+      {
+       "source": "Budget search",
+       "detail": "8 versions tried"
+      }
+     ],
+     "resolvesEventId": "m4",
+     "t": "2026-10-31T14:44:57.149+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:44:57.149+00:00",
+    "ms": 21,
+    "task": "budget-7",
+    "type": "completed"
+   },
+   {
+    "t": "2026-10-31T14:44:57.149+00:00",
+    "ms": 21,
+    "task": "accommodation-8",
+    "type": "running"
+   },
+   {
+    "t": "2026-10-31T14:44:57.151+00:00",
+    "ms": 23,
+    "task": "eco-9",
+    "type": "running"
+   },
+   {
+    "t": "2026-10-31T14:44:57.151+00:00",
+    "ms": 23,
+    "task": "eco-9",
+    "type": "tool",
+    "tool": {
+     "name": "eco.footprint",
+     "ok": true,
+     "ms": 0,
+     "detail": "",
+     "t": "2026-10-31T14:44:57.151+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:44:57.153+00:00",
+    "ms": 24,
+    "task": "eco-9",
+    "type": "tool",
+    "tool": {
+     "name": "planner.build(bus)",
+     "ok": true,
+     "ms": 1,
+     "detail": "",
+     "t": "2026-10-31T14:44:57.153+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:44:57.153+00:00",
+    "ms": 25,
+    "task": "eco-9",
+    "type": "tool",
+    "tool": {
+     "name": "planner.build(flight)",
+     "ok": true,
+     "ms": 0,
+     "detail": "",
+     "t": "2026-10-31T14:44:57.153+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:44:57.153+00:00",
+    "ms": 25,
+    "task": "eco-9",
+    "type": "message",
+    "message": {
+     "id": "m6",
+     "runId": "67cf7c8e4b75",
+     "step": "eco-9",
+     "agent": "eco",
+     "type": "proposal",
+     "summary": "Transport about 580–753 kg CO2e; the lowest option is public coaches.",
+     "reason": null,
+     "evidence": [
+      {
+       "source": "UK DESNZ 2025 factors",
+       "detail": "ranges with mountain-road assumptions"
+      }
+     ],
+     "resolvesEventId": null,
+     "t": "2026-10-31T14:44:57.153+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:44:57.153+00:00",
+    "ms": 25,
+    "task": "eco-9",
+    "type": "completed"
+   },
+   {
+    "t": "2026-10-31T14:44:57.592+00:00",
+    "ms": 463,
+    "task": "weather-5",
+    "type": "tool",
+    "tool": {
+     "name": "pmd.alerts",
+     "ok": true,
+     "ms": 452,
+     "detail": "",
+     "t": "2026-10-31T14:44:57.592+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:44:57.592+00:00",
+    "ms": 464,
+    "task": "weather-5",
+    "type": "message",
+    "message": {
+     "id": "m7",
+     "runId": "67cf7c8e4b75",
+     "step": "weather-5",
+     "agent": "weather",
+     "type": "concern",
+     "summary": "No forecast was used (no travel dates yet: forecasts need dates). I used typical seasonal patterns only.",
+     "reason": null,
+     "evidence": [
+      {
+       "source": "Open-Meteo",
+       "detail": "forecasts reach about 16 days ahead"
+      }
+     ],
+     "resolvesEventId": null,
+     "t": "2026-10-31T14:44:57.592+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:44:57.592+00:00",
+    "ms": 464,
+    "task": "weather-5",
+    "type": "completed"
+   },
+   {
+    "t": "2026-10-31T14:44:57.773+00:00",
+    "ms": 645,
+    "task": "route-6",
+    "type": "tool",
+    "tool": {
+     "name": "osrm.route(islamabad→chilas)",
+     "ok": true,
+     "ms": 633,
+     "detail": "",
+     "t": "2026-10-31T14:44:57.773+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:44:57.904+00:00",
+    "ms": 776,
+    "task": "route-6",
+    "type": "tool",
+    "tool": {
+     "name": "osrm.route(chilas→islamabad)",
+     "ok": true,
+     "ms": 131,
+     "detail": "",
+     "t": "2026-10-31T14:44:57.904+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:44:58.035+00:00",
+    "ms": 907,
+    "task": "route-6",
+    "type": "tool",
+    "tool": {
+     "name": "osrm.route(chilas→skardu)",
+     "ok": true,
+     "ms": 130,
+     "detail": "",
+     "t": "2026-10-31T14:44:58.035+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:44:58.035+00:00",
+    "ms": 907,
+    "task": "route-6",
+    "type": "message",
+    "message": {
+     "id": "m8",
+     "runId": "67cf7c8e4b75",
+     "step": "route-6",
+     "agent": "route",
+     "type": "proposal",
+     "summary": "About 32–38 hours on the road in total (1,380 km).",
+     "reason": null,
+     "evidence": [
+      {
+       "source": "Raahi road data, OSRM check",
+       "detail": "free-flow times; no live closures"
+      }
+     ],
+     "resolvesEventId": null,
+     "t": "2026-10-31T14:44:58.035+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:44:58.035+00:00",
+    "ms": 907,
+    "task": "route-6",
+    "type": "message",
+    "message": {
+     "id": "m9",
+     "runId": "67cf7c8e4b75",
+     "step": "route-6",
+     "agent": "route",
+     "type": "proposal",
+     "summary": "Fly Islamabad–Gilgit or Skardu instead of the longest drives: 2 travel day(s) of 8+ hours on mountain roads.",
+     "reason": "Northern flights are weather-dependent and often delayed or cancelled.",
+     "evidence": [],
+     "resolvesEventId": null,
+     "t": "2026-10-31T14:44:58.035+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:44:58.035+00:00",
+    "ms": 907,
+    "task": "route-6",
+    "type": "completed"
+   },
+   {
+    "t": "2026-10-31T14:44:59.625+00:00",
+    "ms": 2497,
+    "task": "accommodation-8",
+    "type": "tool",
+    "tool": {
+     "name": "stays(chilas)",
+     "ok": true,
+     "ms": 2475,
+     "detail": "",
+     "t": "2026-10-31T14:44:59.625+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:45:06.098+00:00",
+    "ms": 8969,
+    "task": "accommodation-8",
+    "type": "tool",
+    "tool": {
+     "name": "stays(skardu)",
+     "ok": true,
+     "ms": 6472,
+     "detail": "",
+     "t": "2026-10-31T14:45:06.097+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:45:06.098+00:00",
+    "ms": 8969,
+    "task": "accommodation-8",
+    "type": "message",
+    "message": {
+     "id": "m10",
+     "runId": "67cf7c8e4b75",
+     "step": "accommodation-8",
+     "agent": "accommodation",
+     "type": "concern",
+     "summary": "With this plan, transport and food use up the whole budget, so nothing is left for rooms.",
+     "reason": null,
+     "evidence": [
+      {
+       "source": "Raahi cost model (estimate)",
+       "detail": "budget minus transport, food and entries"
+      }
+     ],
+     "resolvesEventId": null,
+     "t": "2026-10-31T14:45:06.098+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:45:06.098+00:00",
+    "ms": 8969,
+    "task": "accommodation-8",
+    "type": "completed"
+   },
+   {
+    "t": "2026-10-31T14:45:06.099+00:00",
+    "ms": 8970,
+    "task": "safety-10",
+    "type": "running"
+   },
+   {
+    "t": "2026-10-31T14:45:06.099+00:00",
+    "ms": 8970,
+    "task": "safety-10",
+    "type": "tool",
+    "tool": {
+     "name": "roads.status",
+     "ok": true,
+     "ms": 0,
+     "detail": "",
+     "t": "2026-10-31T14:45:06.099+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:45:06.099+00:00",
+    "ms": 8971,
+    "task": "safety-10",
+    "type": "tool",
+    "tool": {
+     "name": "risk.assess",
+     "ok": true,
+     "ms": 0,
+     "detail": "",
+     "t": "2026-10-31T14:45:06.099+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:45:06.099+00:00",
+    "ms": 8971,
+    "task": "safety-10",
+    "type": "message",
+    "message": {
+     "id": "m11",
+     "runId": "67cf7c8e4b75",
+     "step": "safety-10",
+     "agent": "safety",
+     "type": "proposal",
+     "summary": "No high-risk day; the highest is Moderate (20/100) on day 1.",
+     "reason": "A heuristic from public data, not an official safety assessment.",
+     "evidence": [
+      {
+       "source": "Raahi risk model",
+       "detail": "confidence low"
+      }
+     ],
+     "resolvesEventId": null,
+     "t": "2026-10-31T14:45:06.099+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:45:06.099+00:00",
+    "ms": 8971,
+    "task": "safety-10",
+    "type": "completed"
+   },
+   {
+    "t": "2026-10-31T14:45:06.099+00:00",
+    "ms": 8971,
+    "task": "packing-11",
+    "type": "running"
+   },
+   {
+    "t": "2026-10-31T14:45:06.099+00:00",
+    "ms": 8971,
+    "task": "packing-11",
+    "type": "tool",
+    "tool": {
+     "name": "rules.packing",
+     "ok": true,
+     "ms": 0,
+     "detail": "",
+     "t": "2026-10-31T14:45:06.099+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:45:06.099+00:00",
+    "ms": 8971,
+    "task": "packing-11",
+    "type": "message",
+    "message": {
+     "id": "m12",
+     "runId": "67cf7c8e4b75",
+     "step": "packing-11",
+     "agent": "packing",
+     "type": "proposal",
+     "summary": "12 things to pack, based on typical conditions, not a forecast.",
+     "reason": null,
+     "evidence": [
+      {
+       "source": "Packing rules",
+       "detail": "Comfortable walking shoes, Warm jacket and layers, CNIC or passport, plus photocopies"
+      }
+     ],
+     "resolvesEventId": null,
+     "t": "2026-10-31T14:45:06.099+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:45:06.099+00:00",
+    "ms": 8971,
+    "task": "packing-11",
+    "type": "completed"
+   },
+   {
+    "t": "2026-10-31T14:45:06.099+00:00",
+    "ms": 8971,
+    "task": "validation-12",
+    "type": "queued"
+   },
+   {
+    "t": "2026-10-31T14:45:06.099+00:00",
+    "ms": 8971,
+    "task": "validation-12",
+    "type": "running"
+   },
+   {
+    "t": "2026-10-31T14:45:06.100+00:00",
+    "ms": 8971,
+    "task": "validation-12",
+    "type": "tool",
+    "tool": {
+     "name": "validate.cross_check",
+     "ok": true,
+     "ms": 0,
+     "detail": "",
+     "t": "2026-10-31T14:45:06.100+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:45:06.100+00:00",
+    "ms": 8971,
+    "task": "validation-12",
+    "type": "message",
+    "message": {
+     "id": "m13",
+     "runId": "67cf7c8e4b75",
+     "step": "validation-12",
+     "agent": "validation",
+     "type": "decision",
+     "summary": "Your choice is needed: About Rs 4,04,200 over your budget of Rs 5,00,000 in total.",
+     "reason": "Options: Apply the cheapest changes that fit",
+     "evidence": [],
+     "resolvesEventId": "m4",
+     "t": "2026-10-31T14:45:06.100+00:00"
+    }
+   },
+   {
+    "t": "2026-10-31T14:45:06.100+00:00",
+    "ms": 8971,
+    "task": "validation-12",
+    "type": "waiting_for_approval"
+   },
+   {
+    "t": "2026-10-31T14:45:06.100+00:00",
+    "ms": 8972,
+    "task": "orchestrator-1",
+    "type": "waiting_for_approval"
+   }
+  ],
+  "messages": [
+   {
+    "id": "m1",
+    "runId": "67cf7c8e4b75",
+    "step": "memory-2",
+    "agent": "memory",
+    "type": "proposal",
+    "summary": "Understood: 10 days from Islamabad to Skardu, 5 people, budget Rs 5,00,000 in total.",
+    "reason": null,
+    "evidence": [
+     {
+      "source": "Your message",
+      "detail": "you told me: group size, budget, days, places, starting point"
+     }
+    ],
+    "resolvesEventId": null,
+    "t": "2026-10-31T14:44:57.135+00:00"
+   },
+   {
+    "id": "m2",
+    "runId": "67cf7c8e4b75",
+    "step": "memory-2",
+    "agent": "memory",
+    "type": "concern",
+    "summary": "Still unknown: dates. Until you say, I'm assuming travelling by road with a hired car, mid-range stays, a balanced pace.",
+    "reason": null,
+    "evidence": [],
+    "resolvesEventId": null,
+    "t": "2026-10-31T14:44:57.136+00:00"
+   },
+   {
+    "id": "m3",
+    "runId": "67cf7c8e4b75",
+    "step": "itinerary-4",
+    "agent": "itinerary",
+    "type": "proposal",
+    "summary": "10 days: 4 mainly for travel, 6 to explore; the longest drive is up to 12 hours.",
+    "reason": null,
+    "evidence": [
+     {
+      "source": "Raahi planner",
+      "detail": "curated road legs, daylight-timed departures"
+     }
+    ],
+    "resolvesEventId": null,
+    "t": "2026-10-31T14:44:57.139+00:00"
+   },
+   {
+    "id": "m4",
+    "runId": "67cf7c8e4b75",
+    "step": "budget-7",
+    "agent": "budget",
+    "type": "concern",
+    "summary": "Estimate Rs 9,04,200 (Rs 1,80,800 per person): About Rs 4,04,200 over your budget of Rs 5,00,000 in total.",
+    "reason": null,
+    "evidence": [
+     {
+      "source": "Raahi cost model (estimate)",
+      "detail": "transport, stays, food, entries, contingency"
+     }
+    ],
+    "resolvesEventId": null,
+    "t": "2026-10-31T14:44:57.149+00:00"
+   },
+   {
+    "id": "m5",
+    "runId": "67cf7c8e4b75",
+    "step": "budget-7",
+    "agent": "budget",
+    "type": "proposal",
+    "summary": "The fewest changes that fit: budget stays and public coaches, about Rs 4,23,500.",
+    "reason": null,
+    "evidence": [
+     {
+      "source": "Budget search",
+      "detail": "8 versions tried"
+     }
+    ],
+    "resolvesEventId": "m4",
+    "t": "2026-10-31T14:44:57.149+00:00"
+   },
+   {
+    "id": "m6",
+    "runId": "67cf7c8e4b75",
+    "step": "eco-9",
+    "agent": "eco",
+    "type": "proposal",
+    "summary": "Transport about 580–753 kg CO2e; the lowest option is public coaches.",
+    "reason": null,
+    "evidence": [
+     {
+      "source": "UK DESNZ 2025 factors",
+      "detail": "ranges with mountain-road assumptions"
+     }
+    ],
+    "resolvesEventId": null,
+    "t": "2026-10-31T14:44:57.153+00:00"
+   },
+   {
+    "id": "m7",
+    "runId": "67cf7c8e4b75",
+    "step": "weather-5",
+    "agent": "weather",
+    "type": "concern",
+    "summary": "No forecast was used (no travel dates yet: forecasts need dates). I used typical seasonal patterns only.",
+    "reason": null,
+    "evidence": [
+     {
+      "source": "Open-Meteo",
+      "detail": "forecasts reach about 16 days ahead"
+     }
+    ],
+    "resolvesEventId": null,
+    "t": "2026-10-31T14:44:57.592+00:00"
+   },
+   {
+    "id": "m8",
+    "runId": "67cf7c8e4b75",
+    "step": "route-6",
+    "agent": "route",
+    "type": "proposal",
+    "summary": "About 32–38 hours on the road in total (1,380 km).",
+    "reason": null,
+    "evidence": [
+     {
+      "source": "Raahi road data, OSRM check",
+      "detail": "free-flow times; no live closures"
+     }
+    ],
+    "resolvesEventId": null,
+    "t": "2026-10-31T14:44:58.035+00:00"
+   },
+   {
+    "id": "m9",
+    "runId": "67cf7c8e4b75",
+    "step": "route-6",
+    "agent": "route",
+    "type": "proposal",
+    "summary": "Fly Islamabad–Gilgit or Skardu instead of the longest drives: 2 travel day(s) of 8+ hours on mountain roads.",
+    "reason": "Northern flights are weather-dependent and often delayed or cancelled.",
+    "evidence": [],
+    "resolvesEventId": null,
+    "t": "2026-10-31T14:44:58.035+00:00"
+   },
+   {
+    "id": "m10",
+    "runId": "67cf7c8e4b75",
+    "step": "accommodation-8",
+    "agent": "accommodation",
+    "type": "concern",
+    "summary": "With this plan, transport and food use up the whole budget, so nothing is left for rooms.",
+    "reason": null,
+    "evidence": [
+     {
+      "source": "Raahi cost model (estimate)",
+      "detail": "budget minus transport, food and entries"
+     }
+    ],
+    "resolvesEventId": null,
+    "t": "2026-10-31T14:45:06.098+00:00"
+   },
+   {
+    "id": "m11",
+    "runId": "67cf7c8e4b75",
+    "step": "safety-10",
+    "agent": "safety",
+    "type": "proposal",
+    "summary": "No high-risk day; the highest is Moderate (20/100) on day 1.",
+    "reason": "A heuristic from public data, not an official safety assessment.",
+    "evidence": [
+     {
+      "source": "Raahi risk model",
+      "detail": "confidence low"
+     }
+    ],
+    "resolvesEventId": null,
+    "t": "2026-10-31T14:45:06.099+00:00"
+   },
+   {
+    "id": "m12",
+    "runId": "67cf7c8e4b75",
+    "step": "packing-11",
+    "agent": "packing",
+    "type": "proposal",
+    "summary": "12 things to pack, based on typical conditions, not a forecast.",
+    "reason": null,
+    "evidence": [
+     {
+      "source": "Packing rules",
+      "detail": "Comfortable walking shoes, Warm jacket and layers, CNIC or passport, plus photocopies"
+     }
+    ],
+    "resolvesEventId": null,
+    "t": "2026-10-31T14:45:06.099+00:00"
+   },
+   {
+    "id": "m13",
+    "runId": "67cf7c8e4b75",
+    "step": "validation-12",
+    "agent": "validation",
+    "type": "decision",
+    "summary": "Your choice is needed: About Rs 4,04,200 over your budget of Rs 5,00,000 in total.",
+    "reason": "Options: Apply the cheapest changes that fit",
+    "evidence": [],
+    "resolvesEventId": "m4",
+    "t": "2026-10-31T14:45:06.100+00:00"
+   }
+  ]
+ }
+}

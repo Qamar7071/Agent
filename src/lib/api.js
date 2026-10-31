@@ -63,12 +63,13 @@ async function request(method, path, { body, headers = {}, timeout = 30000, sign
 }
 
 const get = (path, opts) => request('GET', path, opts);
+const keyHeader = (token) => (token && typeof token === 'object' ? { 'X-Member-Token': token.member } : { 'X-Trip-Token': token });
 const post = (path, body, opts) => request('POST', path, { body, ...opts });
 
 // Multi-agent jobs stream their real execution events as NDJSON (one JSON object per line).
 // onEvent gets each event as it happens; the promise resolves with the final result. If the
 // host buffers the stream, the events simply arrive together at the end.
-async function stream(path, body, { onEvent, signal, timeout = 90000 } = {}) {
+async function stream(path, body, { onEvent, signal, timeout = 90000, headers = {} } = {}) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort('timeout'), timeout);
   const onAbort = () => ctrl.abort('cancel');
@@ -78,7 +79,7 @@ async function stream(path, body, { onEvent, signal, timeout = 90000 } = {}) {
     try {
       res = await fetch(`${BASE}${path}?stream=1`, {
         method: 'POST',
-        headers: { Accept: 'application/x-ndjson', 'Content-Type': 'application/json' },
+        headers: { Accept: 'application/x-ndjson', 'Content-Type': 'application/json', ...headers },
         body: JSON.stringify(body),
         signal: ctrl.signal,
       });
@@ -161,11 +162,32 @@ export const api = {
     request('PUT', `/api/trips/${id}`, { body: { title, request: tripRequest }, headers: { 'X-Trip-Token': token } }),
   deleteTrip: (id, token) => request('DELETE', `/api/trips/${id}`, { headers: { 'X-Trip-Token': token } }),
 
-  companionGet: (id, token) => get(`/api/trips/${id}/companion`, { headers: { 'X-Trip-Token': token }, timeout: 15000 }),
+  // `token` is the trip's own key; a group member uses their member key instead ({ member: key }).
+  companionGet: (id, token) => get(`/api/trips/${id}/companion`, { headers: keyHeader(token), timeout: 15000 }),
   companionPut: (id, token, settings) =>
-    request('PUT', `/api/trips/${id}/companion`, { body: settings, headers: { 'X-Trip-Token': token }, timeout: 15000 }),
+    request('PUT', `/api/trips/${id}/companion`, { body: settings, headers: keyHeader(token), timeout: 15000 }),
   expensesSync: (id, token, expenses) =>
-    post(`/api/trips/${id}/expenses/sync`, { expenses }, { headers: { 'X-Trip-Token': token }, timeout: 20000 }),
+    post(`/api/trips/${id}/expenses/sync`, { expenses }, { headers: keyHeader(token), timeout: 20000 }),
+
+  groupCreate: (tripId, tripToken, tripType, name) =>
+    post('/api/groups', { tripId, tripType, name }, { headers: { 'X-Trip-Token': tripToken } }),
+  groupPreview: (code) => get(`/api/groups/${code}/preview`, { timeout: 15000 }),
+  groupJoin: (code, name) => post(`/api/groups/${code}/join`, { name }),
+  group: (code, member) => get(`/api/groups/${code}`, { headers: { 'X-Member-Token': member }, timeout: 15000 }),
+  groupProfile: (code, member, profile) =>
+    request('PUT', `/api/groups/${code}/profile`, { body: profile, headers: { 'X-Member-Token': member } }),
+  groupNeeds: (code, member, codes, showName) =>
+    request('PUT', `/api/groups/${code}/needs`, { body: { codes, show_name: showName }, headers: { 'X-Member-Token': member } }),
+  groupOptions: (code, member, opts) =>
+    stream(`/api/groups/${code}/options`, {}, { ...opts, headers: { 'X-Member-Token': member } }),
+  groupRun: (code, member) => get(`/api/groups/${code}/run`, { headers: { 'X-Member-Token': member } }),
+  groupVote: (code, member, option) => post(`/api/groups/${code}/vote`, { option }, { headers: { 'X-Member-Token': member } }),
+  groupConfirm: (code, member, option) =>
+    post(`/api/groups/${code}/confirm`, { option }, { headers: { 'X-Member-Token': member } }),
+  groupPlan: (code, member) => get(`/api/groups/${code}/plan`, { headers: { 'X-Member-Token': member } }),
+  groupLeave: (code, member) => post(`/api/groups/${code}/leave`, {}, { headers: { 'X-Member-Token': member } }),
+  groupRemove: (code, member, memberId) =>
+    request('DELETE', `/api/groups/${code}/members/${memberId}`, { headers: { 'X-Member-Token': member } }),
   nudgeWording: (payload) => post('/api/companion/wording', payload, { timeout: 15000 }),
 
   consent: () => get('/api/enquiries/consent', { timeout: 10000 }),

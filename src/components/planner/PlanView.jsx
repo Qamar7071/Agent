@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BookmarkCheck, Footprints, Mail, Pencil, Printer, Save } from 'lucide-react';
+import { BookmarkCheck, Footprints, Mail, Pencil, Printer, Save, Users } from 'lucide-react';
 import { usePlanner } from '../../context/PlannerContext.jsx';
 import { MONTHS, dayLabel, pkr, plural } from '../../lib/format.js';
 import Notice from '../ui/Notice.jsx';
@@ -9,6 +9,7 @@ import ConditionsView from './ConditionsView.jsx';
 import StaysView from './StaysView.jsx';
 import FoodView from './FoodView.jsx';
 import PackingView from './PackingView.jsx';
+import BestMonths from './BestMonths.jsx';
 import { Link } from '../../lib/router.jsx';
 
 const TABS = [
@@ -118,8 +119,9 @@ export default function PlanView({ onOpenForm }) {
           <Link to="/twin?from=plan" className="btn-outline">Travel Twin</Link>
           <SaveButton />
           <Link to="/trip/new?from=plan" className="btn-outline"><Footprints size={16} aria-hidden="true" /> Start trip</Link>
+          <Link to="/g/new?from=plan" className="btn-outline"><Users size={16} aria-hidden="true" /> Plan with your group</Link>
           <button type="button" onClick={() => openEnquiry({})} className="btn-primary"><Mail size={16} aria-hidden="true" /> Send enquiry</button>
-          <button type="button" onClick={() => window.print()} className="btn-quiet" aria-label="Print the plan"><Printer size={16} aria-hidden="true" /></button>
+          <button type="button" onClick={() => window.print()} className="btn-quiet" title="Print, or choose “Save as PDF” in the print window"><Printer size={16} aria-hidden="true" /> Print or PDF</button>
         </div>
       </div>
 
@@ -169,7 +171,12 @@ export default function PlanView({ onOpenForm }) {
           </>
         )}
         {tab === 'budget' && <BudgetView budget={itinerary.budget} />}
-        {tab === 'conditions' && <ConditionsView />}
+        {tab === 'conditions' && (
+          <>
+            <BestMonths ids={r.destinations} month={r.start_date ? Number(r.start_date.slice(5, 7)) : r.travel_month || null} />
+            <ConditionsView />
+          </>
+        )}
         {tab === 'stays' && <StaysView stays={itinerary.stays} budget={itinerary.budget} />}
         {tab === 'food' && <FoodView itinerary={itinerary} />}
         {tab === 'packing' && <PackingView itinerary={itinerary} />}

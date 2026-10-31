@@ -44,8 +44,11 @@ function Value({ v }) {
   return <span>{String(v)}</span>;
 }
 
-export function TaskDetails({ task, byId }) {
+const SAID = { proposal: 'Proposal', concern: 'Concern', decision: 'Decision' };
+
+export function TaskDetails({ task, byId, messages = [], conversationLink = null }) {
   if (!task) return <p className="text-sm text-ink-500">Select an agent in the workflow to see what it did.</p>;
+  const said = messages.filter((m) => m.step === task.id);
   const s = STATUS[task.status] || STATUS.idle;
   const name = (id) => byId[id]?.label || id;
   return (
@@ -62,6 +65,19 @@ export function TaskDetails({ task, byId }) {
       </div>
       {task.contribution && (
         <div><p className="m-label">Contribution</p><p className="mt-1">{task.contribution}</p></div>
+      )}
+      {said.length > 0 && (
+        <div>
+          <p className="m-label">What it said in the conversation</p>
+          <ul className="mt-1 flex flex-col gap-1.5">
+            {said.map((m) => (
+              <li key={m.id}>
+                <span className="font-semibold">{SAID[m.type]}:</span> {m.summary}
+                {conversationLink && <> <a href={`${conversationLink}#msg-${m.id}`} className="text-[#4CC9F0] underline">in context</a></>}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
         <dt className="text-ink-500">Started by</dt><dd>{task.initiated_by === 'user' ? 'You' : name(task.initiated_by)}</dd>
@@ -120,7 +136,8 @@ export function EventLog({ events, byId }) {
           {e.tool && <> {e.tool.name} {e.tool.ok ? 'ok' : 'failed'} ({e.tool.ms} ms)</>}
           {e.reason && <> — {e.reason}</>}
           {e.error && <> — {e.error}</>}
-          {e.message && <> — {e.message}</>}
+          {typeof e.message === 'string' && <> — {e.message}</>}
+          {e.message && typeof e.message === 'object' && <> — {e.message.type}: {e.message.summary}</>}
         </li>
       ))}
     </ol>

@@ -13,11 +13,41 @@ them do it. The **Travel Twin** tests a trip against what-ifs ("What if the Khun
 becomes unavailable on day 4?") on a copy and compares the two before you accept anything.
 The **Journey Guardian** re-checks a trip and scores each day's risk from documented factors.
 
+Before the trip, the **Group Room** lets a group agree on one plan: friends join from a link
+with just a name, everyone answers a one-minute profile, private comfort needs (altitude,
+motion sickness, walking, food) are shared without names, the agents propose two or three
+options with a Group match score and what each one gives up, members vote and the organizer
+confirms. **How the agents decided** shows every run as a readable group chat of the agents:
+each proposal, concern and decision, with its reason and evidence, linked to its step in the
+Agent Control Center.
+
 During the trip, **Safar Saathi** (trip companion) keeps the group's spending: add an expense
 in three taps, see whether you are on pace with the plan, get a friendly early warning with
 costed choices, and settle up with the fewest payments. It works offline and in Roman Urdu.
 
-### 60-second demo (for judges, on a phone)
+### 60-second demo (for judges, two phones)
+
+The Group Room needs the database (`DATABASE_URL`) on the server.
+
+1. **0–10 s. Organizer.** **Plan a trip**, **Trip details**: tick Hunza Valley and Khunjerab
+   Pass, 7 days, **Build my plan**. Tap **Plan with your group**, choose **Friends**, type
+   your name, **Create the group**. Share the link (or read out the 8-letter code).
+2. **10–25 s. Second phone.** Open the link, type a name, **Join**: under 30 seconds, no
+   sign-up. Tap **Lakes**, open **Comfort and health (private)**, tick **Altitude makes me
+   unwell**, **Save my answers**. The room now says "1 member: avoid going above 4,000 m
+   without an acclimatisation day", with no name, and "Not medical advice".
+3. **25–40 s. Organizer.** **Ask the agents for options**. Two or three options appear, each
+   with a Group match out of 100, cost per person, highest point and what it gives up. The
+   private need visibly changed them: an option that keeps Khunjerab says it "comes after 1
+   full day at altitude", another skips it, and the reason is shown.
+4. **40–50 s.** Tap **See how the agents decided**: the agents' conversation, from Group
+   Memory to Consensus, each message linked to its real step. (Without a network, open
+   `/decided?run=recorded`: a real run, played back and labelled "Recorded run · not live".)
+5. **50–60 s.** The member votes, the organizer taps **Confirm this plan**, then **Start trip
+   together**: Safar Saathi opens with both names filled in, and an expense added on one phone
+   appears on the other.
+
+### Safar Saathi demo (one phone)
 
 1. **0–10 s.** Open the site, tap **Plan a trip**, open **Trip details**, tick Skardu, 7 days,
    5 adults, budget Rs 1,50,000, **Build my plan**. The day-by-day plan appears.
@@ -58,6 +88,10 @@ before this version: [docs/AUDIT.md](docs/AUDIT.md).
 | Saved trips | Saved in the database with a private key kept in your browser; reopen, update or delete from "My trips". |
 | Booking enquiries | Consent required, a reference like `RAH-7KQ2-M9XD`, status check and withdrawal; an admin page to review them. It is an enquiry, not a booking. |
 | Safar Saathi (`/trip/…`) | Start a saved or current plan as a trip: Today (budget pace against the plan, nudges with choices, tomorrow's Guardian risk with a Plan B, today's plan, end-of-day summary and tip), Spending (categories against the plan, every expense, settle up with the fewest payments, share), Plan. Expenses in 3 taps with a big number pad; works offline and syncs later without duplicates; English and Roman Urdu. Nudge rules R1–R4 are plain tested code; an AI may only reword them, keeping every number. |
+| Group Room (`/g/…`) | Create a group from a saved plan; anyone with the link or 8-letter code joins with a name. Trip type (friends, family, couple, solo) sets the defaults; a one-minute profile with chips only (interests, budget comfort, pace, must-dos, no-gos). Private needs are stored without a link to the member (a one-way hash of the group and the member's key) and shown only as counts, unless that member opts in to their name; "Not medical advice" is always shown. The agents build two or three options with the real planner (an altitude need adds a full day at altitude before going above 4,000 m, or a gentler option skips it), score each for every member (Group match) and list what each gives up. Members vote; only the organizer confirms; then everyone starts Safar Saathi together with shared expenses. |
+| How the agents decided (`/decided`) | Every run as a group chat of the agents: proposals, concerns and decisions written from each agent's own result, with reasons, evidence, the earlier message each one answers, and a link to its step in the Agent Control Center. Live runs stream as they happen. If a live run fails or takes more than 25 seconds, a recorded real run plays instead, labelled "Recorded run · not live". Shown for the planner, Travel Twin, Guardian, Group Room options and each Safar Saathi trip. |
+| When to go | In the plan's Weather and roads tab: the months that suit every place in the plan, months when a seasonal road is usually closed, and what that means for your month, from the guide's typical seasons (not a forecast). |
+| Print or PDF | The plan prints cleanly; choose "Save as PDF" in the print window. |
 | Destination pages | One page per place with season, access, altitude, stays, forecast and sources, prerendered for search engines, plus `sitemap.xml` and `robots.txt`. |
 | Multi-agent planning | A Master Orchestrator picks the agents a request needs (a packing question doesn't run the budget agent), runs independent agents in parallel, has a Validation agent cross-check them, retries a failed weather lookup once, and asks you when a choice is yours (over budget, too few days). Works without an AI key; with one, the model only rewords the validated answer. |
 | Agent Control Center (`/agents`) | The workflow graph, each task's inputs, outputs, tool calls, timings, retries and errors, a timeline and the event log, all from real server events. The last 10 runs are kept in your browser. |
@@ -184,12 +218,12 @@ with gunicorn). It was not tested in this upgrade.
 
 | Command | What it runs | Result |
 |---|---|---|
-| `npm run build` | Production build, static destination pages, sitemap, service worker | OK on 31 Oct: main script 236 KB (74 KB gzipped), planner 67 KB (19 KB), Safar Saathi 67 KB (21 KB), Travel Twin 24 KB (8 KB), Agent Control Center 13 KB, Guardian 12 KB |
-| `npm run test:unit` | 27 tests of Safar Saathi's deterministic logic (Node's built-in runner, no extra packages): money format, trip days, pace scaling and prepaid money, nudge rules R1–R4 and their limits, the typo check first, split rounding (200 random cases reconcile to zero), fewest payments, sync merge | 27 passed (31 Oct) |
-| `npm run test:api` (venv active; once, in `backend/`: `pip install -r requirements-dev.txt`) | 158 backend tests, all offline: data, planner, budget, live-service parsing with recorded responses, places, storage, API, parser, agent with a scripted model (including the 10 evaluation scenarios), and the multi-agent system: task graph and events, intent routing, a failing agent, validation retries, unsupported claims, every scenario type, Khunjerab day 4, risk, eco, packing, Guardian, streaming; Safar Saathi settings, idempotent expense sync, last change wins, tombstones, refusals, and AI wording that must keep the numbers | 158 passed (31 Oct) |
-| same, with `RAAHI_TEST_PG_URL=postgresql://…` | The storage tests also on Postgres 16 | passed (run before the stays and food update; storage code unchanged since) |
-| `npm run test:e2e` (server running; `pip install -r e2e/requirements.txt` and `python -m playwright install chromium` first) | 24 checks in a real browser: pages, navigation, form, chat, editing, tabs, packing, saving, enquiry, admin, network errors, Travel Twin (demo, Khunjerab what-if, accept), Agent Control Center, Safar Saathi (start, a 3-tap expense under 5 seconds, pace, split, typo check then nudge, offline add, offline reload, sync once), Guardian, theme, phone to desktop layouts, keyboard | 24 passed (31 Oct) |
-| `npm run audit:a11y` (server running) | axe-core accessibility rules (WCAG 2.2 A and AA plus best practices) on 86 page states at phone and desktop sizes, including the agent pages, every Safar Saathi screen, Roman Urdu and the dark theme, and page weight | 0 violations (31 Oct) |
+| `npm run build` | Production build, static destination pages, sitemap, service worker | OK on 31 Oct: main script 239 KB (75 KB gzipped), planner 70 KB (20 KB), Safar Saathi 50 KB (16 KB), Group Room 34 KB (11 KB), Travel Twin 24 KB (8 KB), Agent Control Center 15 KB, How the agents decided 12 KB, the recorded run 29 KB (5 KB), loaded only when shown |
+| `npm run test:unit` | 37 tests with Node's built-in runner, no extra packages: Safar Saathi's logic (money format, trip days, pace and prepaid money, nudge rules R1–R4, the typo check first, split rounding over 200 random cases, fewest payments, sync merge); the conversation (every message of the recorded run belongs to a real step and appears in its event log, replies point back, timing, playback); the best month advisor with the real guide data | 37 passed (31 Oct) |
+| `npm run test:api` (venv active; once, in `backend/`: `pip install -r requirements-dev.txt`) | 170 backend tests, all offline: data, planner (including the acclimatisation rule), budget, live-service parsing with recorded responses, places, storage, API, parser, agent with a scripted model (including the 10 evaluation scenarios), the multi-agent system (task graph and events, intent routing, a failing agent, validation retries, unsupported claims, every scenario type, Khunjerab day 4, risk, eco, packing, Guardian, streaming), the agents' messages (each from a real step, failures said out loud, Twin and Guardian explain themselves), Safar Saathi sync, and the Group Room (join, private needs without names, a need that changes the plan, votes, confirm, leaving, removal, member access to the shared trip) | 170 passed (31 Oct) |
+| same, with `RAAHI_TEST_PG_URL=postgresql://…` | The storage tests also on Postgres 16 | passed before the Group Room; the new group tables were tested on SQLite only |
+| `npm run test:e2e` (server running; `pip install -r e2e/requirements.txt` and `python -m playwright install chromium` first) | 29 checks in a real browser: pages, navigation, form, chat, editing, tabs, packing, saving, enquiry, admin, network errors, Travel Twin, Agent Control Center, Safar Saathi (3-tap expense, pace, split, typo check then nudge, offline), Guardian, Group Room on two browsers (join in under 30 s, anonymous need, options changed by it, vote, confirm), How the agents decided (recorded run labelled and linked, live run, failure falls back to the recorded run), When to go, theme, layouts, keyboard | 29 passed (31 Oct) |
+| `npm run audit:a11y` (server running) | axe-core accessibility rules (WCAG 2.2 A and AA plus best practices) on 96 page states at phone and desktop sizes, including the agent pages, every Safar Saathi screen, the Group Room, the agents' conversation, Roman Urdu and the dark theme, and page weight | 0 violations (31 Oct) |
 
 The browser checks ran against a local server in guided mode with SQLite. During the 30 Oct
 runs, most Open-Meteo requests from the test machine failed (rate-limited or timed out) and
@@ -216,6 +250,10 @@ backend/twin/         Travel Twin: scenario parser, simulation, comparison
 backend/guardian.py   Journey Guardian checks
 backend/companion.py  Safar Saathi nudge wording (optional AI, numbers checked)
 backend/money.py      money as text: Rs 1,50,000
+backend/group/        Group Room: merging profiles, consensus options and Group match
+backend/agents/voices.py  what each agent says in the conversation, from its own result
+src/lib/decided.js    the conversation helpers; src/data/demo-run.json is the recorded run
+src/lib/bestMonths.js the best month advisor
 src/lib/companion/    Safar Saathi logic: pace, nudges, split, local store, sync, words
 public/sw.js          service worker for offline use
 shared/               destinations.json: the one dataset used by the API and the website
@@ -270,9 +308,22 @@ To change destination facts, road legs, stays or cost assumptions, edit
   roster lists them as planned.
 - **Emissions are estimates** from UK factors with Raahi's assumptions for mountain roads;
   Pakistan publishes no equivalent set.
-- **Safar Saathi is one phone per trip for now.** Expenses sync to the server for saved trips,
-  but another phone can't join the trip yet (that is Phase 2, the Group Room). Trips started
-  without saving stay on the phone that started them.
+- **Sharing a trip needs the Group Room and the database.** Expenses sync between phones for
+  a group's trip; a trip started without saving stays on the phone that started it. Without
+  `DATABASE_URL` the Group Room says it isn't available.
+- **Group match is Raahi's own score** from everyone's answers (pace, budget, interests,
+  must-dos and no-gos, with a penalty for each unmet private need). It is not a prediction of
+  how much anyone will enjoy the trip.
+- **Private needs are not encrypted.** They are stored without a link to the member and
+  shown only as counts, but someone with access to the database can see which needs a group
+  has. Members can remove theirs at any time; deleting the trip deletes the group.
+- **The agents' messages are in English.** The pages around them switch to Roman Urdu.
+- **The recorded run is fixed.** It is a real run recorded on 31 Oct 2026 for the demo
+  fallback; it is always labelled and never about your trip. Re-record it with the same
+  request after changing the agents.
+- **Not built, on purpose:** a local guide directory (no verified source of guides to point
+  to), crowd or cancellation predictions for the best month (no data), and Roman Urdu across
+  the whole site (only Safar Saathi, the Group Room and the conversation have it).
 - **Pace uses the plan's shape.** Expected spending by a day comes from the cost model's day
   costs scaled to your budget. If the group pays differently (say, every hotel in advance),
   mark those as paid before the trip; they are then counted day by day.

@@ -42,7 +42,7 @@ export default function PackingView({ itinerary }) {
     <div className="flex flex-col gap-5">
       <p className="max-w-prose text-sm text-ink-600">
         Built by the packing agent from your places, season and {list.basis}. <span className="num">{done}/{list.items.length}</span> packed.
-        {run.run && <> <Link to={`/agents?run=${run.run.id}`} className="link">See the agents that made it</Link>.</>}
+        {run.run && <> <Link to={`/decided?run=${run.run.id}`} className="link">See how the agents decided</Link>.</>}
       </p>
       {groups.map(([p, items]) => (
         <fieldset key={p}>
