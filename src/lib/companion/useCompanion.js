@@ -76,12 +76,20 @@ export function useCompanion(id) {
     if (!cur?.server || syncing.current || (typeof navigator !== 'undefined' && !navigator.onLine)) return;
     syncing.current = true;
     setSync((s) => ({ ...s, state: 'syncing' }));
-    const { id: tid, token } = cur.server;
+    const { id: tid } = cur.server;
+    const token = cur.server.member ? { member: cur.server.member } : cur.server.token;
     try {
       if (pull || !cur.settingsSynced) {
         const remote = await api.companionGet(tid, token);
-        if (!remote.settings || !cur.settingsSynced) await api.companionPut(tid, token, serverSettings(cur.settings));
-        commit({ ...mergeServer(ref.current, remote.expenses), settingsSynced: true });
+        let next = ref.current;
+        if (remote.settings && (cur.settingsSynced || cur.server.member)) {
+          // the trip already has settings (e.g. another phone in the group started it): use them,
+          // keeping this phone's own language
+          next = { ...next, settings: { ...next.settings, ...remote.settings, language: next.settings.language } };
+        } else {
+          await api.companionPut(tid, token, serverSettings(cur.settings));
+        }
+        commit({ ...mergeServer(next, remote.expenses), settingsSynced: true });
       }
       const pending = pendingExpenses(ref.current);
       for (let i = 0; i < pending.length || i === 0; i += 100) {
@@ -102,7 +110,8 @@ export function useCompanion(id) {
   const pushSettings = useCallback(async (next) => {
     if (!next.server || !navigator.onLine) return;
     try {
-      await api.companionPut(next.server.id, next.server.token, serverSettings(next.settings));
+      await api.companionPut(next.server.id, next.server.member ? { member: next.server.member } : next.server.token,
+        serverSettings(next.settings));
     } catch { /* retried on the next full sync */ }
   }, []);
 
@@ -119,7 +128,7 @@ export function useCompanion(id) {
     if (!navigator.onLine) return;
     for (const n of fresh.filter((x) => x.ruleId !== 'R4')) {
       const l = ref.current.settings.language || 'en';
-      const name = ref.current.settings.members[0]?.name;
+      const name = (ref.current.settings.members.find((m) => m.id === ref.current.me) || ref.current.settings.members[0])?.name;
       try {
         const r = await api.nudgeWording({ ruleId: n.ruleId, language: l, text: nudgeText(n, l, name) });
         if (r.mode === 'ai') {

@@ -276,6 +276,44 @@ def run_saathi_states(page: Page, screen: str):
     page.evaluate("localStorage.removeItem('raahi:theme')")
 
 
+def run_group_states(page: Page, screen: str):
+    """Group Room (start, invite, organizer's room) and "How the agents decided" (recorded run,
+    dark theme), plus the Control Center opened at one step from the conversation."""
+    page.goto(BASE + "/g/new", wait_until="domcontentloaded")
+    page.evaluate("localStorage.clear(); sessionStorage.clear()")
+    page.goto(BASE + "/g/new", wait_until="networkidle")
+    expect(page.get_by_role("button", name="Make a plan first")).to_be_visible()
+    audit(page, screen, "group room: start, no plan yet")
+    page.goto(BASE + "/plan", wait_until="networkidle")
+    show_plan_view(page, screen)
+    page.get_by_role("button", name="Fill in trip details").first.click()
+    dialog = page.get_by_role("dialog", name="Trip details")
+    dialog.get_by_role("checkbox", name="Hunza Valley").click()
+    dialog.get_by_label("Total days, including travel").fill("6")
+    page.get_by_role("button", name="Build my plan").click()
+    expect(page.get_by_role("link", name="Plan with your group")).to_be_visible(timeout=30000)
+    page.get_by_role("link", name="Plan with your group").click()
+    page.get_by_label("Your name").fill("Qamar")
+    page.get_by_role("button", name="Create the group").click()
+    expect(page.get_by_text("Invite your group")).to_be_visible(timeout=15000)
+    audit(page, screen, "group room: invite")
+    page.get_by_role("button", name="Open the room").click()
+    expect(page.get_by_role("heading", name="Options")).to_be_visible(timeout=15000)
+    audit(page, screen, "group room: organizer's room")
+    page.goto(BASE + "/decided?run=recorded", wait_until="networkidle")
+    page.get_by_role("button", name="Show all").click()
+    expect(page.get_by_role("heading", name="Where they landed")).to_be_visible()
+    audit(page, screen, "agents decided: recorded run")
+    page.get_by_role("link", name="See this step").nth(3).click()
+    expect(page.get_by_text("What it said in the conversation")).to_be_visible()
+    audit(page, screen, "control center: recorded run at one step")
+    page.evaluate("localStorage.setItem('raahi:theme', JSON.stringify('dark'))")
+    page.goto(BASE + "/decided?run=recorded", wait_until="networkidle")
+    page.get_by_role("button", name="Show all").click()
+    audit(page, screen, "agents decided, dark theme")
+    page.evaluate("localStorage.removeItem('raahi:theme')")
+
+
 # ---------------------------------------------------------------- page weight
 
 def kb(n: float) -> str:
@@ -355,7 +393,7 @@ def main() -> int:
             context = browser.new_context(**options)
             page = context.new_page()
             page.set_default_timeout(15000)
-            for states in (run_states, run_agent_states, run_saathi_states):
+            for states in (run_states, run_agent_states, run_saathi_states, run_group_states):
                 try:
                     states(page, screen)
                 except Exception as exc:  # report what was reached; a broken flow is itself a finding

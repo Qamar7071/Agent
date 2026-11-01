@@ -49,8 +49,9 @@ class RouteAgent(Agent):
                                  "why": f"{len(long_road)} travel day(s) of 8+ hours on mountain roads",
                                  "caveat": "Northern flights are weather-dependent and often delayed or cancelled.",
                                  "change": {"transport": "flight"}})
+        # a section is closed only if all of its legs are (sections can share a leg, e.g. Passu→Khunjerab)
         closures = [{"id": s["id"], "name": s["name"]} for s in segments.all_segments()
-                    if bb.closures and set(s["legs"]) & bb.closures]
+                    if bb.closures and s["legs"] and set(s["legs"]) <= set(bb.closures)]
         if closures:
             used = {k for s in segs for k in s.get("leg_keys", [])}
             blocked = used & set(bb.closures)

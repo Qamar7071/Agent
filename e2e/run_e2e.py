@@ -439,6 +439,111 @@ def keyboard(page):
     assert int(handle.get_attribute("aria-valuenow")) == min(680, before + 32)
 
 
+def plan_hunza(page, days="6"):
+    fresh(page, "/plan")
+    page.get_by_role("button", name="Fill in trip details").first.click()
+    dialog = page.get_by_role("dialog", name="Trip details")
+    dialog.get_by_role("checkbox", name="Hunza Valley").click()
+    dialog.get_by_role("checkbox", name="Khunjerab Pass").click()
+    dialog.get_by_label("Total days, including travel").fill(days)
+    page.get_by_role("button", name="Build my plan").click()
+    expect(page.get_by_role("link", name="Plan with your group")).to_be_visible(timeout=30000)
+
+
+@check("Group Room: join with a name, private need stays anonymous and changes the plan, vote, confirm")
+def group_room(page):
+    plan_hunza(page)
+    page.get_by_role("link", name="Plan with your group").click()
+    page.get_by_role("radio", name=re.compile("^Friends")).click()
+    page.get_by_label("Your name").fill("Qamar")
+    page.get_by_role("button", name="Create the group").click()
+    expect(page.get_by_text("Invite your group")).to_be_visible(timeout=15000)
+    code = page.locator("p.num.text-3xl").inner_text().replace("-", "")
+    page.get_by_role("button", name="Open the room").click()
+    expect(page.get_by_role("heading", name="Options")).to_be_visible()          # the organizer is in, not asked to join
+    member = page.context.browser.new_context(viewport={"width": 390, "height": 844}).new_page()
+    member.set_default_timeout(15000)
+    started = time.time()
+    member.goto(BASE + f"/g/{code}", wait_until="networkidle")
+    member.get_by_label("Your name").fill("Sara")
+    member.get_by_role("button", name="Join").click()
+    expect(member.get_by_role("heading", name="Your answers (1 minute)")).to_be_visible()
+    assert time.time() - started < 30, "joining took longer than 30 seconds"
+    member.get_by_role("button", name="Lakes").click()
+    member.get_by_role("button", name=re.compile("Comfort and health")).click()
+    member.get_by_label("Altitude makes me unwell").check()
+    member.get_by_role("button", name="Save my answers").click()
+    expect(member.get_by_text("What the group needs")).to_be_visible()
+    page.reload(wait_until="networkidle")
+    need = page.locator("section[aria-labelledby=needs-h]").inner_text()
+    assert "1 member" in need and "Sara" not in need, need                         # no name next to a health need
+    assert "Not medical advice" in need
+    page.get_by_role("button", name="Ask the agents for options").click()
+    expect(page.locator("article").first).to_be_visible(timeout=40000)
+    options = page.locator("article").all_inner_texts()
+    assert 2 <= len(options) <= 3, len(options)
+    assert any("full day at altitude" in o or "Skips Khunjerab" in o for o in options), "the need did not change the plan"
+    assert all("Group match" in o for o in options)
+    member.reload(wait_until="networkidle")
+    member.get_by_role("button", name="Vote for this").first.click()
+    expect(member.get_by_role("button", name="Your vote")).to_be_visible()
+    page.reload(wait_until="networkidle")
+    page.once("dialog", lambda d: d.accept())
+    page.get_by_role("button", name="Confirm this plan").first.click()
+    expect(page.get_by_text(re.compile("Final plan: option A"))).to_be_visible()
+    expect(page.get_by_role("button", name="Start trip together")).to_be_visible()
+    member.context.close()
+
+
+@check("How the agents decided: recorded run is labelled and every message links to its step")
+def decided_recorded(page):
+    fresh(page, "/decided?run=recorded")
+    expect(page.get_by_text("Recorded run · not live")).to_be_visible()
+    expect(page.get_by_text(re.compile("it is not live"))).to_be_visible()
+    page.get_by_role("button", name="Show all").click()
+    expect(page.get_by_role("heading", name="Where they landed")).to_be_visible()
+    items = page.locator("[role=log] ol > li")
+    steps = page.get_by_role("link", name="See this step")
+    assert items.count() >= 8 and steps.count() == items.count(), (items.count(), steps.count())
+    expect(page.get_by_text(re.compile("^Answers Budget Intelligence")).first).to_be_visible()
+    steps.nth(3).click()
+    expect(page).to_have_url(re.compile(r"/agents\?run=recorded&task="))
+    expect(page.get_by_text("What it said in the conversation")).to_be_visible()
+
+
+@check("How the agents decided: a live run streams messages and ends in a decision")
+def decided_live(page):
+    fresh(page, "/decided")
+    page.get_by_role("button", name="Run the agents live").click()
+    expect(page.get_by_text("Live run", exact=True)).to_be_visible()
+    expect(page.get_by_role("heading", name="Where they landed")).to_be_visible(timeout=30000)
+    href = page.get_by_role("link", name="See this step").first.get_attribute("href")
+    assert re.match(r"/agents\?run=[0-9a-f]{12}&task=", href), href
+    page.get_by_role("link", name="See this step").first.click()
+    expect(page.get_by_text("What it said in the conversation")).to_be_visible()
+
+
+@check("How the agents decided: a failed live run plays the recorded run, clearly labelled")
+def decided_fallback(page):
+    fresh(page, "/decided")
+    page.route("**/api/agents/run**", lambda route: route.abort())
+    try:
+        page.get_by_role("button", name="Run the agents live").click()
+        expect(page.get_by_text(re.compile("The live run didn’t finish"))).to_be_visible()
+        expect(page.get_by_text("Recorded run · not live")).to_be_visible()
+    finally:
+        page.unroute("**/api/agents/run**")
+
+
+@check("When to go: the plan shows the months that suit every place")
+def when_to_go(page):
+    plan_hunza(page)
+    page.get_by_role("tab", name="Weather and roads").click()
+    box = page.locator("section[aria-labelledby=bm-h]")
+    expect(box).to_contain_text("suit every place in this plan")
+    expect(box).to_contain_text("not a forecast")
+
+
 def main() -> int:
     with sync_playwright() as p:
         browser = p.chromium.launch()
@@ -446,7 +551,8 @@ def main() -> int:
         page.set_default_timeout(15000)
         for fn in (home, navigation, month_filter, destination_page, seo, form_validation, form_plan, chat_flow,
                    edit_day, tabs, packing, saved_trip, enquiry, admin, network_error, travel_twin, agent_control, saathi, saathi_nudges, saathi_offline,
-                   guardian, theme, responsive, keyboard):
+                   guardian, group_room, decided_recorded, decided_live, decided_fallback, when_to_go,
+                   theme, responsive, keyboard):
             fn(page)
         browser.close()
     failed = [r for r in results if not r[1]]

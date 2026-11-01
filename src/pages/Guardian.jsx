@@ -163,6 +163,12 @@ export default function Guardian() {
                   <dt className="text-ink-500">Road status</dt><dd>{a.road_status?.headline} {a.road_status?.rule}</dd>
                   <dt className="text-ink-500">Model</dt><dd>Risk model {a.model_version}. {a.disclaimer}</dd>
                 </dl>
+                {run.run && (
+                  <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold">
+                    <Link to={`/decided?run=${run.run.id}`} className="text-[#4CC9F0] hover:underline">How the agents decided</Link>
+                    <Link to={`/agents?run=${run.run.id}`} className="text-[#4CC9F0] hover:underline">Open in Agent Control Center</Link>
+                  </p>
+                )}
                 {a.road_status?.official_checks?.length > 0 && (
                   <p className="mt-3 text-sm">
                     <ShieldCheck size={15} className="mr-1 inline text-[#3DDC97]" aria-hidden="true" />

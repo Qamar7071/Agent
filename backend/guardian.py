@@ -58,6 +58,10 @@ def check(request: dict, previous: dict | None = None, emit=None) -> dict:
     diff = changes(previous, current)
     o = risk["overall"]
     decision = DECISION[o["category"]]
+    tracer.say(orch, "decision", f"Recommendation: {decision} (overall {o['category']}, {o['score']}/100, worst on day "
+               f"{o['worst_day']}). {len(diff)} change(s) since the last check.",
+               reason="A heuristic from public data, not an official safety assessment.",
+               evidence=[{"source": "Raahi risk model", "detail": f"confidence {risk.get('confidence')}"}])
     tracer.finish(orch, {"decision": decision, "changes": len(diff)},
                   f"Recommendation: {decision}; {len(diff)} change(s) since the last check")
     return {"ok": True, "checked_at": risk["checked_at"], "assessment": current, "changes": diff,

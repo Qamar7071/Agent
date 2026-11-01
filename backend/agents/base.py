@@ -40,6 +40,7 @@ class Tracer:
         self.tasks: dict[str, dict] = {}
         self.events: list[dict] = []
         self.edges: list[dict] = []
+        self.messages: list[dict] = []
         self._emit = emit
         self._lock = threading.Lock()
 
@@ -129,12 +130,33 @@ class Tracer:
     def note(self, message: str, **extra) -> None:
         self._event(None, "note", message=message, **extra)
 
+    def say(self, tid: str, kind: str, summary: str, *, reason: str | None = None,
+            evidence: list[dict] | None = None, resolves: str | None = None) -> str:
+        """An agent's message in the "how the agents decided" conversation.
+
+        kind is proposal, concern or decision. Every message belongs to a real task (step) of
+        this run and carries the evidence it is based on ({source, detail}); `resolves` points
+        to an earlier message it answers. Messages are written from results, never scripted.
+        """
+        assert kind in ("proposal", "concern", "decision")
+        with self._lock:
+            agent = self.tasks[tid]["agent"] if tid in self.tasks else "orchestrator"
+            mid = f"m{len(self.messages) + 1}"
+            msg = {"id": mid, "runId": self.run_id, "step": tid, "agent": agent, "type": kind,
+                   "summary": summary[:400], "reason": (reason or "")[:400] or None,
+                   "evidence": [{"source": str(e.get("source", ""))[:80], "detail": str(e.get("detail", ""))[:200]}
+                                for e in (evidence or [])][:4],
+                   "resolvesEventId": resolves, "t": _now()}
+            self.messages.append(msg)
+        self._event(tid, "message", message=msg)
+        return mid
+
     def summary(self) -> dict:
         with self._lock:
             tasks = [{k: v for k, v in t.items() if not k.startswith("_")} for t in self.tasks.values()]
             return {"id": self.run_id, "kind": self.kind, "started_at": self.started_at, "ended_at": _now(),
                     "duration_ms": int((time.monotonic() - self._t0) * 1000), "tasks": tasks,
-                    "edges": list(self.edges), "events": list(self.events)}
+                    "edges": list(self.edges), "events": list(self.events), "messages": list(self.messages)}
 
 
 @dataclass

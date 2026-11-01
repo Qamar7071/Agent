@@ -269,7 +269,12 @@ export default function TravelTwin() {
               <h2 id="live-h" className="type-semiwide text-lg font-bold">
                 {plan.status === 'running' ? 'Agents at work' : 'How the agents built this'}
               </h2>
-              {plan.run && <Link to={`/agents?run=${plan.run.id}`} className="text-sm font-semibold text-[#4CC9F0] hover:underline">Open in Agent Control Center <ArrowRight size={14} className="inline" aria-hidden="true" /></Link>}
+              {plan.run && (
+                <span className="flex flex-wrap gap-x-4 gap-y-1">
+                  <Link to={`/decided?run=${plan.run.id}`} className="text-sm font-semibold text-[#4CC9F0] hover:underline">How the agents decided <ArrowRight size={14} className="inline" aria-hidden="true" /></Link>
+                  <Link to={`/agents?run=${plan.run.id}`} className="text-sm font-semibold text-[#4CC9F0] hover:underline">Open in Agent Control Center <ArrowRight size={14} className="inline" aria-hidden="true" /></Link>
+                </span>
+              )}
             </div>
             <p className="sr-only" role="status">{plan.status === 'running' ? `${plan.tasks.filter((t) => t.status === 'completed').length} agents finished` : ''}</p>
             <div className="mt-3"><AgentFlow tasks={liveTasks} compact /></div>
@@ -369,7 +374,12 @@ export default function TravelTwin() {
                 <div className="m-card mt-5 p-4">
                   <p className="m-label">{sim.status === 'running' ? 'Simulating with the affected agents…' : 'Agents used for this scenario'}</p>
                   <div className="mt-2"><AgentFlow tasks={sim.tasks} compact /></div>
-                  {sim.run && <Link to={`/agents?run=${sim.run.id}`} className="mt-2 inline-block text-sm font-semibold text-[#4CC9F0] hover:underline">Open in Agent Control Center</Link>}
+                  {sim.run && (
+                    <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                      <Link to={`/decided?run=${sim.run.id}`} className="text-sm font-semibold text-[#4CC9F0] hover:underline">How the agents decided</Link>
+                      <Link to={`/agents?run=${sim.run.id}`} className="text-sm font-semibold text-[#4CC9F0] hover:underline">Open in Agent Control Center</Link>
+                    </p>
+                  )}
                 </div>
               )}
               {sim.error && <p className="mt-4 rounded-md border border-[#FF6B5B]/40 bg-[#FF6B5B]/10 p-3 text-sm" role="alert">{sim.error.message}</p>}

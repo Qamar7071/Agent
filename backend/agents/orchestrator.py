@@ -33,6 +33,7 @@ from agents.research_agent import ResearchAgent
 from agents.route_agent import RouteAgent
 from agents.safety_agent import SafetyAgent
 from agents.validation_agent import FORBIDDEN, ValidationAgent
+from agents.voices import speak
 from agents.weather_agent import WeatherAgent
 from schemas import TripState
 from services import http
@@ -145,10 +146,13 @@ class Runner:
         except Exception as exc:  # an agent failure is reported, never hidden
             log.warning("agent %s failed: %s", name, exc, exc_info=not isinstance(exc, AgentError))
             self.tracer.fail(tid, f"{type(exc).__name__}: {exc}"[:240])
+            self.tracer.say(tid, "concern", f"{agent.label} could not finish: {exc}"[:240],
+                            reason="The other agents carry on without it, and the answer says what is missing.")
             return
         self.bb.results[name] = res.data
         self.summaries[name] = res.summary
         self.issues[name] = res.issues
+        speak(name, res.data, self.bb, self.tracer, tid)
         self.tracer.finish(tid, _outputs(name, res.data), res.summary, status=res.status)
 
     def run(self, names: list[str], initiated_by: str = "orchestrator") -> None:

@@ -60,20 +60,21 @@ export function planSnapshot(itinerary) {
   };
 }
 
-export function createCompanion({ trip = null, itinerary, settings, alternatives = [], now = new Date() }) {
+export function createCompanion({ trip = null, itinerary, settings, alternatives = [], me = null, now = new Date() }) {
   const id = trip?.id || `local-${shortId()}`;
   const stamp = now.toISOString();
   return {
     version: 1,
     id,
-    server: trip ? { id: trip.id, token: trip.token } : null,
+    server: trip ? { id: trip.id, token: trip.token || null, member: trip.member || null } : null,
     title: itinerary.title,
     plan: planSnapshot(itinerary),
     alternatives,
     settings: { adjustments: [], ...settings },
     expenses: [],
     nudges: [],
-    lastPayer: settings.members[0]?.id || null,
+    me: me || settings.members[0]?.id || null,          // this phone's person (for "Qamar, …" and the default payer)
+    lastPayer: me || settings.members[0]?.id || null,
     lastCategory: 'food',
     lastEvaluated: null,
     guardian: null,

@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Play, Trash2 } from 'lucide-react';
 import { usePageMeta } from '../lib/seo.js';
 import { api } from '../lib/api.js';
 import { demoRequest, clearRuns, savedRuns, useAgentRun } from '../lib/agentRun.js';
-import { useRouter } from '../lib/router.jsx';
+import { Link, useRouter } from '../lib/router.jsx';
+import { RECORDED, messagesOf } from '../lib/decided.js';
 import AgentFlow, { STATUS } from '../components/mission/AgentFlow.jsx';
 import { EventLog, TaskDetails, Timeline } from '../components/mission/RunDetails.jsx';
 
@@ -20,8 +21,21 @@ export default function AgentControl() {
   const [roster, setRoster] = useState(null);
   const [runs, setRuns] = useState(savedRuns);
   const [runId, setRunId] = useState(() => query.get('run') || savedRuns()[0]?.id || null);
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useState(() => query.get('task'));
   const [message, setMessage] = useState('');
+  const [recorded, setRecorded] = useState(null);
+  const detailRef = useRef(null);
+
+  // Links from "How the agents decided" open a run at one step: /agents?run=<id>&task=<step>.
+  const qRun = query.get('run');
+  const qTask = query.get('task');
+  useEffect(() => {
+    if (qRun) setRunId(qRun);
+    if (qTask) setSelected(qTask);
+  }, [qRun, qTask]);
+  useEffect(() => {
+    if (runId === RECORDED && !recorded) import('../data/demo-run.json').then((m) => setRecorded(m.default)).catch(() => {});
+  }, [runId, recorded]);
 
   useEffect(() => {
     api.agentRoster().then(setRoster).catch(() => setRoster({ agents: [], error: true }));
@@ -34,11 +48,21 @@ export default function AgentControl() {
   }, [live.status, live.run]);
 
   const showingLive = live.status === 'running';
-  const run = showingLive ? null : runs.find((r) => r.id === runId);
+  const isRecorded = !showingLive && runId === RECORDED;
+  const run = showingLive ? null : isRecorded ? recorded && { ...recorded.run, title: `${recorded.label}: ${recorded.message}` } : runs.find((r) => r.id === runId);
   const tasks = showingLive ? live.tasks : run?.tasks || [];
   const events = showingLive ? live.events : run?.events || [];
   const byId = useMemo(() => Object.fromEntries(tasks.map((t) => [t.id, t])), [tasks]);
   const task = selected ? byId[selected] : null;
+  const messages = useMemo(() => messagesOf(run), [run]);
+  const conversationLink = run && messages.length ? `/decided?run=${isRecorded ? RECORDED : run.id}` : null;
+  const scrolledTo = useRef(null);
+  useEffect(() => {
+    if (qTask && task?.id === qTask && scrolledTo.current !== qTask) {
+      scrolledTo.current = qTask;                  // once per link, not on every later click
+      detailRef.current?.scrollIntoView({ block: 'start' });
+    }
+  }, [qTask, task]);
 
   const start = (msg) => {
     setSelected(null);
@@ -119,7 +143,13 @@ export default function AgentControl() {
               <h2 id="flow-h" className="type-semiwide text-lg font-bold">
                 {showingLive ? 'Live workflow' : run ? `Workflow: ${run.title || KIND[run.kind]}` : 'Workflow'}
               </h2>
-              {run && <p className="text-xs text-ink-500">Run {run.id} · started {run.started_at?.slice(11, 19)} UTC · {run.duration_ms} ms</p>}
+              {isRecorded && (
+                <p className="mt-1 rounded border border-[#F5B841]/40 bg-[#F5B841]/10 px-2 py-1 text-xs text-ink">
+                  Recorded run, not live: {recorded?.note || 'a real run of Raahi’s agents, played back.'}
+                </p>
+              )}
+              {run && <p className="text-xs text-ink-500">Run {run.id} · started {run.started_at?.slice(0, 10)} {run.started_at?.slice(11, 19)} UTC · {run.duration_ms} ms</p>}
+              {conversationLink && <Link to={conversationLink} className="mt-1 inline-block text-sm font-semibold text-[#4CC9F0] hover:underline">How the agents decided ({messages.length} messages)</Link>}
               <div className="mt-3">
                 {tasks.length ? <AgentFlow tasks={tasks} selected={selected} onSelect={setSelected} />
                   : <p className="text-sm text-ink-500">Nothing to show yet. Every agent is idle.</p>}
@@ -127,9 +157,9 @@ export default function AgentControl() {
             </section>
             {tasks.length > 0 && (
               <div className="grid gap-6 xl:grid-cols-2">
-                <section aria-labelledby="detail-h" className="m-card min-w-0 p-4 sm:p-5">
+                <section aria-labelledby="detail-h" ref={detailRef} className="m-card min-w-0 scroll-mt-24 p-4 sm:p-5">
                   <h2 id="detail-h" className="sr-only">Task details</h2>
-                  <TaskDetails task={task} byId={byId} />
+                  <TaskDetails task={task} byId={byId} messages={messages} conversationLink={conversationLink} />
                 </section>
                 <section aria-labelledby="time-h" className="m-card min-w-0 p-4 sm:p-5">
                   <h2 id="time-h" className="font-semibold">Timeline</h2>

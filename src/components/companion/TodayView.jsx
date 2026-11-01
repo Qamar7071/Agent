@@ -46,7 +46,7 @@ export default function TodayView({ hub }) {
   const n = c.plan.days.length;
   const today = c.plan.days[dayIndex - 1];
   const tomorrow = c.plan.days[dayIndex];
-  const name = c.settings.members[0]?.name;
+  const name = (c.settings.members.find((m) => m.id === c.me) || c.settings.members[0])?.name;
   const live = c.nudges.filter((x) => !x.dismissed && Date.now() - new Date(x.createdAt) < 36 * 3600e3);
   const g = c.guardian;
   const showGuardian = g && g.day === dayIndex + 1 && ['High', 'Severe'].includes(g.category);

@@ -79,11 +79,16 @@ def simulate(request: dict, scenario: dict | None = None, text: str | None = Non
     except scenarios.ScenarioError as exc:
         tracer.tool(twin_tid, "scenario.apply", False, 0, str(exc))
         tracer.finish(twin_tid, {"scenario": spec["label"]}, "Scenario leaves no workable trip", status="completed")
+        tracer.say(twin_tid, "concern", f"With this assumption ({spec['label']}) there is no workable trip: {exc}")
         tracer.finish(orch, {"verdict": "no_alternative"}, "Explained why no alternative exists")
         original = comparison.summarize(base_plan, base_bb.get("safety"), base_bb.get("eco"))
         return {"ok": True, "scenario": spec, "no_alternative": True, "message": str(exc), "original": original,
                 "run": tracer.summary()}
     tracer.tool(twin_tid, "scenario.apply", True, 0, "; ".join(applied["notes"])[:200] or "applied")
+    tracer.say(twin_tid, "proposal", f"I made a copy of the trip with this assumption: {spec['label']}. "
+               "Your plan stays as it is unless you accept.",
+               reason="; ".join(applied["notes"])[:400] or None,
+               evidence=[{"source": "Your scenario (assumption, not a forecast)", "detail": a} for a in applied["assumptions"][:2]])
     tracer.finish(twin_tid, {"scenario": spec["label"], "assumptions": applied["assumptions"],
                              "changes": applied["notes"]},
                   f"Created an independent copy with: {spec['label']}")
@@ -116,6 +121,10 @@ def simulate(request: dict, scenario: dict | None = None, text: str | None = Non
                             "risk_delta": (cmp.get("risk") or {}).get("delta")},
                   f"{cmp['days_changed']} day(s) differ; cost {('+' if cmp['cost']['delta'] > 0 else '−' if cmp['cost']['delta'] < 0 else '±')}{rs(abs(cmp['cost']['delta']))}")
     rec = _recommend(cmp, spec, simulated, applied["notes"])
+    tracer.say(cmp_tid, "decision", rec["text"],
+               reason="You decide: accept the simulated plan or keep the original.",
+               evidence=[{"source": "Comparison", "detail": f"{cmp['days_changed']} day(s) differ"},
+                         {"source": "Raahi cost model (estimate)", "detail": f"cost change {rs(cmp['cost']['delta'])}"}])
     tracer.finish(orch, {"recommendation": rec["action"]}, "Proposed an alternative and is waiting for your decision"
                   if rec["action"] != "keep" else "No change needed",
                   status="waiting_for_approval" if rec["action"] != "keep" else "completed")

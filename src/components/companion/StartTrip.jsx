@@ -10,6 +10,7 @@ import { strings } from '../../lib/companion/i18n.js';
 import { LANG_KEY, budgetTotalFrom, createCompanion, defaultMembers, loadCompanion, saveCompanion } from '../../lib/companion/store.js';
 import { read } from '../../lib/store.js';
 import { BudgetFields, LanguageSwitch } from './TripSettings.jsx';
+import { groupEntry } from '../../lib/group/store.js';
 import Notice from '../ui/Notice.jsx';
 
 export default function StartTrip() {
@@ -17,7 +18,7 @@ export default function StartTrip() {
   const planner = usePlanner();
   const [lang, setLang] = useState(() => read(LANG_KEY, 'en'));
   const s = strings(lang);
-  const [source, setSource] = useState({ state: 'loading', itinerary: null, trip: null, error: null });
+  const [source, setSource] = useState({ state: 'loading', itinerary: null, trip: null, error: null, members: null, me: null });
   const [members, setMembers] = useState([]);
   const [amount, setAmount] = useState('');
   const [basis, setBasis] = useState('total');
@@ -27,7 +28,25 @@ export default function StartTrip() {
   useEffect(() => {
     let off = false;
     const tripId = query.get('trip');
+    const groupCode = query.get('group');
     (async () => {
+      if (groupCode) {
+        // Start the trip with the group: everyone's names come along, and expenses sync to the same trip
+        const g = groupEntry(groupCode);
+        if (!g) return setSource({ state: 'error', error: s.notHereHelp });
+        try {
+          const [plan, view] = await Promise.all([api.groupPlan(g.code, g.token), api.group(g.code, g.token)]);
+          if (loadCompanion(plan.trip_id)) return navigate(`/trip/${plan.trip_id}`, { replace: true });
+          const members = view.members.filter((m) => m.active).map((m) => ({ id: m.id, name: m.name, active: true }));
+          if (!off) {
+            setSource({ state: 'ready', itinerary: plan.itinerary, me: g.memberId, members,
+              trip: { id: plan.trip_id, token: g.tripToken || null, member: g.tripToken ? null : g.token } });
+          }
+        } catch (e) {
+          if (!off) setSource({ state: 'error', error: e.message });
+        }
+        return undefined;
+      }
       if (tripId) {
         if (loadCompanion(tripId)) return navigate(`/trip/${tripId}`, { replace: true });
         const saved = savedTrips().find((t) => t.id === tripId);
@@ -48,12 +67,12 @@ export default function StartTrip() {
       return undefined;
     })();
     return () => { off = true; };
-  }, [query.get('trip')]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [query.get('trip'), query.get('group')]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (source.state !== 'ready') return;
     const req = source.itinerary.request;
-    setMembers(defaultMembers(req, lang));
+    setMembers(source.members || defaultMembers(req, lang));
     if (req.budget_pkr) {
       setAmount(String(req.budget_pkr));
       setBasis(req.budget_basis === 'per_person' ? 'per_person' : 'total');
@@ -71,7 +90,7 @@ export default function StartTrip() {
     }
     try { localStorage.setItem(LANG_KEY, JSON.stringify(lang)); } catch { /* ok */ }
     const c = createCompanion({
-      trip: source.trip, itinerary: source.itinerary,
+      trip: source.trip, itinerary: source.itinerary, me: source.me,
       settings: { members: clean, budgetTotal: budgetTotalFrom(amount, basis, clean.length), budgetBasis: basis,
         startDate: startDate || null, language: lang, adjustments: [] },
     });

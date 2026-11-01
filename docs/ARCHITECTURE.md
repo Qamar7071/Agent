@@ -178,8 +178,9 @@ review date; none of them are live prices.
 
 ## 6. Storage
 
-Two tables, created automatically on first use (`metadata.create_all`, which only adds
-missing tables). `python backend/storage.py init` creates them explicitly;
+Tables are created automatically on first use (`metadata.create_all`, which only adds
+missing tables): trips and enquiries (below), Safar Saathi's `companions` and `expenses` (section 12), and the
+Group Room's `groups`, `group_members` and `group_needs` (section 13). `python backend/storage.py init` creates them explicitly;
 `python backend/storage.py sql` prints the SQL below.
 
 ```sql
@@ -552,3 +553,92 @@ and not retried. Trips that were never saved stay on the phone that started them
 **Privacy.** Companion settings hold names, the budget, the first day and the language: no
 contact or health details (the schema forbids extra fields). Deleting a trip deletes its
 expenses and settings.
+
+## 13. Group Room (`backend/group/`, `/api/groups/…`)
+
+A group is built around one saved trip. The organizer creates it with the trip's private key;
+everyone else joins with the link or the 8-letter code and a name, and gets a member key that
+stays in their browser (the server keeps only `sha256("member:" + key)`).
+
+```mermaid
+flowchart LR
+  O[Organizer: saved trip] -->|POST /api/groups| G[(groups)]
+  M[Member: link + name] -->|POST /join| GM[(group_members<br/>name, hashed key, profile, vote)]
+  M -->|PUT /needs| N[(group_needs<br/>owner = sha256 of group id + member key)]
+  G --> C[consensus.propose]
+  GM --> C
+  N -->|counts only| C
+  C -->|planner.build per option| OPT[2–3 options<br/>Group match, gives up, why]
+  OPT -->|POST /vote| GM
+  OPT -->|POST /confirm, organizer only| T[(trips: request + itinerary)]
+  T --> S[Safar Saathi for every member<br/>shared expenses]
+```
+
+**Profiles** are chips only: interests, budget comfort (tight, medium, comfortable → budget,
+mid, premium stays), pace, must-dos and no-gos. The trip type (friends, family, couple, solo)
+fills defaults. `group/profiles.py` merges them: the majority pace and stay level (ties go to
+the gentler or cheaper choice), every must-do added to the places, interests ranked by count.
+
+**Private needs.** Altitude sensitivity, breathing, motion sickness, limited walking and food
+needs are stored in their own table with an owner that can't be linked to a member row:
+`sha256("need:{group_id}:{member_key}")`. The room shows only counts ("1 member: …"). A name
+appears next to a need only if that member ticked "show my name", and even then the agents'
+messages say "shared privately, without names". "Not medical advice. Check with a doctor if
+unsure." is shown wherever needs are. A member can remove their needs, leave, or be removed
+by the organizer; deleting the trip deletes the group, its members and its needs.
+
+**How a need changes the plan.** Altitude or breathing needs set `altitude_sensitive`; the
+planner then makes sure that before any day reaching 4,000 m or more there is at least one
+full day without moving, sleeping at 2,000 m or more. It moves the high day later, or inserts
+a rest day at a lower overnight stop below 4,000 m, and says which in a warning. If the hub
+is below 2,000 m it only warns. Limited walking sets `limited_mobility` (no treks), and long
+drives or high altitude in no-gos steer the extra options.
+
+**Options and Group match** (`group/consensus.py`). The first option is everyone's answers
+combined; up to two more are chosen by relevance from gentler and lower, budget, fly-in and
+more relaxed variants, each built by the real planner. Every member gets a score: pace 20%,
+budget 25%, interests 20%, must-dos 20%, no-gos 15%, minus 15 points for each private need
+the option doesn't meet. The Group match is the average. Each option lists what it gives up
+against the others (a skipped must-do, a longer trip than planned, coaches instead of a car)
+and how it handles the group's needs. The agents recommend one; members vote; only the
+organizer confirms, which updates the saved trip.
+
+**Access.** Organizer actions need the trip's key or the organizer's member key; members
+see the group and the confirmed trip's companion with their member key (`X-Member-Token`).
+At most 20 members. Without a database the endpoints answer 503 and the page says so.
+
+## 14. How the agents decided (`/decided`)
+
+Every agent, after it finishes, may add messages to the run through `Tracer.say`
+(`backend/agents/voices.py`; Group Room, Travel Twin and Guardian write their own):
+
+```json
+{"id": "m4", "runId": "fa76550054a2", "step": "budget-7", "agent": "budget", "type": "concern",
+ "summary": "Estimate Rs 9,04,200 (Rs 1,80,800 per person): About Rs 4,04,200 over your budget …",
+ "reason": null, "evidence": [{"source": "Raahi cost model (estimate)", "detail": "…"}],
+ "resolvesEventId": null, "t": "2026-10-31T…"}
+```
+
+- A message is written from that agent's own output in this run (its numbers, places and
+  sources); an agent with nothing to report says nothing; a failed agent says it failed.
+- `step` is the real task id, so the page links each message to
+  `/agents?run=<id>&task=<step>`; the Control Center opens that step and lists what it said.
+- `resolvesEventId` points to the concern a later proposal or decision answers (for example
+  the budget concern, answered by the cheapest changes that fit, then by Validation's decision).
+- Each message is also an execution event, so live runs stream it as it is written.
+
+**Demo fallback.** `src/data/demo-run.json` is one real run, recorded on 31 Oct 2026 for
+"Plan a 10-day trip to Skardu from Islamabad for 5 friends with a budget of Rs 5,00,000". If a
+live run fails or takes more than 25 seconds, the page plays it instead, always labelled
+"Recorded run · not live" with its date, while the live run keeps going and can be shown when
+it finishes. Unit tests check that every recorded message belongs to a real step and appears
+in the run's event log.
+
+## 15. When to go (`src/lib/bestMonths.js`)
+
+For the places in a plan, a month is "best for every place" when it is in every place's
+`best_months` and no seasonal road (Khunjerab, the Deosai road, the Fairy Meadows track) is
+usually closed then. When no month suits all, the months with no closures and the most
+places at their best are shown as closest. The advice says what a chosen month means
+("access to Khunjerab Pass is usually closed by snow") and quotes the guide's season note.
+It is a typical pattern, never a forecast, and never says a road is open.

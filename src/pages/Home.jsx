@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { usePageMeta } from '../lib/seo.js';
 import { useRouter } from '../lib/router.jsx';
 import Hero from '../components/home/Hero.jsx';
@@ -8,6 +8,9 @@ import LiveConditions from '../components/home/LiveConditions.jsx';
 import HowItWorks from '../components/home/HowItWorks.jsx';
 import Sources from '../components/home/Sources.jsx';
 import EnquiryCta from '../components/home/EnquiryCta.jsx';
+
+// Loaded after the first screen so it doesn't slow down the hero.
+const Together = lazy(() => import('../components/home/Together.jsx'));
 
 export default function Home() {
   usePageMeta({
@@ -22,6 +25,7 @@ export default function Home() {
     <main id="main">
       <Hero />
       <DestinationIndex />
+      <Suspense fallback={<div className="min-h-[60rem] bg-juniper-950 lg:min-h-[44rem]" aria-hidden="true" />}><Together /></Suspense>
       <AgentIntro />
       <LiveConditions />
       <HowItWorks />

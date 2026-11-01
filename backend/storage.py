@@ -84,6 +84,52 @@ expenses = Table(
 Index("ix_expenses_trip", expenses.c.trip_id)
 MAX_EXPENSES_PER_TRIP = 3000
 
+# Group Room: one trip planned by several people.
+groups = Table(
+    "groups", metadata,
+    Column("id", String(32), primary_key=True),
+    Column("code", String(8), nullable=False, unique=True),   # what people type or share: ABCD-EFGH
+    Column("trip_id", String(32), ForeignKey("trips.id", ondelete="CASCADE"), nullable=False),
+    Column("trip_type", String(12), nullable=False),
+    Column("status", String(12), nullable=False),              # gathering | voting | confirmed
+    Column("options_json", Text, nullable=True),
+    Column("run_json", Text, nullable=True),                   # the agents' real run behind the options
+    Column("chosen", String(1), nullable=True),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+)
+
+group_members = Table(
+    "group_members", metadata,
+    Column("id", String(12), primary_key=True),
+    Column("group_id", String(32), ForeignKey("groups.id", ondelete="CASCADE"), nullable=False),
+    Column("name", String(40), nullable=False),
+    Column("token_hash", String(64), nullable=False, unique=True),
+    Column("is_organizer", Boolean, nullable=False, default=False),
+    Column("profile_json", Text, nullable=True),
+    Column("vote", String(1), nullable=True),
+    Column("active", Boolean, nullable=False, default=True),
+    Column("joined_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+)
+Index("ix_group_members_group", group_members.c.group_id)
+
+# Private comfort needs, stored WITHOUT a link to the member: `owner` is a hash of the member's
+# own key (kept only on their phone) and the group id, different from the hash in group_members.
+# The server can count needs, but can't tell whose they are; only the member's phone can find
+# and delete its own. A name is stored only if the member chose to show it.
+group_needs = Table(
+    "group_needs", metadata,
+    Column("id", String(32), primary_key=True),
+    Column("group_id", String(32), ForeignKey("groups.id", ondelete="CASCADE"), nullable=False),
+    Column("owner", String(64), nullable=False),
+    Column("code", String(24), nullable=False),
+    Column("display_name", String(40), nullable=True),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+)
+Index("ix_group_needs_group", group_needs.c.group_id)
+MAX_MEMBERS = 20
+
 REF_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"   # no 0/O or 1/I look-alikes
 _engine = None
 _lock = threading.Lock()
@@ -206,6 +252,10 @@ def delete_trip(trip_id: str, token: str) -> None:
         c.execute(update(enquiries).where(enquiries.c.trip_id == trip_id).values(trip_id=None))
         c.execute(delete(expenses).where(expenses.c.trip_id == trip_id))      # SQLite doesn't cascade by default
         c.execute(delete(companions).where(companions.c.trip_id == trip_id))
+        for g in c.execute(select(groups.c.id).where(groups.c.trip_id == trip_id)).all():
+            c.execute(delete(group_needs).where(group_needs.c.group_id == g.id))
+            c.execute(delete(group_members).where(group_members.c.group_id == g.id))
+        c.execute(delete(groups).where(groups.c.trip_id == trip_id))
         c.execute(delete(trips).where(trips.c.id == trip_id))
 
 
@@ -225,9 +275,16 @@ def _expense_out(row) -> dict:
             "deleted": bool(row.deleted), "createdAt": _iso_ms(row.created_at), "updatedAt": _iso_ms(row.updated_at)}
 
 
-def get_companion(trip_id: str, token: str) -> dict:
+def _auth_trip(trip_id: str, token: str | None, member_token: str | None = None) -> None:
+    """The trip's own key, or the key of an active member of the trip's group."""
+    if member_token and member_trip_access(trip_id, member_token):
+        return
+    get_trip(trip_id, token or "")
+
+
+def get_companion(trip_id: str, token: str | None, member_token: str | None = None) -> dict:
     """The group's settings (or None before anyone pressed Start trip) and every expense, tombstones included."""
-    get_trip(trip_id, token)
+    _auth_trip(trip_id, token, member_token)
     with engine().connect() as c:
         row = c.execute(select(companions).where(companions.c.trip_id == trip_id)).first()
         rows = c.execute(select(expenses).where(expenses.c.trip_id == trip_id)
@@ -237,8 +294,8 @@ def get_companion(trip_id: str, token: str) -> dict:
             "expenses": [_expense_out(r) for r in rows]}
 
 
-def put_companion_settings(trip_id: str, token: str, settings: dict) -> dict:
-    get_trip(trip_id, token)
+def put_companion_settings(trip_id: str, token: str | None, settings: dict, member_token: str | None = None) -> dict:
+    _auth_trip(trip_id, token, member_token)
     now = _now()
     text = json.dumps(settings, ensure_ascii=False)
     with engine().begin() as c:
@@ -250,11 +307,11 @@ def put_companion_settings(trip_id: str, token: str, settings: dict) -> dict:
     return {"settings": settings, "settings_updated_at": _iso(now)}
 
 
-def sync_expenses(trip_id: str, token: str, items: list[dict]) -> dict:
+def sync_expenses(trip_id: str, token: str | None, items: list[dict], member_token: str | None = None) -> dict:
     """Merge expenses sent by a phone. Same id twice = one expense (safe to retry after a lost
     connection). If two phones changed the same expense, the later change wins. An id that
     belongs to another trip is refused. Returns the trip's full list, tombstones included."""
-    get_trip(trip_id, token)
+    _auth_trip(trip_id, token, member_token)
     rejected = []
     with engine().begin() as c:
         count = len(c.execute(select(expenses.c.id).where(expenses.c.trip_id == trip_id)).all())
@@ -274,7 +331,7 @@ def sync_expenses(trip_id: str, token: str, items: list[dict]) -> dict:
                 rejected.append({"id": it["id"], "reason": "This id belongs to another trip."})
             elif _aware(it["updatedAt"]) > _aware(row.updated_at):
                 c.execute(update(expenses).where(expenses.c.id == it["id"]).values(**values))
-    out = get_companion(trip_id, token)
+    out = get_companion(trip_id, token, member_token)
     return {"expenses": out["expenses"], "rejected": rejected, "synced_at": _iso(_now())}
 
 
@@ -386,3 +443,283 @@ if __name__ == "__main__":
     else:
         print("usage: python storage.py init | sql")
         sys.exit(2)
+
+
+# ── Group Room ────────────────────────────────────────────────────────────────────
+class Forbidden(PermissionError):
+    pass
+
+
+def _member_hash(token: str) -> str:
+    return _hash("member:" + (token or ""))
+
+
+def _need_owner(token: str, group_id: str) -> str:
+    return _hash(f"need:{group_id}:{token or ''}")
+
+
+def normalise_code(code: str) -> str:
+    return "".join(ch for ch in (code or "").upper() if ch in REF_ALPHABET)[:8]
+
+
+def _group(c, code: str):
+    row = c.execute(select(groups).where(groups.c.code == normalise_code(code))).first()
+    if row is None:
+        raise NotFound("No group with this code. Check the link or ask the organizer for a new one.")
+    return row
+
+
+def _member(c, group_row, token: str | None):
+    if not token:
+        return None
+    row = c.execute(select(group_members).where(group_members.c.token_hash == _member_hash(token))).first()
+    if row is None or row.group_id != group_row.id or not row.active:
+        return None
+    return row
+
+
+def _organizer(c, group_row, trip_token: str | None, member_token: str | None) -> bool:
+    if trip_token:
+        trip = c.execute(select(trips).where(trips.c.id == group_row.trip_id)).first()
+        if _check(trip, trip_token):
+            return True
+    m = _member(c, group_row, member_token)
+    return bool(m and m.is_organizer)
+
+
+def create_group(trip_id: str, trip_token: str, trip_type: str, organizer_name: str) -> dict:
+    trip = get_trip(trip_id, trip_token)
+    now = _now()
+    member_token = secrets.token_urlsafe(24)
+    with engine().begin() as c:
+        existing = c.execute(select(groups).where(groups.c.trip_id == trip_id)).first()
+        if existing:
+            gid, code = existing.id, existing.code
+            c.execute(update(groups).where(groups.c.id == gid).values(trip_type=trip_type, updated_at=now))
+            org = c.execute(select(group_members).where((group_members.c.group_id == gid)
+                                                        & group_members.c.is_organizer)).first()
+            if org:
+                c.execute(update(group_members).where(group_members.c.id == org.id).values(
+                    token_hash=_member_hash(member_token), name=organizer_name[:40], active=True, updated_at=now))
+                return {"code": code, "member": {"id": org.id, "token": member_token}, "trip": trip["title"]}
+        else:
+            gid = uuid.uuid4().hex
+            for _ in range(20):
+                code = "".join(secrets.choice(REF_ALPHABET) for _ in range(8))
+                if not c.execute(select(groups.c.id).where(groups.c.code == code)).first():
+                    break
+            c.execute(insert(groups).values(id=gid, code=code, trip_id=trip_id, trip_type=trip_type, status="gathering",
+                                            created_at=now, updated_at=now))
+        mid = secrets.token_hex(6)
+        c.execute(insert(group_members).values(id=mid, group_id=gid, name=organizer_name[:40],
+                                               token_hash=_member_hash(member_token), is_organizer=True, active=True,
+                                               joined_at=now, updated_at=now))
+    return {"code": code, "member": {"id": mid, "token": member_token}, "trip": trip["title"]}
+
+
+def join_group(code: str, name: str) -> dict:
+    now = _now()
+    token = secrets.token_urlsafe(24)
+    with engine().begin() as c:
+        g = _group(c, code)
+        if g.status == "confirmed":
+            pass                                   # late joiners can still come along and split costs
+        count = len(c.execute(select(group_members.c.id).where((group_members.c.group_id == g.id)
+                                                               & group_members.c.active)).all())
+        if count >= MAX_MEMBERS:
+            raise Forbidden(f"This group is full ({MAX_MEMBERS} people).")
+        mid = secrets.token_hex(6)
+        c.execute(insert(group_members).values(id=mid, group_id=g.id, name=name[:40], token_hash=_member_hash(token),
+                                               is_organizer=False, active=True, joined_at=now, updated_at=now))
+        c.execute(update(groups).where(groups.c.id == g.id).values(updated_at=now))
+    return {"code": g.code, "member": {"id": mid, "token": token}}
+
+
+def group_preview(code: str) -> dict:
+    """What someone with only the link sees before joining: no member names except the organizer."""
+    with engine().connect() as c:
+        g = _group(c, code)
+        trip = c.execute(select(trips).where(trips.c.id == g.trip_id)).first()
+        rows = c.execute(select(group_members).where((group_members.c.group_id == g.id) & group_members.c.active)).all()
+    org = next((r.name for r in rows if r.is_organizer), None)
+    return {"code": g.code, "title": trip.title if trip else "Trip", "trip_type": g.trip_type, "status": g.status,
+            "organizer": org, "members": len(rows)}
+
+
+def group_view(code: str, *, trip_token: str | None = None, member_token: str | None = None) -> dict:
+    with engine().connect() as c:
+        g = _group(c, code)
+        me = _member(c, g, member_token)
+        organizer = _organizer(c, g, trip_token, member_token)
+        if not me and not organizer:
+            raise Forbidden("Join the group first to see it.")
+        trip = c.execute(select(trips).where(trips.c.id == g.trip_id)).first()
+        rows = c.execute(select(group_members).where(group_members.c.group_id == g.id)
+                         .order_by(group_members.c.joined_at)).all()
+        needs = c.execute(select(group_needs).where(group_needs.c.group_id == g.id)).all()
+    options = json.loads(g.options_json) if g.options_json else None
+    tally = {}
+    for r in rows:
+        if r.active and r.vote:
+            tally.setdefault(r.vote, []).append(r.name)
+    from group.profiles import constraint_list
+    return {
+        "code": g.code, "trip_id": g.trip_id, "title": trip.title if trip else "Trip", "trip_type": g.trip_type,
+        "status": g.status, "chosen": g.chosen,
+        "request": json.loads(trip.request_json) if trip else None,
+        "members": [{"id": r.id, "name": r.name, "organizer": bool(r.is_organizer), "active": bool(r.active),
+                     "profile_done": bool(r.profile_json), "voted": bool(r.vote)} for r in rows],
+        "needs": constraint_list([{"code": n.code, "display_name": n.display_name} for n in needs]),
+        "options": options, "votes": {k: {"count": len(v), "names": v} for k, v in tally.items()},
+        "you": {"id": me.id if me else None, "name": me.name if me else None, "organizer": organizer,
+                "vote": me.vote if me else None,
+                "profile": json.loads(me.profile_json) if me and me.profile_json else None},
+        "updated_at": _iso(g.updated_at),
+    }
+
+
+def group_inputs(code: str, *, trip_token: str | None, member_token: str | None) -> dict:
+    """What the consensus agents need: the trip request, trip type, profiles (no names) and need counts."""
+    with engine().connect() as c:
+        g = _group(c, code)
+        if not _organizer(c, g, trip_token, member_token):
+            raise Forbidden("Only the organizer can ask the agents for options.")
+        trip = c.execute(select(trips).where(trips.c.id == g.trip_id)).first()
+        rows = c.execute(select(group_members).where((group_members.c.group_id == g.id) & group_members.c.active)).all()
+        needs = c.execute(select(group_needs.c.code).where(group_needs.c.group_id == g.id)).all()
+    counts = {}
+    for n in needs:
+        counts[n.code] = counts.get(n.code, 0) + 1
+    return {"group_id": g.id, "trip_type": g.trip_type, "request": json.loads(trip.request_json),
+            "profiles": [json.loads(r.profile_json) for r in rows if r.profile_json], "needs": counts}
+
+
+def set_profile(code: str, member_token: str, profile: dict) -> None:
+    with engine().begin() as c:
+        g = _group(c, code)
+        me = _member(c, g, member_token)
+        if not me:
+            raise Forbidden("Join the group first.")
+        c.execute(update(group_members).where(group_members.c.id == me.id).values(
+            profile_json=json.dumps(profile, ensure_ascii=False), updated_at=_now()))
+        c.execute(update(groups).where(groups.c.id == g.id).values(updated_at=_now()))
+
+
+def set_needs(code: str, member_token: str, codes: list[str], show_name: bool) -> int:
+    """Replace this member's private needs. Returns how many are stored."""
+    with engine().begin() as c:
+        g = _group(c, code)
+        me = _member(c, g, member_token)
+        if not me:
+            raise Forbidden("Join the group first.")
+        owner = _need_owner(member_token, g.id)
+        c.execute(delete(group_needs).where((group_needs.c.group_id == g.id) & (group_needs.c.owner == owner)))
+        now = _now()
+        for code_ in dict.fromkeys(codes):
+            c.execute(insert(group_needs).values(id=uuid.uuid4().hex, group_id=g.id, owner=owner, code=code_,
+                                                 display_name=me.name if show_name else None, created_at=now))
+        c.execute(update(groups).where(groups.c.id == g.id).values(updated_at=now))
+    return len(set(codes))
+
+
+def save_options(code: str, trip_token: str | None, member_token: str | None, options: dict, run: dict) -> None:
+    with engine().begin() as c:
+        g = _group(c, code)
+        if not _organizer(c, g, trip_token, member_token):
+            raise Forbidden("Only the organizer can ask the agents for options.")
+        c.execute(update(groups).where(groups.c.id == g.id).values(
+            options_json=json.dumps(options, ensure_ascii=False), run_json=json.dumps(run, ensure_ascii=False),
+            status="voting", chosen=None, updated_at=_now()))
+        c.execute(update(group_members).where(group_members.c.group_id == g.id).values(vote=None))
+
+
+def group_run(code: str, *, trip_token: str | None = None, member_token: str | None = None) -> dict | None:
+    with engine().connect() as c:
+        g = _group(c, code)
+        if not (_member(c, g, member_token) or _organizer(c, g, trip_token, member_token)):
+            raise Forbidden("Join the group first to see it.")
+    return json.loads(g.run_json) if g.run_json else None
+
+
+def cast_vote(code: str, member_token: str, option_id: str | None) -> None:
+    with engine().begin() as c:
+        g = _group(c, code)
+        me = _member(c, g, member_token)
+        if not me:
+            raise Forbidden("Join the group first.")
+        ids = {o["id"] for o in (json.loads(g.options_json)["options"] if g.options_json else [])}
+        if option_id is not None and option_id not in ids:
+            raise NotFound("No such option.")
+        c.execute(update(group_members).where(group_members.c.id == me.id).values(vote=option_id, updated_at=_now()))
+        c.execute(update(groups).where(groups.c.id == g.id).values(updated_at=_now()))
+
+
+def confirm_option(code: str, trip_token: str | None, member_token: str | None, option_id: str, itinerary_for) -> dict:
+    """The organizer picks the final plan: the trip's saved request becomes that option's."""
+    with engine().begin() as c:
+        g = _group(c, code)
+        if not _organizer(c, g, trip_token, member_token):
+            raise Forbidden("Only the organizer can confirm the final plan.")
+        options = json.loads(g.options_json)["options"] if g.options_json else []
+        chosen = next((o for o in options if o["id"] == option_id), None)
+        if not chosen:
+            raise NotFound("No such option.")
+        itinerary = itinerary_for(chosen["request"])
+        now = _now()
+        c.execute(update(trips).where(trips.c.id == g.trip_id).values(
+            title=itinerary["title"][:160], request_json=json.dumps(itinerary["request"], ensure_ascii=False),
+            itinerary_json=json.dumps(itinerary, ensure_ascii=False), updated_at=now))
+        c.execute(update(groups).where(groups.c.id == g.id).values(status="confirmed", chosen=option_id, updated_at=now))
+    return {"chosen": option_id, "title": itinerary["title"]}
+
+
+def group_itinerary(code: str, member_token: str) -> dict:
+    with engine().connect() as c:
+        g = _group(c, code)
+        if not _member(c, g, member_token):
+            raise Forbidden("Join the group first.")
+        trip = c.execute(select(trips).where(trips.c.id == g.trip_id)).first()
+    return {"trip_id": g.trip_id, "title": trip.title, "request": json.loads(trip.request_json),
+            "itinerary": json.loads(trip.itinerary_json)}
+
+
+def leave_group(code: str, member_token: str) -> None:
+    with engine().begin() as c:
+        g = _group(c, code)
+        me = _member(c, g, member_token)
+        if not me:
+            raise Forbidden("You are not in this group.")
+        c.execute(delete(group_needs).where((group_needs.c.group_id == g.id)
+                                            & (group_needs.c.owner == _need_owner(member_token, g.id))))
+        c.execute(update(group_members).where(group_members.c.id == me.id).values(
+            active=False, vote=None, profile_json=None, updated_at=_now()))
+
+
+def remove_member(code: str, trip_token: str | None, member_token: str | None, member_id: str) -> None:
+    """The organizer removes someone. Their private needs can't be traced to them, so they stay
+    until the organizer clears all needs (members then add theirs again)."""
+    with engine().begin() as c:
+        g = _group(c, code)
+        if not _organizer(c, g, trip_token, member_token):
+            raise Forbidden("Only the organizer can remove someone.")
+        c.execute(update(group_members).where((group_members.c.id == member_id) & (group_members.c.group_id == g.id)
+                                              & ~group_members.c.is_organizer).values(
+            active=False, vote=None, profile_json=None, updated_at=_now()))
+
+
+def clear_needs(code: str, trip_token: str | None, member_token: str | None) -> None:
+    with engine().begin() as c:
+        g = _group(c, code)
+        if not _organizer(c, g, trip_token, member_token):
+            raise Forbidden("Only the organizer can clear the group's needs.")
+        c.execute(delete(group_needs).where(group_needs.c.group_id == g.id))
+
+
+def member_trip_access(trip_id: str, member_token: str) -> bool:
+    """A group member may read and add the trip's shared expenses (Safar Saathi across phones)."""
+    with engine().connect() as c:
+        m = c.execute(select(group_members).where(group_members.c.token_hash == _member_hash(member_token))).first()
+        if not m or not m.active:
+            return False
+        g = c.execute(select(groups).where(groups.c.id == m.group_id)).first()
+    return bool(g and g.trip_id == trip_id)

@@ -4,6 +4,7 @@ import { api } from '../lib/api.js';
 import { usePageMeta } from '../lib/seo.js';
 import { forgetEnquiry, forgetTrip, savedEnquiries, savedTrips } from '../lib/store.js';
 import { listCompanions, loadCompanion, removeCompanion } from '../lib/companion/store.js';
+import { myGroups, prettyCode } from '../lib/group/store.js';
 import { ago, checkedAt } from '../lib/format.js';
 import Notice from '../components/ui/Notice.jsx';
 
@@ -38,6 +39,10 @@ function TripRow({ trip, onGone }) {
         <button type="button" onClick={() => navigate(`/plan?trip=${trip.id}`)} className="btn-primary">Open</button>
         <button type="button" onClick={() => navigate(loadCompanion(trip.id) ? `/trip/${trip.id}` : `/trip/new?trip=${trip.id}`)}
           className="btn-outline">{loadCompanion(trip.id) ? 'Trip companion' : 'Start trip'}</button>
+        <button type="button" onClick={() => {
+          const g = myGroups().find((x) => x.tripId === trip.id);
+          navigate(g ? `/g/${g.code}` : `/g/new?trip=${trip.id}`);
+        }} className="btn-outline">Group room</button>
         <button type="button" disabled={state.busy} onClick={remove} className="btn-outline">Delete</button>
       </div>
     </li>
@@ -102,6 +107,23 @@ export default function Trips() {
         Trips you saved and enquiries you sent from this browser. Raahi has no accounts: each one is protected by a
         private key stored only in this browser, so they won’t appear on another device.
       </p>
+
+      {myGroups().length > 0 && (
+        <section aria-labelledby="groups-h" className="mt-10">
+          <h2 id="groups-h" className="type-semiwide text-xl font-bold">Your groups</h2>
+          <ul className="mt-2">
+            {myGroups().map((g) => (
+              <li key={g.code} className="flex flex-col gap-3 border-b border-limestone-300 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="type-semiwide text-lg font-bold">{g.title || 'Group trip'}</p>
+                  <p className="text-sm text-ink-600">Code {prettyCode(g.code)} · you are {g.name}{g.organizer ? ' (organizer)' : ''}</p>
+                </div>
+                <Link to={`/g/${g.code}`} className="btn-primary">Open</Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {listCompanions().length > 0 && (
         <section aria-labelledby="going-h" className="mt-10">

@@ -538,3 +538,68 @@ class NudgeWordingIn(BaseModel):
     ruleId: Literal["R1", "R2", "R3", "R4"]
     language: Literal["en", "ur"] = "en"
     text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=400)]
+
+
+# ── Group Room ──────────────────────────────────────────────────────────────────────
+TripType = Literal["friends", "family", "couple", "solo"]
+Interest = Literal["mountains", "lakes", "culture", "food", "photography", "trekking", "relaxation", "family"]
+NoGo = Literal["long_drives", "high_altitude", "hikes", "camping", "early_starts"]
+Need = Literal["altitude", "breathing", "motion_sickness", "limited_walking", "food_vegetarian", "food_mild",
+               "food_allergy"]
+PersonName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
+
+
+def _clean_name(v: str) -> str:
+    v = clean_text(v, 40)
+    if not v:
+        raise ValueError("Please enter a name.")
+    return v
+
+
+class GroupCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    tripId: HexId
+    tripType: TripType = "friends"
+    name: PersonName
+    _n = field_validator("name")(classmethod(lambda cls, v: _clean_name(v)))
+
+
+class GroupJoin(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: PersonName
+    _n = field_validator("name")(classmethod(lambda cls, v: _clean_name(v)))
+
+
+class MemberProfile(BaseModel):
+    """A member's public answers. The group sees them only as totals."""
+    model_config = ConfigDict(extra="forbid")
+    interests: list[Interest] = Field(default_factory=list, max_length=8)
+    budget_comfort: Literal["tight", "medium", "comfortable"] | None = None
+    pace: Literal["relaxed", "balanced", "active"] | None = None
+    must_do: list[str] = Field(default_factory=list, max_length=8)
+    no_go: list[NoGo] = Field(default_factory=list, max_length=5)
+
+    @field_validator("must_do")
+    @classmethod
+    def _places(cls, v: list[str]) -> list[str]:
+        out = list(dict.fromkeys(d for d in v if data.destination(d)))
+        if len(out) != len(set(v)):
+            raise ValueError("Unknown place in must-do.")
+        return out
+
+
+class NeedsIn(BaseModel):
+    """Private comfort needs. Stored without a link to the member; never a diagnosis."""
+    model_config = ConfigDict(extra="forbid")
+    codes: list[Need] = Field(default_factory=list, max_length=7)
+    show_name: bool = False
+
+
+class VoteIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    option: Literal["A", "B", "C"] | None = None
+
+
+class ConfirmIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    option: Literal["A", "B", "C"]

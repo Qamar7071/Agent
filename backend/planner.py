@@ -508,6 +508,7 @@ def build(req: TripRequest, *, with_savings: bool = True) -> dict:
     alloc, buffers, feas = _allocate(req, selected)
     days = _assemble(req, selected, alloc, buffers)
     warnings: list[dict] = []
+    _acclimatise(req, days, feas, warnings)
     _finish_days(req, days, warnings)
     _check_feasibility(req, selected, feas, warnings)
     _check_season(req, days, warnings)
@@ -548,6 +549,92 @@ def build(req: TripRequest, *, with_savings: bool = True) -> dict:
                    f"{data.dataset()['meta']['last_reviewed']}). Live weather and road checks are separate: "
                    "see Conditions. Nothing has been booked.",
     }
+
+
+ACCLIMATISE_M = 4000
+
+
+def _place_alt(key: str | dict | None) -> int:
+    if isinstance(key, dict):              # finished days hold {"hub", "name"}
+        key = key.get("hub")
+    if not key:
+        return 0
+    d = data.destination(key)
+    if d:
+        return d["altitude_m"]
+    return (data.dataset()["hubs"].get(key) or {}).get("altitude_m") or 0
+
+
+def _day_top(day: dict) -> tuple[str | None, int]:
+    """The highest place a day reaches: where its moves go, or the place it is about."""
+    keys = [m.get("to") for m in day.get("moves", [])]
+    if day.get("key", "").startswith("rest:"):
+        keys.append(day.get("overnight"))           # a rest day stays in town
+    elif day.get("type") in ("daytrip", "stay"):
+        keys.append(day.get("destination_id"))
+    best = max(((k, _place_alt(k)) for k in keys if k), key=lambda x: x[1], default=(None, 0))
+    return best
+
+
+ACCLIMATISE_BASE_M = 2000
+
+
+def _full_day_at_altitude(day: dict) -> bool:
+    """A day with no drive, sleeping at 2,000 m or more: the kind of day that helps the body adjust."""
+    return not day.get("moves") and _place_alt(day.get("overnight")) >= ACCLIMATISE_BASE_M
+
+
+def _acclimatise(req: TripRequest, days: list[dict], feas: dict, warnings: list[dict]) -> None:
+    """Someone sensitive to altitude: before going above 4,000 m, spend at least one full day (no
+    drive) sleeping at 2,000 m or more. First try to move the high day later in the trip (same
+    length); if that isn't possible, add a rest day at the base before it. The reason is shown.
+    """
+    if "altitude_sensitive" not in req.accessibility:
+        return
+    adjusted = 0
+    handled = set()                        # each high day is looked at once, so this always ends
+    i = 0
+    while i < len(days):
+        key, alt = _day_top(days[i])
+        if alt >= ACCLIMATISE_M and adjusted == 0 and id(days[i]) not in handled:
+            handled.add(id(days[i]))
+            hub = days[i - 1]["overnight"] if i > 0 else (days[i].get("overnight") or req.origin.lower())
+            hub_name, hub_alt = data.place_name(hub), _place_alt(hub)
+            name = data.place_name(key)
+            later = next((k for k in range(i + 1, len(days)) if days[k]["type"] in ("stay", "buffer")
+                          and days[k].get("overnight") == hub and _full_day_at_altitude(days[k])
+                          and _day_top(days[k])[1] < ACCLIMATISE_M), None)
+            if hub_alt < ACCLIMATISE_BASE_M:
+                warnings.append(_w("warning", "acclimatise",
+                                   f"{name} (about {alt:,} m) follows a night at {hub_name} (about {hub_alt:,} m): "
+                                   "too low to adjust there. Someone is sensitive to altitude, so plan an extra night "
+                                   "higher up first, or keep the visit short."))
+                i += 1
+                continue
+            if later is not None:
+                days[i], days[later] = days[later], days[i]
+                warnings.append(_w("info", "acclimatise",
+                                   f"{name} (about {alt:,} m) moved later in the trip, so the group spends a full "
+                                   f"day at {hub_name} (about {hub_alt:,} m) first: someone is sensitive to altitude."))
+            else:
+                # the rest day belongs to a place below 4,000 m (Sost serves Khunjerab: that one doesn't count)
+                dest_of_hub = next((d for d in data.destinations().values() if d.get("sleep_hub") == hub
+                                    and d["altitude_m"] < ACCLIMATISE_M), None)
+                days.insert(i, _day("stay", f"rest:{hub}", f"Rest day in {hub_name}",
+                                    [f"Rest and acclimatise before going above {ACCLIMATISE_M:,} m",
+                                     "Short, easy walk; drink plenty of water"],
+                                    dest_of_hub["id"] if dest_of_hub else None, [], hub))
+                feas["planned_days"] = len(days)
+                warnings.append(_w("info", "acclimatise",
+                                   f"A rest day at {hub_name} (about {hub_alt:,} m) was added before {name} (about "
+                                   f"{alt:,} m) because someone is sensitive to altitude. The plan is now "
+                                   f"{len(days)} days."))
+            continue                       # look at position i again: it is now a full day at the base
+        if _full_day_at_altitude(days[i]):
+            adjusted += 1
+        elif _place_alt(days[i].get("overnight")) < 1500:
+            adjusted = 0                   # back down in the lowlands: the body loses it
+        i += 1
 
 
 def _finish_days(req: TripRequest, days: list[dict], warnings: list[dict]) -> None:
