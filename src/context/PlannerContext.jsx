@@ -151,12 +151,12 @@ export function PlannerProvider({ children }) {
     if (message) note(message);
   }, []);
 
-  const buildPlan = useCallback(async (tripRequest) => {
+  const buildPlan = useCallback(async (tripRequest, from = 'the trip details form') => {
     setPlanBusy(true);
     setPlanError(null);
     try {
       const res = await api.plan(tripRequest);
-      adoptPlan(res.itinerary, `Built a ${res.itinerary.days.length}-day plan from the trip details form: ${res.itinerary.title}.`);
+      adoptPlan(res.itinerary, `Built a ${res.itinerary.days.length}-day plan from ${from}: ${res.itinerary.title}.`);
       return res.itinerary;
     } catch (e) {
       setPlanError(e);

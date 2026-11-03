@@ -126,6 +126,7 @@ for (const d of data.destinations) {
 const urls = [
   { loc: '/', lastmod: data.meta.last_reviewed },
   { loc: '/plan', lastmod: data.meta.last_reviewed },
+  { loc: '/explore', lastmod: data.meta.last_reviewed },
   ...data.destinations.map((d) => ({ loc: `/destinations/${d.id}`, lastmod: d.last_reviewed })),
 ];
 write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>
@@ -138,6 +139,8 @@ Allow: /
 Disallow: /admin
 Disallow: /trips
 Disallow: /trip/
+Disallow: /s/
+Disallow: /g/
 Disallow: /api/
 
 Sitemap: ${SITE}/sitemap.xml

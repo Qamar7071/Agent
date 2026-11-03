@@ -5,6 +5,7 @@ import { Link, useRouter } from '../../lib/router.jsx';
 import { useTheme } from '../../lib/theme.js';
 
 const links = [
+  { to: '/explore', label: 'Where to go' },
   { to: '/#destinations', label: 'Destinations' },
   { to: '/twin', label: 'Travel Twin' },
   { to: '/agents', label: 'Agents' },

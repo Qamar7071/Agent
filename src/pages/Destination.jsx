@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ExternalLink, RefreshCw } from 'lucide-react';
+import HeartButton from '../components/shared/HeartButton.jsx';
 import { Link } from '../lib/router.jsx';
 import { api } from '../lib/api.js';
 import { byId, seasonalRouteFor, stays } from '../lib/data.js';
@@ -60,7 +61,10 @@ export default function Destination({ id }) {
         <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-t from-juniper-950 via-juniper-950/50 to-juniper-950/10" />
         <div className="mx-auto flex min-h-[46vh] max-w-page flex-col justify-end px-4 pb-8 pt-24 sm:px-6">
           <p className="text-sm text-white/85"><Link to="/#destinations" className="hover:underline">Destinations</Link> / {d.region.replace(' · ', ', ')}</p>
-          <h1 className="type-wide mt-2 text-[clamp(2.2rem,5vw,3.75rem)] font-extrabold leading-[1.05]">{d.name}</h1>
+          <div className="mt-2 flex items-start justify-between gap-3">
+            <h1 className="type-wide text-[clamp(2.2rem,5vw,3.75rem)] font-extrabold leading-[1.05]">{d.name}</h1>
+            <HeartButton id={d.id} name={d.name} className="mt-2 shrink-0" />
+          </div>
           <p className="mt-2 max-w-[56ch] text-lg text-white/90">{d.tagline}</p>
           <p className="mt-4 text-xs text-white/70">{photos[id]?.place}. {creditLine(id)}.</p>
         </div>

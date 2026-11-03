@@ -13,6 +13,17 @@ export const costModel = dataset.cost_model;
 export const origins = Object.keys(dataset.origins);
 export const stays = dataset.stays;
 
+// Approximate map point for a planner place key (a hub such as "chilas", or a destination).
+export function placePoint(key) {
+  const h = dataset.hubs[key];
+  if (h) return { lat: h.lat, lng: h.lng };
+  const d = byId[key];
+  return d?.coords ? { lat: d.coords.lat, lng: d.coords.lng } : null;
+}
+
+const HUB_NAMES = { 'raikot-bridge': 'Raikot Bridge', askole: 'Askole', sost: 'Sost', chilas: 'Chilas', gilgit: 'Gilgit' };
+export const placeName = (key) => byId[key]?.name || HUB_NAMES[key] || key.charAt(0).toUpperCase() + key.slice(1);
+
 export function seasonOf(month) {
   if (month === 12 || month <= 2) return 'winter';
   if (month <= 5) return 'spring';

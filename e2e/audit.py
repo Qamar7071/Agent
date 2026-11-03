@@ -314,6 +314,39 @@ def run_group_states(page: Page, screen: str):
     page.evaluate("localStorage.removeItem('raahi:theme')")
 
 
+def run_explore_states(page: Page, screen: str):
+    """Where can we go, the plan's map, sharing with family, the family page and saved places."""
+    page.goto(BASE + "/explore", wait_until="domcontentloaded")
+    page.evaluate("localStorage.clear(); sessionStorage.clear()")
+    page.goto(BASE + "/explore?from=Islamabad&days=7&people=4&budget=250000&month=7", wait_until="networkidle")
+    expect(page.get_by_role("heading", name=re.compile(r"trips fit"))).to_be_visible(timeout=15000)
+    audit(page, screen, "where can we go: results")
+    page.goto(BASE + "/plan", wait_until="networkidle")
+    show_plan_view(page, screen)
+    page.get_by_role("button", name="Fill in trip details").first.click()
+    dialog = page.get_by_role("dialog", name="Trip details")
+    dialog.get_by_role("checkbox", name="Hunza Valley").click()
+    dialog.get_by_label("Total days, including travel").fill("6")
+    page.get_by_role("button", name="Build my plan").click()
+    page.get_by_role("tab", name="Map").click()
+    expect(page.locator(".leaflet-marker-icon").first).to_be_visible(timeout=15000)
+    audit(page, screen, "plan: map")
+    page.get_by_role("button", name="Share with family").click()
+    share = page.get_by_role("dialog", name="Share with family")
+    audit(page, screen, "share with family: before", scroll=False)
+    share.get_by_role("button", name="Make the link").click()
+    expect(share.get_by_text("Your family link")).to_be_visible(timeout=15000)
+    audit(page, screen, "share with family: link made", scroll=False)
+    link = share.locator("p.break-all").inner_text()
+    page.goto(link, wait_until="networkidle")
+    expect(page.get_by_role("heading", name="Where we’ll be")).to_be_visible()
+    audit(page, screen, "family page")
+    page.goto(BASE + "/", wait_until="networkidle")
+    page.get_by_role("button", name="Save Hunza Valley for later").click()
+    expect(page.get_by_text(re.compile("Your saved places"))).to_be_visible()
+    audit(page, screen, "home with saved places")
+
+
 # ---------------------------------------------------------------- page weight
 
 def kb(n: float) -> str:
@@ -393,7 +426,7 @@ def main() -> int:
             context = browser.new_context(**options)
             page = context.new_page()
             page.set_default_timeout(15000)
-            for states in (run_states, run_agent_states, run_saathi_states, run_group_states):
+            for states in (run_states, run_agent_states, run_saathi_states, run_group_states, run_explore_states):
                 try:
                     states(page, screen)
                 except Exception as exc:  # report what was reached; a broken flow is itself a finding

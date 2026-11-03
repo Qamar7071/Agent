@@ -642,3 +642,60 @@ usually closed then. When no month suits all, the months with no closures and th
 places at their best are shown as closest. The advice says what a chosen month means
 ("access to Khunjerab Pass is usually closed by snow") and quotes the guide's season note.
 It is a typical pattern, never a forecast, and never says a road is open.
+
+## 16. Where can we go (`backend/explore.py`, `POST /api/explore`)
+
+The input is the group (adults, children), days, starting city, budget (total or per person),
+month or start date, interests and style (any, easy, adventure). For each of 12 trip ideas
+(single places and the usual combined routes, such as Hunza with Attabad and Khunjerab, or
+Skardu with Deosai), the planner builds the real plan for that group:
+
+1. In order of comfort: hired car with mid-range stays, hired car with budget stays, coaches
+   with mid-range stays, coaches with budget stays. The first that fits the days and the
+   budget is kept.
+2. Only if no road version fits the days, flights north are tried, and the idea then says
+   flights are weather-dependent.
+3. If nothing fits the budget, the cheapest version that fits the days is shown, with how far
+   over it is.
+
+Each idea is scored: +25 within budget, a penalty growing with how far over; +15 if the days
+are enough, −30 if not, and a penalty for many idle days; +15 in the best months, −5 outside
+them, −60 when a seasonal road (Khunjerab, the Deosai road, the Fairy Meadows track) is usually
+closed; small weights for interests, style and days spent mostly on the road. K2 appears only
+for 14 days or more. Every idea returns its own `request`, so "Plan this trip" rebuilds exactly
+that plan. A search builds at most 72 plans (12 ideas, 6 ways each) and took 40–70 ms in testing.
+
+## 17. Trip map (`src/lib/tripMap.js`, `src/components/planner/TripMap.jsx`)
+
+`mapModel(days)` turns the plan's moves into segments between approximate place points (the
+dataset's hubs and destination centres), collects each stop's nights and visits, and keeps the
+points of each day. Places without a point are left out rather than guessed. The component
+loads Leaflet only when the Map tab opens, draws one colour per day (and the day number on the
+pins and in the list, so colour is never the only cue), and fits the map to a day when it is
+chosen. Directions open Google Maps with the day's points; Google picks the road. The map
+states that its lines are straight and not the road.
+
+## 18. Share with family (`/api/trips/<id>/share`, `/api/share/<key>`, `/s/<key>`)
+
+```mermaid
+flowchart LR
+  T[Saved trip<br/>owner's key] -->|POST share + optional note| S[(trip_shares<br/>sha256 of the link key, note)]
+  S -->|GET /api/share/key| V[Towns and dates per night<br/>title, note, saved time]
+  C[(companions.startDate)] -.dates when the plan has none.-> V
+  V --> P[/s/key: tonight first, signal advice,<br/>1122 · 15 · 130, English or Roman Urdu/]
+```
+
+- Creating a link needs the trip's own key; it replaces any earlier link. Revoking deletes it.
+  Deleting the trip deletes its link.
+- The view has the title, each day's title and overnight town, dates (from the plan, or from
+  the day the group pressed Start trip), the optional note and when the plan was last saved.
+  No costs, budget, member names, tokens or location.
+- `/s/` and `/g/` are disallowed in robots.txt, and the page sets `noindex`.
+
+## 19. Saved places and speech input
+
+Saved places are a list of destination ids in this browser (`raahi:saved-places:v1`), kept in
+step between components with a window event. The planner's `?d=` now takes a comma list, so
+"Plan a trip with these" opens the trip form with those places ticked. Speech input uses the
+browser's `SpeechRecognition` where it exists; the transcript is appended to what was typed
+and never sent on its own.

@@ -21,6 +21,13 @@ confirms. **How the agents decided** shows every run as a readable group chat of
 each proposal, concern and decision, with its reason and evidence, linked to its step in the
 Agent Control Center.
 
+Not sure where to go? **Where can we go?** takes a budget, days, group and month and plans
+every trip Raahi knows for them, the cheapest comfortable way, showing which ones fit. Every
+plan has a **map** with each day in its own colour and Google Maps directions per day, and a
+**Share with family** link that shows people at home which town you sleep in each night and
+who to call if they can't reach you. Places can be saved with a heart and turned into a trip,
+and the chat takes speech as well as typing.
+
 During the trip, **Safar Saathi** (trip companion) keeps the group's spending: add an expense
 in three taps, see whether you are on pace with the plan, get a friendly early warning with
 costed choices, and settle up with the fewest payments. It works offline and in Roman Urdu.
@@ -92,6 +99,11 @@ before this version: [docs/AUDIT.md](docs/AUDIT.md).
 | How the agents decided (`/decided`) | Every run as a group chat of the agents: proposals, concerns and decisions written from each agent's own result, with reasons, evidence, the earlier message each one answers, and a link to its step in the Agent Control Center. Live runs stream as they happen. If a live run fails or takes more than 25 seconds, a recorded real run plays instead, labelled "Recorded run · not live". Shown for the planner, Travel Twin, Guardian, Group Room options and each Safar Saathi trip. |
 | When to go | In the plan's Weather and roads tab: the months that suit every place in the plan, months when a seasonal road is usually closed, and what that means for your month, from the guide's typical seasons (not a forecast). |
 | Print or PDF | The plan prints cleanly; choose "Save as PDF" in the print window. |
+| Where can we go? (`/explore`) | Budget, days, adults, starting city, month, interests and style in; up to 12 trip ideas out, from one place to combined routes. Each is a real plan from the server's planner, built the most comfortable way that fits the budget (hired car, then budget stays, then coaches, then flights only when the road can't fit the days). Ranked by budget, days, season, interests and style, with plain reasons for and against each ("About Rs 24,900 over your budget, even the cheapest way (estimate)", "Access to Khunjerab Pass is usually closed by snow then"). One tap opens that exact plan. |
+| Trip map | A Map tab in every plan (Leaflet with OpenStreetMap tiles, loaded only when opened): each day's moves in its own colour, pins with the nights spent there, a day list that zooms the map, and Google Maps directions for each day. Lines are straight between approximate points and the map says so. |
+| Share with family (`/s/…`) | A read-only link for people at home: the town for each night with dates (tonight first once the trip has started), an optional note the traveller writes, what a gap in contact usually means, and tap-to-call 1122, 15 and 130; English or Roman Urdu. It shows the plan, not a location: no tracking, no costs, no names. Only a hash of the link's key is stored; a new link replaces the old one, and "Stop sharing" ends it at once. Needs a saved trip. |
+| Saved places | A heart on every destination; saved places stay in this browser, show on the home page and open the trip form with those places ticked. |
+| Speak instead of typing | A microphone button in the chat where the browser supports speech recognition (English, or Urdu when the site is set to Roman Urdu). The words go into the box to check before sending. In Chrome the audio goes to Google's speech service, and the button says so. |
 | Destination pages | One page per place with season, access, altitude, stays, forecast and sources, prerendered for search engines, plus `sitemap.xml` and `robots.txt`. |
 | Multi-agent planning | A Master Orchestrator picks the agents a request needs (a packing question doesn't run the budget agent), runs independent agents in parallel, has a Validation agent cross-check them, retries a failed weather lookup once, and asks you when a choice is yours (over budget, too few days). Works without an AI key; with one, the model only rewords the validated answer. |
 | Agent Control Center (`/agents`) | The workflow graph, each task's inputs, outputs, tool calls, timings, retries and errors, a timeline and the event log, all from real server events. The last 10 runs are kept in your browser. |
@@ -218,12 +230,12 @@ with gunicorn). It was not tested in this upgrade.
 
 | Command | What it runs | Result |
 |---|---|---|
-| `npm run build` | Production build, static destination pages, sitemap, service worker | OK on 31 Oct: main script 239 KB (75 KB gzipped), planner 70 KB (20 KB), Safar Saathi 50 KB (16 KB), Group Room 34 KB (11 KB), Travel Twin 24 KB (8 KB), Agent Control Center 15 KB, How the agents decided 12 KB, the recorded run 29 KB (5 KB), loaded only when shown |
-| `npm run test:unit` | 37 tests with Node's built-in runner, no extra packages: Safar Saathi's logic (money format, trip days, pace and prepaid money, nudge rules R1–R4, the typo check first, split rounding over 200 random cases, fewest payments, sync merge); the conversation (every message of the recorded run belongs to a real step and appears in its event log, replies point back, timing, playback); the best month advisor with the real guide data | 37 passed (31 Oct) |
-| `npm run test:api` (venv active; once, in `backend/`: `pip install -r requirements-dev.txt`) | 170 backend tests, all offline: data, planner (including the acclimatisation rule), budget, live-service parsing with recorded responses, places, storage, API, parser, agent with a scripted model (including the 10 evaluation scenarios), the multi-agent system (task graph and events, intent routing, a failing agent, validation retries, unsupported claims, every scenario type, Khunjerab day 4, risk, eco, packing, Guardian, streaming), the agents' messages (each from a real step, failures said out loud, Twin and Guardian explain themselves), Safar Saathi sync, and the Group Room (join, private needs without names, a need that changes the plan, votes, confirm, leaving, removal, member access to the shared trip) | 170 passed (31 Oct) |
+| `npm run build` | Production build, static destination pages, sitemap, service worker | OK on 3 Nov: main script 243 KB (77 KB gzipped), planner 74 KB (21 KB), Safar Saathi 50 KB (16 KB), Group Room 34 KB (11 KB), Travel Twin 24 KB (8 KB), Where can we go 12 KB, the map 7 KB plus Leaflet 150 KB (44 KB) loaded only when the Map tab opens, the family page 7 KB |
+| `npm run test:unit` | 41 tests with Node's built-in runner, no extra packages: Safar Saathi's logic (money format, trip days, pace and prepaid money, nudge rules R1–R4, the typo check first, split rounding over 200 random cases, fewest payments, sync merge); the conversation (every message of the recorded run belongs to a real step and appears in its event log, replies, timing, playback); the best month advisor and the trip map (segments, nights per stop, directions) with the real guide data | 41 passed (3 Nov) |
+| `npm run test:api` (venv active; once, in `backend/`: `pip install -r requirements-dev.txt`) | 182 backend tests, all offline: data, planner (including the acclimatisation rule), budget, live-service parsing with recorded responses, places, storage, API, parser, agent with a scripted model (including the 10 evaluation scenarios), the multi-agent system (task graph and events, intent routing, a failing agent, validation retries, unsupported claims, every scenario type, Khunjerab day 4, risk, eco, packing, Guardian, streaming), the agents' messages (each from a real step, failures said out loud, Twin and Guardian explain themselves), Safar Saathi sync, and the Group Room (join, private needs without names, a need that changes the plan, votes, confirm, leaving, removal, member access to the shared trip), Where can we go (each idea is the planner's own plan, the most comfortable way that fits, ranking, winter closures, days needed) and Share with family (towns and dates only, replace, stop, refuse bad keys, dates from the started trip, deleted with the trip) | 182 passed (3 Nov) |
 | same, with `RAAHI_TEST_PG_URL=postgresql://…` | The storage tests also on Postgres 16 | passed before the Group Room; the new group tables were tested on SQLite only |
-| `npm run test:e2e` (server running; `pip install -r e2e/requirements.txt` and `python -m playwright install chromium` first) | 29 checks in a real browser: pages, navigation, form, chat, editing, tabs, packing, saving, enquiry, admin, network errors, Travel Twin, Agent Control Center, Safar Saathi (3-tap expense, pace, split, typo check then nudge, offline), Guardian, Group Room on two browsers (join in under 30 s, anonymous need, options changed by it, vote, confirm), How the agents decided (recorded run labelled and linked, live run, failure falls back to the recorded run), When to go, theme, layouts, keyboard | 29 passed (31 Oct) |
-| `npm run audit:a11y` (server running) | axe-core accessibility rules (WCAG 2.2 A and AA plus best practices) on 96 page states at phone and desktop sizes, including the agent pages, every Safar Saathi screen, the Group Room, the agents' conversation, Roman Urdu and the dark theme, and page weight | 0 violations (31 Oct) |
+| `npm run test:e2e` (server running; `pip install -r e2e/requirements.txt` and `python -m playwright install chromium` first) | 33 checks in a real browser: pages, navigation, form, chat, editing, tabs, packing, saving, enquiry, admin, network errors, Travel Twin, Agent Control Center, Safar Saathi (3-tap expense, pace, split, typo check then nudge, offline), Guardian, Group Room on two browsers (join in under 30 s, anonymous need, options changed by it, vote, confirm), How the agents decided (recorded run labelled and linked, live run, failure falls back to the recorded run), When to go, Where can we go (ranked cards, one tap opens the plan, nothing-fits message), the trip map (pins, directions), Share with family on two browsers (note shown, no prices, stop works), saved places, theme, layouts, keyboard | 33 passed (3 Nov) |
+| `npm run audit:a11y` (server running) | axe-core accessibility rules (WCAG 2.2 A and AA plus best practices) on 108 page states at phone and desktop sizes, including the agent pages, every Safar Saathi screen, the Group Room, the agents' conversation, Where can we go, the map, sharing and the family page, Roman Urdu and the dark theme, and page weight | 0 violations (3 Nov) |
 
 The browser checks ran against a local server in guided mode with SQLite. During the 30 Oct
 runs, most Open-Meteo requests from the test machine failed (rate-limited or timed out) and
@@ -254,6 +266,9 @@ backend/group/        Group Room: merging profiles, consensus options and Group 
 backend/agents/voices.py  what each agent says in the conversation, from its own result
 src/lib/decided.js    the conversation helpers; src/data/demo-run.json is the recorded run
 src/lib/bestMonths.js the best month advisor
+backend/explore.py    Where can we go: trip ideas built and ranked by the planner
+src/lib/tripMap.js    the trip map's data; src/components/planner/TripMap.jsx draws it
+src/pages/SharedTrip.jsx  the family page (/s/…)
 src/lib/companion/    Safar Saathi logic: pace, nudges, split, local store, sync, words
 public/sw.js          service worker for offline use
 shared/               destinations.json: the one dataset used by the API and the website
@@ -321,6 +336,17 @@ To change destination facts, road legs, stays or cost assumptions, edit
 - **The recorded run is fixed.** It is a real run recorded on 31 Oct 2026 for the demo
   fallback; it is always labelled and never about your trip. Re-record it with the same
   request after changing the agents.
+- **Where can we go knows 12 trip ideas**, from single places to the usual combined routes.
+  It doesn't invent new routes, and its costs are the planner's estimates for your group.
+- **Map tiles come from OpenStreetMap's public servers**, which allow light use with
+  attribution. A busy public site should switch to a tile provider with a plan of its own.
+  The map's lines are straight between approximate points, not roads.
+- **The family link is not a tracker.** It shows the saved plan, so it is only as current as
+  the last saved change; it can't say where anyone actually is.
+- **Speech input depends on the browser.** It doesn't show in browsers without speech
+  recognition (Firefox, for example). Urdu speech comes back in Urdu script, which the AI mode
+  understands but guided mode may not.
+- **Saved places stay in one browser**, like the rest of Raahi without accounts.
 - **Not built, on purpose:** a local guide directory (no verified source of guides to point
   to), crowd or cancellation predictions for the best month (no data), and Roman Urdu across
   the whole site (only Safar Saathi, the Group Room and the conversation have it).

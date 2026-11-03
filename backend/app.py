@@ -48,7 +48,7 @@ from agents.orchestrator import AGENTS, orchestrate
 from twin import scenarios as twin_scenarios
 from twin import segments as twin_segments
 from twin.simulation import simulate
-from schemas import (AgentRunIn, CompanionSettings, ConfirmIn, ExpenseSync, GroupCreate, GroupJoin, GuardianIn, MemberProfile,
+from schemas import (AgentRunIn, CompanionSettings, ConfirmIn, ExpenseSync, ExploreIn, ShareIn, GroupCreate, GroupJoin, GuardianIn, MemberProfile,
                      NeedsIn, NudgeWordingIn, TwinSimulateIn, VoteIn, CONSENT_TEXT, CONSENT_VERSION, ChatRequest, EnquiryAdminUpdate, EnquiryIn, PlanUpdate,
                      TripRequest, TripSave)
 from security import admin_status, client_ip, limiter
@@ -388,6 +388,12 @@ def create_app() -> Flask:
         rate("plan", config.PLAN_RATE_PER_MIN)
         return {"itinerary": _build(parse(TripRequest, body()))}
 
+    @app.post("/api/explore")
+    def explore_trips():
+        rate("plan", config.PLAN_RATE_PER_MIN)
+        from explore import explore
+        return explore(parse(ExploreIn, body()))
+
     @app.post("/api/plan/update")
     def plan_update():
         rate("plan", config.PLAN_RATE_PER_MIN)
@@ -462,6 +468,40 @@ def create_app() -> Flask:
         except storage.NotFound as exc:
             raise ApiError(404, str(exc), "not_found") from exc
         return "", 204
+
+    # ── Family share: a read-only "where we'll be" link for a saved trip ──
+    @app.post("/api/trips/<trip_id>/share")
+    def share_create(trip_id: str):
+        rate("write", config.WRITE_RATE_PER_MIN)
+        need_storage()
+        note = parse(ShareIn, body()).note
+        try:
+            share = storage.create_share(_trip_id(trip_id), trip_token(), note)
+        except storage.NotFound as exc:
+            raise ApiError(404, str(exc), "not_found") from exc
+        return {"token": share, "path": f"/s/{share}",
+                "note": "Anyone with this link sees the towns and dates of this plan, nothing else. A new link replaces this one."}, 201
+
+    @app.delete("/api/trips/<trip_id>/share")
+    def share_revoke(trip_id: str):
+        rate("write", config.WRITE_RATE_PER_MIN)
+        need_storage()
+        try:
+            storage.revoke_share(_trip_id(trip_id), trip_token())
+        except storage.NotFound as exc:
+            raise ApiError(404, str(exc), "not_found") from exc
+        return "", 204
+
+    @app.get("/api/share/<share>")
+    def share_get(share: str):
+        rate("live", config.LIVE_RATE_PER_MIN)
+        need_storage()
+        if not re.fullmatch(r"[A-Za-z0-9_-]{16,40}", share or ""):
+            raise ApiError(404, "This link isn't valid.", "not_found")
+        try:
+            return storage.share_view(share)
+        except storage.NotFound as exc:
+            raise ApiError(404, str(exc), "not_found") from exc
 
     # ── Safar Saathi: the trip companion (settings and shared expenses of a saved trip) ──
     @app.get("/api/trips/<trip_id>/companion")

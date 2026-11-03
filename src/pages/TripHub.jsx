@@ -1,7 +1,7 @@
 // Safar Saathi: the trip companion. /trip/new starts one; /trip/<id> is the hub with three tabs
 // (Aaj, Kharcha, Plan), a big "+ Kharcha" button and quiet background sync.
 import { useEffect, useState } from 'react';
-import { Cloud, CloudOff, ListChecks, MessagesSquare, Plus, RefreshCw, Settings, Sun, Wallet } from 'lucide-react';
+import { Cloud, CloudOff, HeartHandshake, ListChecks, MessagesSquare, Plus, RefreshCw, Settings, Sun, Wallet } from 'lucide-react';
 import { Link } from '../lib/router.jsx';
 import { usePageMeta } from '../lib/seo.js';
 import { pkr } from '../lib/format.js';
@@ -16,6 +16,7 @@ import MoneyView from '../components/companion/MoneyView.jsx';
 import PlanTab from '../components/companion/PlanTab.jsx';
 import TripSettings from '../components/companion/TripSettings.jsx';
 import Notice from '../components/ui/Notice.jsx';
+import ShareFamily from '../components/shared/ShareFamily.jsx';
 
 const TABS = [['today', Sun], ['money', Wallet], ['plan', ListChecks]];
 
@@ -35,6 +36,7 @@ function Hub({ id }) {
   const [tab, setTab] = useState('today');
   const [sheet, setSheet] = useState({ open: false, editing: null });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [sharingFamily, setSharingFamily] = useState(false);
   const [toast, setToast] = useState(null);
   usePageMeta({ title: c ? c.title : s.appName, path: `/trip/${id}`, noindex: true });
 
@@ -119,8 +121,22 @@ function Hub({ id }) {
             {tab === key && key === 'plan' && <PlanTab hub={view} />}
           </div>
         ))}
+        {c.server?.token && (
+          <button type="button" onClick={() => setSharingFamily(true)}
+            className="group mt-8 flex w-full items-center gap-3 rounded-md border border-limestone-300 bg-paper p-3 text-left hover:border-juniper-500">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-apricot-100 text-ochre-700" aria-hidden="true"><HeartHandshake size={20} /></span>
+            <span className="min-w-0">
+              <span className="block font-semibold group-hover:underline">{s.shareFamily}</span>
+              <span className="block text-sm text-ink-600">{s.shareFamilyHint}</span>
+            </span>
+          </button>
+        )}
+        {sharingFamily && (
+          <ShareFamily open={sharingFamily} onClose={() => setSharingFamily(false)}
+            trip={{ id: c.server.id, token: c.server.token, title: c.title }} />
+        )}
         <Link to={`/decided?trip=${c.id}`}
-          className="group mt-8 flex items-center gap-3 rounded-md border border-limestone-300 bg-paper p-3 hover:border-juniper-500">
+          className="group mt-3 flex items-center gap-3 rounded-md border border-limestone-300 bg-paper p-3 hover:border-juniper-500">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-juniper-100 text-juniper-700" aria-hidden="true"><MessagesSquare size={20} /></span>
           <span className="min-w-0">
             <span className="block font-semibold group-hover:underline">{s.seeAgents}</span>
