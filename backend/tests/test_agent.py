@@ -168,7 +168,10 @@ def test_eval_08_unrealistic_multi_destination_trip_is_called_out():
     assert plan["feasibility"]["ok"] is False and plan["feasibility"]["minimum_days"] > 5
     warning = next(w for w in plan["warnings"] if w["code"] == "too_short")
     assert warning["level"] == "danger" and "fewer places" in warning["message"]
-    assert "Heads up: this route needs at least" in r["reply"]
+    # Asked in Roman Urdu, so guided mode answers in Roman Urdu; the same warning in English below.
+    assert f"Dhyan dein: is route ke liye kam se kam {plan['feasibility']['planned_days']} din chahiye" in r["reply"]
+    en = chat("Fairy Meadows, Skardu, Deosai, Hunza and Khunjerab, all in 5 days from Islamabad")
+    assert "Heads up: this route needs at least" in en["reply"] and en["lang"] == "en"
 
 
 # 9. Ask for current weather when the provider is unavailable ───────────────────────

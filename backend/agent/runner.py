@@ -14,7 +14,7 @@ import re
 import time
 
 import config
-from agent import guided, llm, parser, prompt, tools
+from agent import guided, lang as langs, llm, parser, prompt, tools
 from schemas import ChatRequest, TripState
 
 log = logging.getLogger("raahi.agent")
@@ -75,7 +75,19 @@ def prefetch(message: str, ctx: tools.ToolContext) -> list[tuple[str, dict]]:
     if "plan" in found and st.destinations and (st.days or st.start_date) and not st.plan() \
             and not found & {"weather", "road", "stays", "food"}:
         calls.append(("create_itinerary", {}))
+    fit = fit_args(parser.extract(message))
+    if fit and st.plan():
+        calls.append(("fit_plan_to_budget", fit))
     return calls
+
+
+def fit_args(slots: dict) -> dict | None:
+    """'Budget 20,000 kam kar do' on a plan: arguments for fit_plan_to_budget (days kept by default)."""
+    if (slots.get("budget_delta") or 0) < 0:
+        return {"reduce_by_pkr": -slots["budget_delta"], "keep_days": True}
+    if (slots.get("budget_delta_pct") or 0) < 0:
+        return {"reduce_by_percent": -slots["budget_delta_pct"], "keep_days": True}
+    return None
 
 
 def _ai(body: ChatRequest, ctx: tools.ToolContext, deadline: float) -> tuple[str, str, str]:
@@ -125,21 +137,31 @@ def _ai(body: ChatRequest, ctx: tools.ToolContext, deadline: float) -> tuple[str
     return fallback, provider, model
 
 
+SUGGEST = {
+    "en": {"plan": ["Weather for my trip", "Road status", "Make it Rs 20,000 cheaper", "More relaxed pace", "Save this trip"],
+           "destinations": ["Hunza and Attabad in spring", "Skardu and Deosai in July", "Suggest a 5-day trip", "Weather in Hunza"],
+           "dates": ["6 days in May", "A week from 10 June", "Next month, 5 days"],
+           "travellers": ["Just me", "2 adults", "2 adults and 2 kids"],
+           "budget": ["Budget Rs 1,50,000 total", "Rs 60,000 per person", "No fixed budget"],
+           "else": ["Plan it", "Weather for my trip"]},
+    "ur": {"plan": ["Is trip ka mausam", "Road ki halat", "Budget 20,000 kam kar do", "Ek din kam karo", "Trip save karo"],
+           "destinations": ["Hunza aur Attabad bahar mein", "July mein Skardu aur Deosai", "5 din ka trip suggest karo", "Hunza ka mausam"],
+           "dates": ["May mein 6 din", "10 June se ek hafta", "Agle mahine, 5 din"],
+           "travellers": ["Sirf main", "2 log", "2 log aur 2 bachay"],
+           "budget": ["Budget 1.5 lakh total", "60 hazar fi banda", "Koi fixed budget nahi"],
+           "else": ["Plan bana do", "Is trip ka mausam"]},
+}
+
+
 def _suggestions(state: TripState, artifacts: dict) -> list[str]:
+    s = SUGGEST.get(state.lang or "en", SUGGEST["en"])
     if state.has_itinerary or artifacts.get("itinerary"):
-        out = ["Weather for my trip", "Road status", "Make it cheaper", "More relaxed pace", "Save this trip",
-               "Help me book"]
-        return out[:5]
+        return s["plan"][:5]
     missing = state.missing()
-    if "destinations" in missing:
-        return ["Hunza and Attabad in spring", "Skardu and Deosai in July", "Suggest a 5-day trip", "Weather in Hunza"]
-    if "dates" in missing or "days" in missing:
-        return ["6 days in May", "A week from 10 June", "Next month, 5 days"]
-    if "travellers" in missing:
-        return ["Just me", "2 adults", "2 adults and 2 kids"]
-    if "budget" in missing:
-        return ["Budget Rs 1,50,000 total", "Rs 60,000 per person", "No fixed budget"]
-    return ["Plan it", "Weather for my trip"]
+    for key in ("destinations", "dates", "travellers", "budget"):
+        if key in missing or (key == "dates" and "days" in missing):
+            return s[key]
+    return s["else"]
 
 
 def run_chat(body: ChatRequest) -> dict:
@@ -147,6 +169,8 @@ def run_chat(body: ChatRequest) -> dict:
     deadline = started + config.AGENT_DEADLINE_S
     slots = parser.extract(body.message)
     state = parser.merge(body.state or TripState(), slots)
+    lang = langs.detect(body.message, state.lang)
+    state = state.model_copy(update={"lang": lang})
     ctx = tools.ToolContext(state, body.trip)
 
     mode, provider, model, notice, ai_error = "guided", None, None, None, None
@@ -168,7 +192,7 @@ def run_chat(body: ChatRequest) -> dict:
     else:
         notice = "AI model not configured on this server: guided mode."
     if reply is None:
-        reply = guided.respond(body.message, slots, ctx)
+        reply = guided.respond(body.message, slots, ctx, lang)
 
     a = ctx.artifacts
     return {
@@ -188,6 +212,9 @@ def run_chat(body: ChatRequest) -> dict:
         "places": a.get("places"),
         "budget": a.get("budget") if not a.get("itinerary") else None,
         "enquiry_draft": a.get("enquiry_draft"),
+        "budget_fit": a.get("budget_fit"),
+        "destinations": a.get("destinations"),
+        "lang": lang,
         "client_actions": ctx.client_actions,
         "trace": ctx.trace,
         "suggestions": _suggestions(ctx.state, a),

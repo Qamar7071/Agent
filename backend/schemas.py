@@ -231,6 +231,7 @@ class TripState(BaseModel):
     has_itinerary: bool = False
     assumed: list[Annotated[str, StringConstraints(max_length=120)]] = Field(default_factory=list, max_length=12)
     plan_request: dict | None = None      # the request behind the itinerary currently shown
+    lang: Literal["en", "ur"] | None = None   # the conversation's language (Roman Urdu is "ur")
 
     @field_validator("plan_request")
     @classmethod

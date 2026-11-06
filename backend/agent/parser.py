@@ -42,7 +42,9 @@ INTENT_WORDS = {
              r"kamre|motel|camping|campsite|lodge)\b",
     "food": r"\b(food|foods|restaurant|restaurants|cafe|cafes|café|eat|eating|khana|khaana|khane|dhaba|dhabay|"
             r"dish|dishes|lunch|dinner|breakfast|nashta)\b",
-    "suggest": r"\b(suggest|recommend|where should|best place|kahan|kidhar|ideas?)\b",
+    "suggest": r"\b(suggest|recommend|where should|best place|best places|kahan|kidhar|ideas?)\b",
+    "safety": r"\b(safe|safety|unsafe|risk|risks|risky|danger|dangerous|hazard|khatra|khatre|khatarnak|"
+              r"theek rahega|sahi rahega|munasib)\b",
 }
 
 
@@ -94,6 +96,53 @@ def _budget(t: str) -> int | None:
 
 
 _AMT = r"(\d[\d,]*(?:\.\d+)?)\s*(k|thousand|hazar|hazaar)?"
+_MONEY = r"(?:rs\.?\s*|pkr\s*)?(\d[\d,]*(?:\.\d+)?)\s*(k|thousand|hazar|hazaar|lakhs?|lacs?)?"
+_LESS_UR = r"(?:kam|km|kum|ghata|ghatao|ghata\s*do)"
+_MORE_UR = r"(?:zyada|ziada|barha|badha|barhao|badhao|barha\s*do|aur\s+add)"
+_DO_UR = r"(?:\s*(?:kar|kr|kardo|krdo|karo|kro|karein|karen|kijiye|do|dein|den|ho|hona|hojaye|ho\s*jaye))?"
+
+
+def _budget_change(t: str) -> tuple[int | None, int | None]:
+    """A change to the budget rather than a new budget: (rupees, percent), negative to lower it.
+
+    'budget 20,000 kam kar do', 'reduce the budget by 20k', 'Rs 15,000 less', 'budget 10% kam',
+    'increase the budget by 30000', 'budget 20 hazar barha do'. Amounts under Rs 1,000 are not money.
+    """
+    pct_patterns = [
+        (-1, rf"(\d{{1,2}})\s*(?:%|percent|per cent|fisad)\s*{_LESS_UR}"),
+        (-1, r"(?:reduce|cut|lower|decrease|bring down|drop)\s+(?:the\s+|my\s+|our\s+)?(?:budget|cost|price)\s+by\s+(\d{1,2})\s*(?:%|percent)"),
+        (-1, r"(\d{1,2})\s*(?:%|percent)\s+(?:less|cheaper|lower|off)\b"),
+        (1, rf"(\d{{1,2}})\s*(?:%|percent|per cent|fisad)\s*{_MORE_UR}"),
+        (1, r"(?:increase|raise)\s+(?:the\s+|my\s+|our\s+)?budget\s+by\s+(\d{1,2})\s*(?:%|percent)"),
+    ]
+    for sign, pat in pct_patterns:
+        m = re.search(pat, t)
+        if m and 1 <= int(m.group(1)) <= 90:
+            return None, sign * int(m.group(1))
+    money_patterns = [
+        (-1, rf"(?:budget|kharch[ae]?|cost)\s+(?:mein\s+|me\s+|se\s+|ko\s+)?{_MONEY}\s*{_LESS_UR}{_DO_UR}"),
+        (-1, rf"{_MONEY}\s*{_LESS_UR}\s*(?:kar|kr|kardo|krdo|karo|kro|karein|karen|kijiye|do|dein)\b"),
+        (-1, rf"(?:reduce|cut|lower|decrease|bring down|drop)\s+(?:the\s+|my\s+|our\s+)?(?:budget|cost|price|total)\s+by\s+{_MONEY}"),
+        (-1, rf"(?:take|knock|shave)\s+{_MONEY}\s+off"),
+        (-1, rf"{_MONEY}\s+(?:less|cheaper)\b"),
+        (1, rf"(?:budget|kharch[ae]?)\s+(?:mein\s+|me\s+)?{_MONEY}\s*{_MORE_UR}{_DO_UR}"),
+        (1, rf"(?:increase|raise)\s+(?:the\s+|my\s+|our\s+)?budget\s+by\s+{_MONEY}"),
+    ]
+    for sign, pat in money_patterns:
+        m = re.search(pat, t)
+        if m:
+            amount = _amount(m.group(1), m.group(2))
+            if amount:
+                return sign * amount, None
+    return None, None
+
+
+KEEP_PLAN = re.compile(
+    r"(?:itinerary|plan|route|jagah|jagahen|places|din)\s+(?:zyada\s+|ziada\s+)?(?:change|badal|badle|tabdeel)\s*(?:na|nahi|nhi|mat)\b"
+    r"|(?:itinerary|plan)\s+(?:change|badal)\s+(?:na|nahi|nhi|mat)\s+(?:ho|ho\s+zyada|kar)"
+    r"|(?:same|wahi|wohi|yehi|waisa\s+hi|jaisa\s+hai)\s+(?:itinerary|plan|route|places|jagah)"
+    r"|(?:itinerary|plan|route|places)\s+(?:same|wahi|wohi|waisa\s+hi|jaisa\s+hai|as\s+it\s+is)"
+    r"|(?:keep|don'?t\s+change|do\s+not\s+change|without\s+changing)\s+(?:the\s+|my\s+)?(?:itinerary|plan|route|places|days)")
 _NIGHT_WORDS = r"\b(hotel|hotels|stay|room|rooms|guest ?houses?|hostels?|motel|lodge|per night|a night|night|raat|kamra|kamre)\b"
 
 
@@ -142,6 +191,8 @@ def _date(text: str, today: date) -> tuple[date | None, int | None]:
             return None, None
     if re.search(r"\b(tomorrow|kal)\b", t) and not re.search(r"\b(kal raat|yesterday)\b", t):
         return today + timedelta(days=1), None
+    if re.search(r"\b(this month|is month|iss month|is mahine|iss mahine|is maheene|is mahinay|current month)\b", t):
+        return None, today.month
     if re.search(r"\b(next month|agle mahine|agla mahina)\b", t):
         return None, today.month % 12 + 1
     m = re.search(rf"\b(?:in|during|of|for|this|next)\s+({MONTH_RE})\b|\b({MONTH_RE})\s+(?:mein|me|main|mai)\b", t)
@@ -209,9 +260,16 @@ def extract(text: str, today: date | None = None) -> dict:
         out["children"] = 0
 
     night = _night_range(t)
-    budget = _budget(t)
+    delta, delta_pct = _budget_change(t)
+    budget = None if (delta or delta_pct) else _budget(t)     # "budget 20,000 kam" changes it, it doesn't set it
     if night:
         out["night_range"] = night
+    if delta:
+        out["budget_delta"] = delta
+    if delta_pct:
+        out["budget_delta_pct"] = delta_pct
+    if KEEP_PLAN.search(t):
+        out["keep_itinerary"] = True
     if budget and not (night and not re.search(r"\b(budget|total|trip|kharch)", t)):
         out["budget_pkr"] = budget
         if re.search(r"per (person|head|traveller|adult)|\beach\b|fi kas|per banda|har banda", t):
@@ -233,7 +291,8 @@ def extract(text: str, today: date | None = None) -> dict:
     elif re.search(r"\b(by car|by road|drive|driving|own car|gari|gaari|jeep)\b", t):
         out["transport"] = "car"
 
-    if re.search(r"\b(budget (?:hotel|stay|room)s?|cheap|cheapest|sasta|guesthouse|low cost|backpack)", t):
+    if re.search(r"\b(budget (?:hotel|stay|room)s?|cheap|cheapest|sasta|guesthouse|low cost|backpack)", t) \
+            and not (delta or delta_pct):          # "Rs 15,000 cheaper": the budget optimiser chooses what changes
         out["accommodation"] = "budget"
     elif re.search(r"\b(luxury|premium|5[- ]?star|five star|serena|best hotels?)\b", t):
         out["accommodation"] = "premium"
@@ -290,7 +349,12 @@ def merge(state: TripState, slots: dict) -> TripState:
         return state
     upd = {}
     for key, value in slots.items():
-        if key in ("remove_destinations", "night_range", "place_towns"):
+        if key in ("remove_destinations", "night_range", "place_towns", "keep_itinerary"):
+            continue
+        if key in ("budget_delta", "budget_delta_pct"):
+            if state.plan() is None and state.budget_pkr:
+                new = state.budget_pkr + value if key == "budget_delta" else state.budget_pkr * (100 + value) / 100
+                upd["budget_pkr"] = int(max(1000, round(new / 100) * 100))
             continue
         if key == "days_delta":
             base = state.days or (state.plan().days if state.plan() else None)

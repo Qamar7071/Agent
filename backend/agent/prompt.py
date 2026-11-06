@@ -20,6 +20,10 @@ something useful in the same reply. Never ask again for anything already in TRIP
 the defaults you assumed (assumed_defaults) and invite corrections.
 - For changes ("cheaper", "add Deosai", "one day less", "start on 12 May") use update_itinerary. It keeps every other \
 preference.
+- To make the current plan cost less by an amount or a percentage ("budget 20,000 kam kar do", "Rs 15,000 cheaper", \
+"10% less") use fit_plan_to_budget. Keep keep_days true unless the traveller accepts fewer days. A lower budget for a \
+plan on screen means a cheaper plan, not a smaller stated budget. Say what changed, the old and new estimate, and the \
+other option it priced.
 - Weather: get_weather_forecast. Roads: get_road_status. Distance or drive time: get_route_information. Costs: \
 estimate_trip_budget. Where to go: search_destinations. Facts about a place: get_destination_details. Hotels or food: \
 find_places (pass the traveller's per-night range if they gave one). Saving: save_trip, only when asked. Booking help: create_booking_enquiry, which only opens a draft the traveller sends themselves.

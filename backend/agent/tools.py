@@ -112,6 +112,13 @@ class PlacesArgs(_Args):
     max_pkr_per_night: int | None = Field(default=None, ge=0, le=1_000_000)
 
 
+class FitArgs(_Args):
+    target_total_pkr: int | None = Field(default=None, ge=1000, le=20_000_000)
+    reduce_by_pkr: int | None = Field(default=None, ge=500, le=20_000_000)
+    reduce_by_percent: int | None = Field(default=None, ge=1, le=90)
+    keep_days: bool = True
+
+
 class SaveArgs(_Args):
     title: str | None = Field(default=None, max_length=120)
 
@@ -228,6 +235,10 @@ def search_destinations(args: SearchArgs, ctx: ToolContext) -> dict:
                 reasons.append(f"outside its usual season in {planner.MONTHS[month - 1]}")
         ranked.append((score, d, reasons))
     ranked.sort(key=lambda x: -x[0])
+    shown = ctx.artifacts.setdefault("destinations", [])
+    for _, d, reasons in ranked[:4]:
+        if not any(x["id"] == d["id"] for x in shown):
+            shown.append({"id": d["id"], "why": reasons[:2]})
     return {"ok": True, "results": [{
         "id": d["id"], "name": d["name"], "tagline": d["tagline"], "altitude_m": d["altitude_m"],
         "best_months": _months(d["best_months"]), "recommended_days": d["recommended_days"],
@@ -238,6 +249,9 @@ def search_destinations(args: SearchArgs, ctx: ToolContext) -> dict:
 def get_destination_details(args: DestinationArgs, ctx: ToolContext) -> dict:
     d = data.destination(_resolve(args.destination))
     stay = data.stays(d["id"]) or {}
+    shown = ctx.artifacts.setdefault("destinations", [])
+    if not any(x["id"] == d["id"] for x in shown):
+        shown.append({"id": d["id"], "why": []})
     return {"ok": True, "destination": {
         "id": d["id"], "name": d["name"], "region": d["region"], "description": d["description"],
         "altitude_m": d["altitude_m"], "best_months": _months(d["best_months"]), "season_note": d["season_note"],
@@ -377,6 +391,51 @@ def update_itinerary(args: UpdateArgs, ctx: ToolContext) -> dict:
     ctx.state = ctx.state.absorb(new_req)
     return {"ok": True, "applied": [c.model_dump(exclude_none=True) for c in args.changes],
             "plan": planner.compact(plan), "kept": "All other preferences were kept."}
+
+
+def fit_plan_to_budget(args: FitArgs, ctx: ToolContext) -> dict:
+    """Bring the current plan's estimated cost down, with the fewest changes (the Budget Intelligence
+    agent's optimiser). keep_days keeps the days and places; only stays and transport may change."""
+    from agents.budget_agent import fit_to_budget
+    req = ctx.state.plan()
+    if req is None:
+        raise ToolFailure("There is no plan yet. Create an itinerary first.")
+    before = planner.build(req)
+    total = before["budget"]["total"]
+    if args.target_total_pkr:
+        target = args.target_total_pkr
+    elif args.reduce_by_pkr:
+        target = total - args.reduce_by_pkr
+    elif args.reduce_by_percent:
+        target = int(round(total * (100 - args.reduce_by_percent) / 100, -2))
+    else:
+        raise ToolFailure("Say how much to save: target_total_pkr, reduce_by_pkr or reduce_by_percent.")
+    if target >= total:
+        return {"ok": True, "changed": False, "from": total, "target": target,
+                "note": "The plan already costs no more than that (estimate)."}
+    protect = ("days",) if args.keep_days else ()
+    fit = fit_to_budget(req, target, protect=protect, prefer="closest")
+    best = fit["best"]
+    out = {"from": total, "target": target, "fits": fit["fits"], "change": best["change"], "to": best["total"],
+           "kept_days": args.keep_days, "options_tried": fit["options_tried"], "shortfall": fit["shortfall"],
+           "alternatives": [{"change": o["change"], "total": o["total"], "fits": o["fits"]} for o in fit.get("others", [])
+                            if o["changes"] == len(best["change"] or {}) or not best["change"]][:2]}
+    if not fit["fits"] and args.keep_days:
+        other = fit_to_budget(req, target, prefer="closest")
+        if other["fits"] or other["best"]["total"] < best["total"]:
+            out["if_days_change"] = {"change": other["best"]["change"], "to": other["best"]["total"], "fits": other["fits"]}
+    if best["change"] and best["total"] < total:
+        new_req = req.model_copy(update=best["change"])
+        plan = planner.build(new_req)
+        ctx.artifacts["itinerary"] = plan
+        ctx.state = ctx.state.absorb(new_req)
+        out["to"] = plan["budget"]["total"]
+        out["changed"] = True
+    else:
+        out["changed"] = False
+    ctx.artifacts["budget_fit"] = out
+    return {"ok": True, **out, "status": "estimates from Raahi's cost model, not quotes",
+            "kept": "Places, dates and other preferences were kept." + (" Days were kept." if args.keep_days else "")}
 
 
 def _current_plan(ctx: ToolContext) -> dict | None:
@@ -519,6 +578,13 @@ TOOLS = {
             "key": {"type": "string", "description": "Day key from the itinerary, e.g. 'hunza:1'."},
             "title": {"type": "string"}, "activities": {"type": "array", "items": {"type": "string"}},
             "note": {"type": "string"}}, "required": ["op"]}}}, ["changes"])),
+    "fit_plan_to_budget": (FitArgs, fit_plan_to_budget, _fn(
+        "fit_plan_to_budget", "Make the current plan cheaper with the fewest changes (Raahi's Budget Intelligence "
+        "optimiser): give a target total, an amount to save or a percentage. keep_days true (the default) keeps the "
+        "days and places and changes only stays or transport. Use when the traveller asks to lower the cost or budget "
+        "of an existing plan, e.g. 'budget 20,000 kam kar do'.",
+        {"target_total_pkr": {"type": "integer"}, "reduce_by_pkr": {"type": "integer"},
+         "reduce_by_percent": {"type": "integer"}, "keep_days": {"type": "boolean"}})),
     "find_places": (PlacesArgs, find_places, _fn(
         "find_places", "Places to stay or eat in a town on the trip. Stays: Raahi's curated hotels with indicative "
         "price ranges, matched to the traveller's per-night range, plus real places from OpenStreetMap (no prices, "
@@ -606,6 +672,10 @@ def summarize(name: str, result: dict, args: dict) -> str:
         what = "Places to stay" if result.get("kind") == "stay" else "Food"
         found = f"{live.get('count', 0)} on OpenStreetMap" if live.get("available") else "OpenStreetMap unavailable"
         return f"{what} in {result.get('name', '?')}: {found}"
+    if name == "fit_plan_to_budget":
+        if not result.get("changed"):
+            return f"Budget: no cheaper version found within the limits (about {rs(result.get('to') or result.get('from') or 0)})"
+        return f"Budget: {rs(result['from'])} → {rs(result['to'])} (target {rs(result['target'])}, estimate)"
     if name == "save_trip":
         return "Trip saved" if result.get("saved") or result.get("updated") else "Trip not saved"
     if name == "create_booking_enquiry":

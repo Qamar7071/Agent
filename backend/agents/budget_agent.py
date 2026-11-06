@@ -24,12 +24,24 @@ def budget_total(req) -> int | None:
     return req.budget_pkr * (req.adults + req.children) if req.budget_basis == "per_person" else req.budget_pkr
 
 
-def fit_to_budget(req, target_total: int, closures=frozenset()) -> dict:
-    """Fewest changes that bring the estimate within target_total (or the cheapest if none does)."""
+def fit_to_budget(req, target_total: int, closures=frozenset(), protect=(), prefer: str = "cheapest") -> dict:
+    """Fewest changes that bring the estimate within target_total (or the cheapest if none does).
+
+    protect: fields that must not change, e.g. ("days",) when the traveller wants the itinerary kept.
+    prefer: among the fewest changes that fit, "cheapest" saves the most; "closest" gives up the least
+    (stays before transport, then the dearest version still within the target), for "make it Rs 20,000
+    cheaper". The other versions priced are returned too, so the traveller can choose.
+    """
     stays = list(dict.fromkeys([req.accommodation, "mid", "budget"]))
     stays = stays[stays.index(req.accommodation):] if req.accommodation in stays else stays
     transports = list(dict.fromkeys([req.transport, "car" if req.transport == "flight" else req.transport, "bus"]))
     day_opts = [req.days] + ([req.days - 1] if req.days > 2 else [])
+    if "accommodation" in protect:
+        stays = [req.accommodation]
+    if "transport" in protect:
+        transports = [req.transport]
+    if "days" in protect:
+        day_opts = [req.days]
     tried = []
     for acc, tr, days in product(stays, transports, day_opts):
         change = {k: v for k, v in (("accommodation", acc), ("transport", tr), ("days", days))
@@ -38,10 +50,16 @@ def fit_to_budget(req, target_total: int, closures=frozenset()) -> dict:
         tried.append({"change": change, "total": total, "feasible": plan["feasibility"]["ok"],
                       "changes": len(change)})
     usable = [t for t in tried if t["feasible"]] or tried
-    fitting = sorted([t for t in usable if t["total"] <= target_total], key=lambda t: (t["changes"], t["total"]))
+    # "closest": give up the least. A change of stays leaves the journey itself alone, so it comes
+    # before a change of transport; then the dearest version still within the target.
+    order = ((lambda t: (t["changes"], "transport" in t["change"], -t["total"])) if prefer == "closest"
+             else (lambda t: (t["changes"], t["total"])))
+    fitting = sorted([t for t in usable if t["total"] <= target_total], key=order)
     best = fitting[0] if fitting else min(usable, key=lambda t: t["total"])
+    others = sorted([t for t in usable if t is not best and t["change"]], key=order)[:3]
     return {"target_total": target_total, "fits": bool(fitting), "best": best, "options_tried": len(tried),
-            "shortfall": 0 if fitting else best["total"] - target_total}
+            "shortfall": 0 if fitting else best["total"] - target_total, "protected": list(protect),
+            "others": [{**t, "fits": t["total"] <= target_total} for t in others]}
 
 
 class BudgetAgent(Agent):
