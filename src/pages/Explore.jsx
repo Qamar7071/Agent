@@ -40,14 +40,14 @@ function Stepper({ id, label, value, min, max, onChange, hint }) {
     <div>
       <label htmlFor={id} className="field-label">{label}</label>
       <div className="flex items-center gap-1">
-        <button type="button" className="btn-outline h-11 w-11 shrink-0 p-0" aria-label={`Fewer: ${label}`} disabled={value <= min}
+        <button type="button" className="btn-outline h-11 w-10 shrink-0 p-0" aria-label={`Fewer: ${label}`} disabled={value <= min}
           onClick={() => onChange(Math.max(min, value - 1))}><Minus size={16} aria-hidden="true" /></button>
-        <input id={id} className="field num h-11 w-16 text-center" inputMode="numeric" value={value}
+        <input id={id} className="field num h-11 w-12 min-w-0 px-1 text-center" inputMode="numeric" value={value}
           onChange={(e) => {
             const v = Number(e.target.value.replace(/\D/g, ''));
             if (Number.isFinite(v)) onChange(Math.min(max, Math.max(min, v || min)));
           }} />
-        <button type="button" className="btn-outline h-11 w-11 shrink-0 p-0" aria-label={`More: ${label}`} disabled={value >= max}
+        <button type="button" className="btn-outline h-11 w-10 shrink-0 p-0" aria-label={`More: ${label}`} disabled={value >= max}
           onClick={() => onChange(Math.min(max, value + 1))}><Plus size={16} aria-hidden="true" /></button>
       </div>
       {hint && <p className="mt-1 text-xs text-ink-500">{hint}</p>}
@@ -179,7 +179,7 @@ export default function Explore() {
               {origins.map((o) => <option key={o}>{o}</option>)}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-4">
             <Stepper id="ex-days" label="Days" value={q.days} min={2} max={30} onChange={(v) => set({ days: v })} hint="including travel" />
             <Stepper id="ex-adults" label="Adults" value={q.adults} min={1} max={20} onChange={(v) => set({ adults: v })} />
           </div>

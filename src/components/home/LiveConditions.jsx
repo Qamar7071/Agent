@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { CloudOff, ExternalLink, Phone, RefreshCw } from 'lucide-react';
+import { ExternalLink, Phone, RefreshCw } from 'lucide-react';
 import { api } from '../../lib/api.js';
-import { destinations, seasonalRoutes, seasonNotes, seasonOf } from '../../lib/data.js';
-import { MONTHS, checkedAt, monthSpan } from '../../lib/format.js';
+import { destinations, seasonalRoutes } from '../../lib/data.js';
+import { checkedAt, monthSpan } from '../../lib/format.js';
 import Forecast from '../shared/Forecast.jsx';
+import NoForecast from '../shared/NoForecast.jsx';
 import DataBadge from '../ui/DataBadge.jsx';
 import SectionHeader from '../ui/SectionHeader.jsx';
 import Reveal from '../ui/Reveal.jsx';
@@ -32,22 +33,6 @@ const Loading = ({ label }) => (
     {[0, 1, 2].map((i) => <span key={i} className="skeleton h-10" aria-hidden="true" />)}
   </div>
 );
-
-/** No live forecast: say why, and show what usually happens this month instead. */
-function NoForecast({ reason, onRetry }) {
-  const month = new Date().getMonth() + 1;
-  return (
-    <div className="rounded-xl border border-dashed border-limestone-400 bg-limestone/50 p-4 text-sm">
-      <p className="flex items-center gap-2 font-semibold text-ink"><CloudOff size={16} className="text-ink-600" aria-hidden="true" /> No live forecast right now</p>
-      <p className="mt-1 text-ink-600">{reason}</p>
-      <div className="mt-3 rounded-lg bg-paper p-3">
-        <DataBadge kind="typical" />
-        <p className="mt-2 text-ink-700"><span className="font-semibold">What usually happens in {MONTHS[month - 1]}:</span> {seasonNotes[seasonOf(month)]}</p>
-      </div>
-      <button type="button" onClick={onRetry} className="btn-outline mt-3 min-h-[40px]"><RefreshCw size={15} aria-hidden="true" /> Try again</button>
-    </div>
-  );
-}
 
 export default function LiveConditions() {
   const [place, setPlace] = useState('hunza');
