@@ -3,11 +3,49 @@
 // - Built files (/assets/*, hashed names): cache first; they never change.
 // - Photos and icons: cached as you see them.
 // - API calls are never cached here: the app keeps its own offline data and says when it is stale.
-const VERSION = 'raahi-sw-1';
+// - The app shell (the page and the scripts and styles it names) is stored at install, so the app
+//   opens offline even on the first visit: the main bundle loads before this worker takes
+//   control, so it would otherwise never pass through here. The page also sends the files it
+//   loaded before that moment (see src/main.jsx).
+const VERSION = 'raahi-sw-2';
+const SHELL = ['/', '/spa'];
+
+async function precacheShell() {
+  const cache = await caches.open(VERSION);
+  for (const path of SHELL) {
+    try {
+      const res = await fetch(path, { cache: 'no-cache' });
+      if (!res.ok) continue;
+      await cache.put(path, res.clone());
+      const html = await res.text();
+      const assets = [...new Set(html.match(/\/assets\/[^"'\s)]+\.(?:js|css)/g) || [])];
+      await Promise.all(assets.map((a) => cache.match(a).then((hit) => hit || cache.add(a)).catch(() => undefined)));
+    } catch {
+      /* offline during install: the next visit will try again */
+    }
+  }
+}
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(VERSION).then((c) => c.addAll(['/']).catch(() => undefined)));
+  event.waitUntil(precacheShell());
   self.skipWaiting();
+});
+
+// Files the page loaded before this worker controlled it (hashed, so safe to keep).
+self.addEventListener('message', (event) => {
+  const msg = event.data || {};
+  if (msg.type !== 'cache' || !Array.isArray(msg.urls)) return;
+  const own = msg.urls.filter((u) => {
+    try {
+      const url = new URL(u, self.location.origin);
+      return url.origin === self.location.origin && url.pathname.startsWith('/assets/');
+    } catch {
+      return false;
+    }
+  }).slice(0, 80);
+  event.waitUntil(caches.open(VERSION).then((c) => Promise.all(
+    own.map((u) => c.match(u).then((hit) => hit || c.add(u)).catch(() => undefined)),
+  )));
 });
 
 self.addEventListener('activate', (event) => {

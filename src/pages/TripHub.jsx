@@ -1,6 +1,6 @@
 // Safar Saathi: the trip companion. /trip/new starts one; /trip/<id> is the hub with three tabs
 // (Aaj, Kharcha, Plan), a big "+ Kharcha" button and quiet background sync.
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Cloud, CloudOff, HeartHandshake, ListChecks, MessagesSquare, Plus, RefreshCw, Settings, Sun, Wallet } from 'lucide-react';
 import { Link } from '../lib/router.jsx';
 import { usePageMeta } from '../lib/seo.js';
@@ -16,6 +16,7 @@ import MoneyView from '../components/companion/MoneyView.jsx';
 import PlanTab from '../components/companion/PlanTab.jsx';
 import TripSettings from '../components/companion/TripSettings.jsx';
 import Notice from '../components/ui/Notice.jsx';
+import { toast } from '../lib/toast.js';
 import ShareFamily from '../components/shared/ShareFamily.jsx';
 
 const TABS = [['today', Sun], ['money', Wallet], ['plan', ListChecks]];
@@ -37,14 +38,7 @@ function Hub({ id }) {
   const [sheet, setSheet] = useState({ open: false, editing: null });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sharingFamily, setSharingFamily] = useState(false);
-  const [toast, setToast] = useState(null);
   usePageMeta({ title: c ? c.title : s.appName, path: `/trip/${id}`, noindex: true });
-
-  useEffect(() => {
-    if (!toast) return undefined;
-    const t = setTimeout(() => setToast(null), 6000);
-    return () => clearTimeout(t);
-  }, [toast]);
 
   if (!c) {
     const fallback = strings(read(LANG_KEY, 'en'));
@@ -58,6 +52,8 @@ function Hub({ id }) {
   }
 
   const n = c.plan.days.length;
+  // Toasts sit above the "+ Kharcha" button and the tab bar.
+  const notify = (t) => toast({ bottom: 150, undoLabel: s.undo, ...t }, { duration: 6000 });
   const name = (pid) => c.settings.members.find((m) => m.id === pid)?.name || '';
   const view = {
     ...hub, setTab,
@@ -69,7 +65,7 @@ function Hub({ id }) {
         const e = c.expenses.find((x) => x.id === action.expenseId);
         if (e) setSheet({ open: true, editing: e });
       }
-      if (action.type === 'apply_alt') setToast({ text: s.applied(action.altId === 'stay_down' ? s.optionStay : s.optionBus) });
+      if (action.type === 'apply_alt') notify({ text: s.applied(action.altId === 'stay_down' ? s.optionStay : s.optionBus) });
     },
   };
   const save = (input) => {
@@ -80,12 +76,12 @@ function Hub({ id }) {
     }
     const e = hub.add(input);
     setSheet({ open: false, editing: null });
-    setToast({ text: s.saved(pkr(e.amountPkr), s.cat[e.category], name(e.paidBy)), undo: () => hub.remove(e.id) });
+    notify({ text: s.saved(pkr(e.amountPkr), s.cat[e.category], name(e.paidBy)), undo: () => hub.remove(e.id) });
   };
   const remove = (expenseId) => {
     hub.remove(expenseId);
     setSheet({ open: false, editing: null });
-    setToast({ text: s.deleted, undo: () => hub.restore(expenseId) });
+    notify({ text: s.deleted, undo: () => hub.restore(expenseId) });
   };
   const dayLabel = dayIndex === 0 ? s.dayN(0) : dayIndex > n ? s.afterTrip : s.dayOf(dayIndex, n);
 
@@ -150,16 +146,6 @@ function Hub({ id }) {
           className="fixed bottom-[84px] right-4 z-30 inline-flex min-h-[56px] items-center gap-2 rounded-full bg-juniper px-5 text-base font-bold text-on-juniper shadow-lg hover:bg-juniper-700 sm:right-[max(1rem,calc(50%-20rem))]">
           <Plus size={22} aria-hidden="true" /> {s.addShort}
         </button>
-      )}
-
-      {toast && (
-        <div role="status" className="fixed bottom-[150px] left-1/2 z-40 flex w-[min(92vw,28rem)] -translate-x-1/2 items-center justify-between gap-3 rounded-md bg-ink px-4 py-3 text-sm text-paper shadow-xl">
-          <span className="min-w-0">{toast.text}</span>
-          {toast.undo && (
-            <button type="button" className="min-h-[44px] shrink-0 rounded px-2 font-bold text-apricot-300 underline"
-              onClick={() => { toast.undo(); setToast(null); }}>{s.undo}</button>
-          )}
-        </div>
       )}
 
       <nav aria-label={s.appName} className="fixed inset-x-0 bottom-0 z-30 border-t border-limestone-300 bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
