@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Bell, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Bell, CloudSnow, ExternalLink, Info, Leaf, Mountain, Phone, RefreshCw, ShieldCheck, Signpost, Sunset } from 'lucide-react';
+import DataBadge from '../components/ui/DataBadge.jsx';
+import { dayCategories, tripCategories } from '../lib/guardian.js';
 import { usePageMeta } from '../lib/seo.js';
 import { api } from '../lib/api.js';
 import { useAgentRun } from '../lib/agentRun.js';
@@ -17,6 +19,8 @@ const FACTOR = {
 };
 const KIND = { live: 'Live', official: 'Official', typical: 'Typical pattern', plan: 'From the plan', scenario: 'Scenario', community: 'Community' };
 const AUTO_MIN = 30;
+const CAT_ICON = { weather: CloudSnow, environment: Leaf, altitude: Mountain, road: Signpost, timing: Sunset };
+const CAT_TONE = { weather: '#4CC9F0', environment: '#3DDC97', altitude: '#F5B841', road: '#FF6B5B', timing: '#A78BFA' };
 
 const keyFor = (req) => `raahi:guardian:${[req.origin, ...(req.destinations || []), req.start_date || req.travel_month, req.days].join('|')}`;
 
@@ -115,6 +119,10 @@ export default function Guardian() {
           The Guardian re-runs the weather, route and safety agents on your trip and scores each day from documented factors.
           It is a heuristic from public data, not an official safety assessment, and it never says a road is open.
         </p>
+        <p className="mt-4 flex max-w-3xl flex-wrap items-center gap-2 rounded-xl border border-[#F5B841]/30 bg-[#F5B841]/[0.07] px-3 py-2 text-sm">
+          <DataBadge kind="heuristic" label="Informational estimate" />
+          <span className="text-ink-700">Not an official safety assessment. It can’t see live road conditions; check NHMP (130) on the day.</span>
+        </p>
 
         {!sources.length ? (
           <div className="m-card mt-8 p-5">
@@ -153,6 +161,7 @@ export default function Guardian() {
               <div className="flex flex-col items-center">
                 <Gauge score={a.overall.score} category={a.overall.category} />
                 <p className="mt-1 text-center text-sm font-semibold" style={{ color: COLOR[a.overall.category] }}>Recommendation: {result.decision}</p>
+                <p className="mt-2 flex items-center gap-1.5 text-center text-xs text-ink-500"><Info size={12} aria-hidden="true" /> Highest day score, out of 100</p>
               </div>
               <div>
                 <h2 id="g-overall" className="type-semiwide text-xl font-bold">{result.plan_title}</h2>
@@ -180,6 +189,47 @@ export default function Guardian() {
               </div>
             </section>
 
+            <section aria-labelledby="g-cats" className="m-card p-5">
+              <h2 id="g-cats" className="font-semibold">What drives the risk on this trip</h2>
+              <p className="mt-1 text-sm text-ink-600">Points from every day, grouped by kind. A longer bar means that kind of risk adds more points; colours on this page for Low, Moderate and High are kept for the day scores.</p>
+              <ul className="mt-4 flex flex-col gap-3">
+                {(() => {
+                  const cats = tripCategories(a.days);
+                  const top = Math.max(1, ...cats.map((c) => c.points));
+                  return cats.map((c) => {
+                    const Icon = CAT_ICON[c.key];
+                    return (
+                      <li key={c.key} className="grid gap-1 sm:grid-cols-[13rem_1fr_8.5rem] sm:items-center sm:gap-3">
+                        <span className="flex items-center gap-2 text-sm font-semibold"><Icon size={16} style={{ color: CAT_TONE[c.key] }} aria-hidden="true" />{c.label}</span>
+                        <span className="relative h-2.5 rounded-full bg-white/5" aria-hidden="true">
+                          <span className="absolute inset-y-0 left-0 rounded-full bg-[#7FA7BA]" style={{ width: `${c.points ? Math.max(3, (c.points / top) * 100) : 0}%` }} />
+                        </span>
+                        <span className="num text-sm text-ink-600 sm:text-right">{c.points ? `${c.points} pts · day ${c.days.join(', ')}` : 'nothing found'}</span>
+                        <span className="text-xs text-ink-500 sm:col-span-3">{c.plain}</span>
+                      </li>
+                    );
+                  });
+                })()}
+              </ul>
+            </section>
+
+            {a.road_status?.official_checks?.length > 0 && (
+              <section aria-labelledby="g-official" className="m-card p-5">
+                <h2 id="g-official" className="flex items-center gap-2 font-semibold"><ShieldCheck size={16} className="text-[#3DDC97]" aria-hidden="true" /> Official places to check before you drive</h2>
+                <p className="mt-1 text-sm text-ink-600">{a.road_status.headline} {a.road_status.rule}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {a.road_status.official_checks.map((c) => (
+                    <span key={c.url} className="inline-flex flex-wrap gap-2">
+                      <a href={c.url} target="_blank" rel="noopener noreferrer" className="btn border border-white/15 text-ink hover:bg-white/5">
+                        {c.name} <ExternalLink size={14} aria-hidden="true" /><span className="sr-only"> (opens in a new tab)</span>
+                      </a>
+                      {c.phone && <a href={`tel:${c.phone}`} className="btn border border-white/15 text-ink hover:bg-white/5"><Phone size={14} aria-hidden="true" /> {c.phone}</a>}
+                    </span>
+                  ))}
+                </div>
+              </section>
+            )}
+
             <section aria-labelledby="g-changes" className="m-card p-5">
               <h2 id="g-changes" className="font-semibold">Since your last check</h2>
               {result.changes.length ? (
@@ -204,6 +254,18 @@ export default function Guardian() {
                     <div className="mt-2 h-1.5 rounded-full bg-white/5" aria-hidden="true">
                       <div className="h-full rounded-full" style={{ width: `${d.score}%`, background: COLOR[d.category] }} />
                     </div>
+                    {dayCategories(d).length > 0 && (
+                      <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Kinds of risk">
+                        {dayCategories(d).map((c) => {
+                          const Icon = CAT_ICON[c.key];
+                          return (
+                            <li key={c.key} className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-xs">
+                              <Icon size={12} style={{ color: CAT_TONE[c.key] }} aria-hidden="true" />{c.label}<span className="num text-ink-500">+{c.points}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
                     {d.factors.length ? (
                       <ul className="mt-3 flex flex-col gap-2 text-sm">
                         {d.factors.map((f) => (

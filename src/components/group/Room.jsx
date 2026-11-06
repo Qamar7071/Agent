@@ -1,7 +1,7 @@
 // The Group Room: who's in, what the group needs (anonymous), the agents' options with a Group
 // match and what each gives up, votes, and the organizer's final choice.
 import { useCallback, useEffect, useState } from 'react';
-import { Check, ChevronDown, Crown, Lock, MessagesSquare, RefreshCw, Share2, Sparkles, Users } from 'lucide-react';
+import { Check, ChevronDown, Crown, Lock, MessageCircle, MessagesSquare, RefreshCw, Share2, Sparkles, Trophy, Users } from 'lucide-react';
 import { api } from '../../lib/api.js';
 import { Link, useRouter } from '../../lib/router.jsx';
 import { metres, pkr } from '../../lib/format.js';
@@ -27,6 +27,9 @@ export function ShareCard({ s, code, title }) {
             <Share2 size={16} aria-hidden="true" /> {s.share}
           </button>
         )}
+        <a href={`https://wa.me/?text=${encodeURIComponent(text)}`} target="_blank" rel="noopener noreferrer" className="btn-outline">
+          <MessageCircle size={16} aria-hidden="true" /> {s.whatsapp}<span className="sr-only"> (opens WhatsApp)</span>
+        </a>
         <button type="button" className="btn-outline" onClick={async () => {
           try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2500); } catch { /* ignore */ }
         }}>
@@ -37,7 +40,45 @@ export function ShareCard({ s, code, title }) {
   );
 }
 
-function OptionCard({ o, s, view, me, onVote, onConfirm, busy, recommended }) {
+/** Where the group is: invite, answers, options, votes, confirmed, from the room's real state. */
+function Progress({ view, s }) {
+  const active = view.members.filter((m) => m.active);
+  const n = active.length;
+  const answered = active.filter((m) => m.profile_done).length;
+  const voted = active.filter((m) => m.voted).length;
+  const has = Boolean(view.options?.options?.length);
+  const done = view.status === 'confirmed';
+  const steps = [
+    ['invite', n > 1, s.progressDetail.invite(n)],
+    ['answers', n > 0 && answered === n, s.progressDetail.answers(answered, n)],
+    ['options', has, s.progressDetail.options(has)],
+    ['votes', has && voted === n, s.progressDetail.votes(voted, n)],
+    ['confirm', done, s.progressDetail.confirm(done)],
+  ];
+  const current = steps.findIndex(([, ok]) => !ok);
+  return (
+    <section aria-labelledby="progress-h" className="panel p-4">
+      <h2 id="progress-h" className="text-sm font-bold text-ink-600">{s.progressTitle}</h2>
+      <ol className="mt-3 grid grid-cols-5 gap-1.5">
+        {steps.map(([key, ok, detail], i) => {
+          const here = i === (current === -1 ? steps.length : current);
+          return (
+            <li key={key} className="min-w-0">
+              <span className={`block h-1.5 rounded-full ${ok ? 'bg-juniper-600' : here ? 'bg-apricot' : 'bg-limestone-300'}`} aria-hidden="true" />
+              <span className={`mt-1.5 flex items-center gap-1 text-xs font-semibold ${ok ? 'text-juniper-700' : here ? 'text-ink' : 'text-ink-500'}`}>
+                {ok && <Check size={12} aria-hidden="true" />}{s.progress[key]}
+              </span>
+              <span className="block truncate text-[11px] text-ink-500" title={detail}>{detail}</span>
+              <span className="sr-only">{ok ? ' (done)' : here ? ' (now)' : ''}</span>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
+function OptionCard({ o, s, view, me, onVote, onConfirm, busy, recommended, leading, members }) {
   const [open, setOpen] = useState(false);
   const votes = view.votes?.[o.id];
   const mine = me.vote === o.id;
@@ -90,6 +131,17 @@ function OptionCard({ o, s, view, me, onVote, onConfirm, busy, recommended }) {
         <ChevronDown size={16} aria-hidden="true" className={open ? 'rotate-180' : ''} /> {open ? s.hideDays : s.showDays}
       </button>
       {open && <ol className="mt-1 list-decimal pl-6 text-sm text-ink-700">{o.days.map((d) => <li key={d.day}>{d.title}</li>)}</ol>}
+      {members > 0 && view.options && (
+        <div className="mt-4">
+          <div className="flex items-center justify-between text-xs text-ink-600">
+            <span className="inline-flex items-center gap-1.5 font-semibold">{leading && <><Trophy size={13} className="text-apricot" aria-hidden="true" /> {s.leading} · </>}{s.votes(votes?.count || 0)}</span>
+            <span className="num">{s.voteShare(votes?.count || 0, members)}</span>
+          </div>
+          <div className="mt-1 h-2 overflow-hidden rounded-full bg-limestone-300" aria-hidden="true">
+            <div className="h-full rounded-full bg-apricot transition-[width] duration-500" style={{ width: `${Math.round(((votes?.count || 0) / members) * 100)}%` }} />
+          </div>
+        </div>
+      )}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {view.status !== 'confirmed' && (
           <button type="button" disabled={busy} onClick={() => onVote(mine ? null : o.id)} aria-pressed={mine}
@@ -219,6 +271,8 @@ export default function Room({ code, entry, s, onLeft }) {
         </section>
       )}
 
+      <Progress view={view} s={s} />
+
       {me.organizer && <ShareCard s={s} code={code} title={view.title} />}
 
       <section className="panel p-4" aria-labelledby="members-h">
@@ -262,10 +316,15 @@ export default function Room({ code, entry, s, onLeft }) {
           </div>
         )}
         {!view.options && !me.organizer && <p className="text-sm text-ink-600">{s.waitOrganizer}</p>}
-        {view.options?.options?.map((o) => (
-          <OptionCard key={o.id} o={o} s={s} view={view} me={me} busy={busy} onVote={vote} onConfirm={confirmPlan}
-            recommended={view.options.recommended === o.id} />
-        ))}
+        {view.options?.options?.map((o) => {
+          const counts = Object.values(view.votes || {}).map((v) => v.count || 0);
+          const mine = view.votes?.[o.id]?.count || 0;
+          const leading = mine > 0 && mine === Math.max(...counts) && counts.filter((c) => c === mine).length === 1;
+          return (
+            <OptionCard key={o.id} o={o} s={s} view={view} me={me} busy={busy} onVote={vote} onConfirm={confirmPlan}
+              recommended={view.options.recommended === o.id} leading={leading} members={active.length} />
+          );
+        })}
         {view.options && (
           <>
             {view.options.reasons?.length > 0 && <ul className="list-disc pl-5 text-sm text-ink-700">{view.options.reasons.map((r) => <li key={r}>{r}</li>)}</ul>}

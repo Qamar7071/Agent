@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Check, FlaskConical, Play, RotateCcw, ShieldAlert, Sparkles, X } from 'lucide-react';
+import { ArrowRight, Check, CircleMinus, CirclePlus, FlaskConical, Info, Play, RotateCcw, ShieldAlert, Sparkles, X } from 'lucide-react';
 import { usePageMeta } from '../lib/seo.js';
 import { api } from '../lib/api.js';
 import { demoRequest, useAgentRun } from '../lib/agentRun.js';
@@ -7,6 +7,8 @@ import { Link, useRouter } from '../lib/router.jsx';
 import { read, write } from '../lib/store.js';
 import { usePlanner } from '../context/PlannerContext.jsx';
 import { pkr } from '../lib/format.js';
+import { byId } from '../lib/data.js';
+import { tradeoffs } from '../lib/twin.js';
 import MiniMarkdown from '../components/ui/MiniMarkdown.jsx';
 import AgentFlow from '../components/mission/AgentFlow.jsx';
 import TerrainTwin from '../components/mission/TerrainTwin.jsx';
@@ -55,13 +57,34 @@ function Delta({ label, a, b, fmt = (v) => v, good = 'down' }) {
   );
 }
 
+function Side({ label, plan, tone, risk }) {
+  return (
+    <div className={`rounded-2xl border p-4 ${tone}`}>
+      <p className="m-label">{label}</p>
+      <p className="mt-1 font-semibold leading-snug">{plan.title}</p>
+      <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+        <div><dt className="text-xs text-ink-500">Days</dt><dd className="num font-bold">{plan.days}</dd></div>
+        <div><dt className="text-xs text-ink-500">Estimated cost</dt><dd className="num font-bold">{pkr(plan.total_pkr)}</dd></div>
+        <div><dt className="text-xs text-ink-500">On the move</dt><dd className="num font-bold">{plan.travel_hours ? `${plan.travel_hours[0]}–${plan.travel_hours[1]} h` : '—'}</dd></div>
+        <div><dt className="text-xs text-ink-500">Risk (heuristic)</dt><dd className={`num font-bold ${RISK_COLOR[risk?.category] || ''}`}>{risk ? `${risk.category} · ${risk.score}` : '—'}</dd></div>
+      </dl>
+    </div>
+  );
+}
+
 function Compare({ sim, onAccept, onReject, busy }) {
   const c = sim.comparison;
   const o = sim.original;
   const s = sim.simulated;
+  const t = tradeoffs(c, (id) => byId[id]?.name || id);
   return (
     <section aria-labelledby="sim-h" className="m-card p-4 sm:p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <p className="flex items-start gap-2 rounded-xl border border-[#A78BFA]/40 bg-[#A78BFA]/10 px-3 py-2 text-sm">
+        <FlaskConical size={16} className="mt-0.5 shrink-0 text-[#C4B5FD]" aria-hidden="true" />
+        <span><span className="font-semibold text-[#C4B5FD]">Hypothetical scenario.</span> A what-if you chose, run on a copy of your trip.
+          It is not a forecast or a road report, and your plan stays as it is until you accept.</span>
+      </p>
+      <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="m-label">Scenario</p>
           <h3 id="sim-h" className="type-semiwide text-xl font-bold">{sim.scenario.label}</h3>
@@ -71,16 +94,41 @@ function Compare({ sim, onAccept, onReject, busy }) {
           Original plan unchanged until you accept
         </span>
       </div>
-      <p className="mt-4 rounded-md border border-white/10 bg-white/[0.03] p-3 text-sm">
+      <p className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-sm">
         <Sparkles size={15} className="mr-1.5 inline text-[#3DDC97]" aria-hidden="true" />{sim.recommendation.text}
       </p>
-      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
-        <Delta label="Days" a={c.length.original} b={c.length.simulated} good="none" />
-        <Delta label="Cost" a={c.cost.original} b={c.cost.simulated} fmt={pkr} />
-        <Delta label="Hours on the move" a={c.time.original[1]} b={c.time.simulated[1]} fmt={(v) => `${v} h`} />
-        {c.risk && <Delta label="Risk score" a={c.risk.original} b={c.risk.simulated} fmt={(v) => `${v}/100`} />}
-        {c.eco && <Delta label="CO2e (kg, high)" a={c.eco.original[1]} b={c.eco.simulated[1]} />}
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <Side label="Your plan now" plan={o} tone="border-white/10 bg-white/[0.02]" risk={o.risk} />
+        <Side label="With this scenario" plan={s} tone="border-[#A78BFA]/50 bg-[#A78BFA]/[0.06]" risk={s.risk} />
       </div>
+
+      {(t.pros.length > 0 || t.cons.length > 0) && (
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div className="rounded-2xl border border-[#3DDC97]/25 bg-[#3DDC97]/[0.05] p-4">
+            <p className="m-label text-[#3DDC97]">Advantages</p>
+            {t.pros.length ? (
+              <ul className="mt-2 flex flex-col gap-1.5 text-sm">
+                {t.pros.map((x) => <li key={x} className="flex gap-2"><CirclePlus size={16} className="mt-0.5 shrink-0 text-[#3DDC97]" aria-hidden="true" />{x}</li>)}
+              </ul>
+            ) : <p className="mt-2 text-sm text-ink-500">None in the numbers Raahi compares.</p>}
+          </div>
+          <div className="rounded-2xl border border-[#F5B841]/25 bg-[#F5B841]/[0.05] p-4">
+            <p className="m-label text-[#F5B841]">Disadvantages</p>
+            {t.cons.length ? (
+              <ul className="mt-2 flex flex-col gap-1.5 text-sm">
+                {t.cons.map((x) => <li key={x} className="flex gap-2"><CircleMinus size={16} className="mt-0.5 shrink-0 text-[#F5B841]" aria-hidden="true" />{x}</li>)}
+              </ul>
+            ) : <p className="mt-2 text-sm text-ink-500">None in the numbers Raahi compares.</p>}
+          </div>
+        </div>
+      )}
+      {t.notes.length > 0 && (
+        <ul className="mt-3 flex flex-col gap-1 text-sm text-ink-600">
+          {t.notes.map((x) => <li key={x} className="flex gap-2"><Info size={15} className="mt-0.5 shrink-0" aria-hidden="true" />{x}</li>)}
+        </ul>
+      )}
+
       {(sim.changes?.length > 0 || sim.assumptions?.length > 0) && (
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           {sim.changes?.length > 0 && (
@@ -91,20 +139,13 @@ function Compare({ sim, onAccept, onReject, busy }) {
             <ul className="mt-1 list-disc pl-5 text-sm text-ink-700">{sim.assumptions.map((x) => <li key={x}>{x}</li>)}</ul></div>
         </div>
       )}
-      {(c.route.removed.length > 0 || c.route.added.length > 0) && (
-        <p className="mt-3 text-sm text-ink-700">
-          <span className="m-label mr-2">Route</span>
-          {c.route.removed.map((r) => <span key={r} className="mr-2 text-[#FF8A75] line-through">{r}</span>)}
-          {c.route.added.map((r) => <span key={r} className="mr-2 text-[#3DDC97]">+ {r}</span>)}
-        </p>
-      )}
       <div className="mt-5 overflow-x-auto" role="region" aria-label="Original and simulated days" tabIndex={0}>
         <table className="w-full min-w-[560px] border-collapse text-left text-sm">
           <thead>
             <tr className="text-xs text-ink-500">
               <th scope="col" className="w-14 py-2 font-semibold">Day</th>
-              <th scope="col" className="py-2 font-semibold">Original</th>
-              <th scope="col" className="py-2 font-semibold">Simulated</th>
+              <th scope="col" className="py-2 font-semibold">Your plan now</th>
+              <th scope="col" className="py-2 font-semibold">With this scenario</th>
             </tr>
           </thead>
           <tbody>
@@ -137,7 +178,7 @@ function Compare({ sim, onAccept, onReject, busy }) {
           <X size={16} aria-hidden="true" /> {sim.recommendation.action === 'keep' ? 'Close' : 'Keep the original'}
         </button>
       </div>
-      <p className="mt-3 text-xs text-ink-500">Original: {o.title}, {pkr(o.total_pkr)}. Simulated: {s.title}, {pkr(s.total_pkr)}. Costs are estimates.</p>
+      <p className="mt-3 text-xs text-ink-500">Costs are estimates from Raahi’s cost model; the risk score is a heuristic, not an official safety assessment.</p>
     </section>
   );
 }
