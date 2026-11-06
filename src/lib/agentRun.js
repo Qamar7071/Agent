@@ -50,10 +50,12 @@ export function useAgentRun() {
         },
       });
       if (res.run) {
+        // Keep the Validation agent's full checks with the run, for the Control Center.
+        const full = res.validation ? { ...res.run, validation: res.validation } : res.run;
         setTasks(Object.fromEntries(res.run.tasks.map((t) => [t.id, t])));
         setEvents(res.run.events);
-        setRun(res.run);
-        saveRun(res.run, title);
+        setRun(full);
+        saveRun(full, title);
       }
       setStatus('done');
       return res;

@@ -11,6 +11,8 @@ import FoodView from './FoodView.jsx';
 import PackingView from './PackingView.jsx';
 import BestMonths from './BestMonths.jsx';
 import ShareFamily from '../shared/ShareFamily.jsx';
+import CopyButton from '../ui/CopyButton.jsx';
+import { planToText } from '../../lib/planText.js';
 
 const TripMap = lazy(() => import('./TripMap.jsx'));
 import { Link } from '../../lib/router.jsx';
@@ -127,6 +129,7 @@ export default function PlanView({ onOpenForm }) {
           <Link to="/g/new?from=plan" className="btn-outline"><Users size={16} aria-hidden="true" /> Plan with your group</Link>
           <button type="button" className="btn-outline" onClick={() => setSharing(true)}><HeartHandshake size={16} aria-hidden="true" /> Share with family</button>
           <button type="button" onClick={() => openEnquiry({})} className="btn-primary"><Mail size={16} aria-hidden="true" /> Send enquiry</button>
+          <CopyButton text={() => planToText(itinerary, { site: window.location.origin })} label="Copy itinerary" className="btn-quiet" confirm="Itinerary copied. Paste it into WhatsApp, notes or an email." />
           <button type="button" onClick={() => window.print()} className="btn-quiet" title="Print, or choose “Save as PDF” in the print window"><Printer size={16} aria-hidden="true" /> Print or PDF</button>
         </div>
       </div>

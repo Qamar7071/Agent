@@ -44,7 +44,7 @@ function Chip({ t, byId, selected, onSelect, dark }) {
   );
 }
 
-export default function AgentPipeline({ tasks = [], selected = null, onSelect = null, dark = false, caption = true, compact = false }) {
+export default function AgentPipeline({ tasks = [], selected = null, onSelect = null, dark = false, caption = true, compact = false, label = 'Agent workflow' }) {
   const stages = useMemo(() => stagesOf(tasks), [tasks]);
   const byId = useMemo(() => Object.fromEntries(tasks.map((t) => [t.id, t])), [tasks]);
   const p = progress(tasks);
@@ -56,6 +56,7 @@ export default function AgentPipeline({ tasks = [], selected = null, onSelect = 
         aria-valuemin={0} aria-valuemax={p.total} aria-valuenow={p.done} aria-label={`${p.done} of ${p.total} agents finished`}>
         <div className={`h-full rounded-full transition-[width] duration-500 ${p.failed ? 'bg-[#E25B47]' : dark ? 'bg-[#3DDC97]' : 'bg-juniper-600'}`} style={{ width: `${pct}%` }} />
       </div>
+      <div role="group" aria-label={label}>
       <ol className={`mt-4 flex flex-col gap-3 ${compact ? '' : 'lg:flex-row lg:items-stretch lg:gap-0'}`}>
         {stages.map((st, i) => (
           <li key={st.index} className={`flex min-w-0 ${compact ? 'flex-col' : 'flex-col lg:flex-1 lg:flex-row'}`}>
@@ -76,6 +77,7 @@ export default function AgentPipeline({ tasks = [], selected = null, onSelect = 
           </li>
         ))}
       </ol>
+      </div>
       {caption && (
         <figcaption className={`mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs ${dark ? 'text-ink-500' : 'text-ink-600'}`}>
           <span className="num">{p.done}/{p.total} agents finished</span>

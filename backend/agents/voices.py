@@ -172,6 +172,18 @@ def _budget(out, bb, tracer, tid):
         tracer.say(tid, "proposal", f"Estimate {rs(total)} ({rs(pp)} per person)"
                    + (f": {comp['message']}" if comp.get("message") else "."),
                    evidence=[{"source": "Raahi cost model (estimate)", "detail": "not quotes"}])
+    # The other versions it priced, so the choice that was made can be weighed against them.
+    alts = [a for a in (out.get("alternatives") or []) if a.get("total")]
+    if alts:
+        parts = []
+        for a in alts[:3]:
+            diff = a.get("difference") or 0
+            sign = "+" if diff > 0 else "−"
+            parts.append(f"{a['label'].lower()} {rs(a['total'])} ({sign}{rs(abs(diff))})"
+                         + ("" if a.get("feasible", True) else ", too few days"))
+        tracer.say(tid, "proposal", "Also priced: " + "; ".join(parts) + ".",
+                   reason="Each is a real plan rebuilt by the planner with one thing changed, so the trade-off is visible.",
+                   evidence=[{"source": "Raahi cost model (estimate)", "detail": "same places; transport or stays changed"}])
 
 
 def _accommodation(out, bb, tracer, tid):

@@ -419,7 +419,9 @@ def fit_plan_to_budget(args: FitArgs, ctx: ToolContext) -> dict:
     out = {"from": total, "target": target, "fits": fit["fits"], "change": best["change"], "to": best["total"],
            "kept_days": args.keep_days, "options_tried": fit["options_tried"], "shortfall": fit["shortfall"],
            "alternatives": [{"change": o["change"], "total": o["total"], "fits": o["fits"]} for o in fit.get("others", [])
-                            if o["changes"] == len(best["change"] or {}) or not best["change"]][:2]}
+                            if o["changes"] == len(best["change"] or {}) or not best["change"]][:2],
+           # what the plan had before, so an alternative can be applied in place of the chosen change
+           "original": {"accommodation": req.accommodation, "transport": req.transport, "days": req.days}}
     if not fit["fits"] and args.keep_days:
         other = fit_to_budget(req, target, prefer="closest")
         if other["fits"] or other["best"]["total"] < best["total"]:

@@ -16,7 +16,7 @@ import { usePageMeta } from '../lib/seo.js';
 import { read, write } from '../lib/store.js';
 import { saveRun, savedRuns, useAgentRun } from '../lib/agentRun.js';
 import {
-  LIVE_LIMIT_MS, RECORDED, finalDecision, latestWithMessages, messagesFromEvents, messagesOf, offsets as offsetsOf,
+  LIVE_LIMIT_MS, RECORDED, decisionCards, finalDecision, latestWithMessages, messagesFromEvents, messagesOf, offsets as offsetsOf,
   playbackDelays, stats as statsOf,
 } from '../lib/decided.js';
 import { decidedStrings } from '../lib/decidedI18n.js';
@@ -24,7 +24,8 @@ import { useLang } from '../lib/useLang.js';
 import { groupEntry, normaliseCode } from '../lib/group/store.js';
 import { loadCompanion } from '../lib/companion/store.js';
 import { LanguageSwitch } from '../components/companion/TripSettings.jsx';
-import Conversation, { Crew, DecisionCard } from '../components/decided/Conversation.jsx';
+import { usePlanner } from '../context/PlannerContext.jsx';
+import Conversation, { Crew, DecisionCard, DecisionSummaries } from '../components/decided/Conversation.jsx';
 import Notice from '../components/ui/Notice.jsx';
 
 const loadRecorded = () => import('../data/demo-run.json').then((m) => m.default);
@@ -97,11 +98,13 @@ export default function Decided() {
   const runParam = query.get('run');
   const groupParam = query.get('group');
   const tripParam = query.get('trip');
+  const fromParam = query.get('from');
+  const { itinerary } = usePlanner();
   usePageMeta({
     title: s.label,
     description: 'How Raahi’s agents reached a plan: each agent’s proposals, concerns and decisions, with the evidence behind them.',
     path: '/decided',
-    noindex: Boolean(runParam || groupParam || tripParam),
+    noindex: Boolean(runParam || groupParam || tripParam || fromParam),
   });
 
   const live = useAgentRun();
@@ -166,6 +169,11 @@ export default function Decided() {
         const run = known && savedRuns().find((r) => r.id === known);
         if (run) ready({ source: 'saved', run, title: c.title, ctx: { ...ctx, payload: { request: c.plan.request } } });
         else if (!off) startLive({ request: c.plan.request }, c.title, ctx);
+      } else if (fromParam === 'plan') {
+        // The plan in the planner, checked live by all the agents (from the chat or the plan panel).
+        const ctx = { back: '/plan', backLabel: 'backPlan' };
+        if (!itinerary?.request) fail('noPlan', { ctx });
+        else if (!off) startLive({ request: itinerary.request }, itinerary.title, ctx);
       } else {
         const latest = latestWithMessages(savedRuns());
         if (latest) ready({ source: 'saved', run: latest, title: latest.title });
@@ -173,7 +181,7 @@ export default function Decided() {
       }
     })().catch((e) => fail(e.message));
     return () => { off = true; };
-  }, [runParam, groupParam, tripParam, attempt, startLive]);
+  }, [runParam, groupParam, tripParam, fromParam, attempt, startLive]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A live run that fails, or is still going after 25 seconds, hands over to the recorded run.
   const isLive = view.source === 'live';
@@ -217,6 +225,7 @@ export default function Decided() {
   const working = shown?.streaming ? (run?.tasks || []).filter((t) => t.status === 'running' || t.status === 'retrying') : [];
   const finished = run && !shown?.streaming && !playback.playing;
   const runId = shown?.kind === 'recorded' ? RECORDED : run?.id;
+  const cards = useMemo(() => (finished ? decisionCards(all) : []), [finished, all]);
   const controlLink = `/agents?run=${runId}`;
   const ctx = view.ctx || {};
 
@@ -296,6 +305,10 @@ export default function Decided() {
 
           {run && !shown?.streaming && all.length === 0 && (
             <Notice level="info" className="mt-6" action={run.id && <Link to={controlLink} className="btn-outline">{s.openControl}</Link>}>{s.oldRun}</Notice>
+          )}
+
+          {finished && cards.length > 0 && (
+            <div className="mt-6"><DecisionSummaries cards={cards} s={s} tasksById={tasksById} /></div>
           )}
 
           {(all.length > 0 || shown?.streaming) && (

@@ -80,3 +80,42 @@ test('names, links and missing data', () => {
   assert.equal(latestWithMessages([]), null);
   assert.equal(finalDecision([]), null);
 });
+
+test('decision cards: stake, recommendation, what else was considered, and who decides', async () => {
+  const { decisionCards } = await import('./decided.js');
+  const msgs = [
+    { id: 'm1', step: 'budget-7', agent: 'budget', type: 'concern', summary: 'Estimate Rs 9,04,200: about Rs 4,04,200 over budget.', evidence: [{ source: 'Raahi cost model (estimate)', detail: 'lines' }] },
+    { id: 'm2', step: 'budget-7', agent: 'budget', type: 'proposal', summary: 'The fewest changes that fit: budget stays and public coaches.', resolvesEventId: 'm1', evidence: [{ source: 'Budget search', detail: '8 versions tried' }] },
+    { id: 'm3', step: 'budget-7', agent: 'budget', type: 'proposal', summary: 'Also priced: public coaches Rs 6,18,200 (−Rs 2,86,000).', evidence: [{ source: 'Raahi cost model (estimate)', detail: 'lines' }] },
+    { id: 'm4', step: 'weather-5', agent: 'weather', type: 'concern', summary: 'Day 3: heavy rain.', reason: 'Bad-weather idea: forts' },
+    { id: 'm5', step: 'validation-12', agent: 'validation', type: 'decision', summary: 'Your choice is needed: about Rs 4,04,200 over budget.', resolvesEventId: 'm1', reason: 'Options: Apply the cheapest changes that fit' },
+  ];
+  const cards = decisionCards(msgs);
+  assert.equal(cards.length, 2);
+  const [budget, weather] = cards;
+  assert.equal(budget.stake.id, 'm1');
+  assert.equal(budget.recommendation.id, 'm2');
+  assert.deepEqual(budget.considered.map((m) => m.id), ['m3']);
+  assert.equal(budget.decision.id, 'm5');
+  assert.equal(budget.yours, true);
+  assert.equal(budget.evidence.length, 2, 'the same evidence is listed once');
+  assert.equal(weather.kind, 'noted');
+  assert.equal(weather.recommendation, null);
+  // a run that ends in a plain decision gets a card for it
+  const plain = decisionCards([{ id: 'x', step: 'validation-1', agent: 'validation', type: 'decision', summary: '9 of 10 checks passed: pass. The plan can go to you.' }]);
+  assert.equal(plain.length, 1);
+  assert.equal(plain[0].kind, 'final');
+  assert.equal(plain[0].yours, false);
+  assert.deepEqual(decisionCards(null), []);
+});
+
+test('the recorded run gives a budget decision that is the traveller’s to make', async () => {
+  const { decisionCards, messagesOf } = await import('./decided.js');
+  const { readFileSync } = await import('node:fs');
+  const rec = JSON.parse(readFileSync(new URL('../data/demo-run.json', import.meta.url), 'utf8'));
+  const cards = decisionCards(messagesOf(rec.run));
+  assert.ok(cards.length >= 1);
+  assert.equal(cards[0].yours, true);
+  assert.match(cards[0].stake.summary, /over your budget/);
+  assert.ok(cards[0].recommendation && cards[0].decision);
+});

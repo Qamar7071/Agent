@@ -46,7 +46,15 @@ export function stateFromRequest(request, prev) {
 }
 
 const lean = (m) => ({ id: m.id, role: m.role, text: m.text, welcome: m.welcome, error: m.error, retryText: m.retryText,
-  trace: m.trace, mode: m.mode, notice: m.notice, system: m.system });
+  trace: m.trace, mode: m.mode, notice: m.notice, system: m.system, lang: m.lang, planSummary: m.planSummary,
+  budgetFit: m.budgetFit, destinations: m.destinations });
+
+// What the chat shows about a plan it just built or changed (the plan itself lives in the plan panel).
+export const summarisePlan = (plan) => (plan ? {
+  title: plan.title, days: plan.days.length, total: plan.budget?.total, perPerson: plan.budget?.per_person,
+  status: plan.budget?.comparison?.status, message: plan.budget?.comparison?.message,
+  travel: plan.days.filter((d) => d.type === 'travel').length,
+} : null);
 
 export function PlannerProvider({ children }) {
   const saved = useMemo(() => read(KEY, null), []);
@@ -122,6 +130,8 @@ export function PlannerProvider({ children }) {
       setMessages((list) => [...list, {
         id: uid(), role: 'assistant', text: res.reply, trace: res.trace, mode: res.mode, notice: res.notice,
         weather: res.weather, roads: res.roads, route: res.route, budget: res.budget, planned: Boolean(res.itinerary),
+        lang: res.lang, planSummary: summarisePlan(res.itinerary), budgetFit: res.budget_fit || null,
+        destinations: res.destinations || null,
       }]);
     } catch (e) {
       setMessages((list) => [...list, { id: uid(), role: 'assistant', error: true, text: e.message, retryText: clean }]);

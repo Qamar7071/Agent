@@ -127,3 +127,58 @@ export function DecisionCard({ decision, stats, s, tasksById, actions }) {
     </section>
   );
 }
+
+function Row({ label, m, s, tasksById, tone = '' }) {
+  if (!m) return null;
+  return (
+    <div className="grid gap-1 sm:grid-cols-[9.5rem_1fr] sm:gap-3">
+      <p className={`text-xs font-bold uppercase tracking-wide ${tone || 'text-ink-500'}`}>{label}</p>
+      <div className="flex min-w-0 gap-2.5">
+        <AgentAvatar agent={m.agent} label={agentName(m, tasksById)} size={26} />
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-ink-600">{agentName(m, tasksById)}</p>
+          <p className="break-words">{m.summary}</p>
+          {m.reason && <p className="mt-0.5 break-words text-sm text-ink-600"><span className="font-semibold text-ink-700">{s.why}:</span> {m.reason}</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** "Decisions at a glance": one card per decision thread of the run (lib/decided.js decisionCards). */
+export function DecisionSummaries({ cards, s, tasksById }) {
+  if (!cards?.length) return null;
+  return (
+    <section aria-labelledby="glance-h" className="flex flex-col gap-3">
+      <div>
+        <h2 id="glance-h" className="type-semiwide text-xl font-bold">{s.glance}</h2>
+        <p className="mt-0.5 text-sm text-ink-600">{s.glanceHint}</p>
+      </div>
+      <ol className="flex flex-col gap-3">
+        {cards.map((c) => (
+          <li key={c.id} className={`card flex flex-col gap-3 p-4 ${c.yours ? 'border-juniper ring-1 ring-juniper' : ''}`}>
+            {(c.yours || c.kind === 'noted') && (
+              <p className={`self-start rounded-full px-2.5 py-0.5 text-xs font-bold ${c.yours ? 'bg-juniper text-on-juniper' : 'bg-limestone-200 text-ink-700'}`}>
+                {c.yours ? s.yours : s.noted}
+              </p>
+            )}
+            <Row label={s.stake} m={c.stake} s={s} tasksById={tasksById} tone="text-ochre-700" />
+            <Row label={s.recommended} m={c.recommendation} s={s} tasksById={tasksById} tone="text-lake-700" />
+            {c.considered.map((m) => <Row key={m.id} label={s.considered} m={m} s={s} tasksById={tasksById} />)}
+            <Row label={s.decision} m={c.decision} s={s} tasksById={tasksById} tone="text-juniper-700" />
+            {c.evidence.length > 0 && (
+              <ul className="flex flex-wrap gap-1.5 border-t border-limestone-200 pt-3 text-xs" aria-label={s.evidenceLabel}>
+                {c.evidence.map((e, i) => (
+                  <li key={i} className="max-w-full break-words rounded border border-limestone-300 bg-limestone/50 px-2 py-0.5 text-ink-700">
+                    <span className="font-semibold">{e.source}</span>{e.detail && <>: {e.detail}</>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </li>
+        ))}
+      </ol>
+      <p className="text-xs text-ink-500">{s.privateNote}</p>
+    </section>
+  );
+}

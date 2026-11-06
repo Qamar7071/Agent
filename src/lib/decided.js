@@ -100,3 +100,55 @@ export function stepLink(runId, step) {
 export function latestWithMessages(runs) {
   return (runs || []).find((r) => messagesOf(r).length > 0) || null;
 }
+
+const uniqueEvidence = (list) => {
+  const seen = new Set();
+  return list.filter((e) => {
+    const key = `${e?.source}|${e?.detail}`;
+    if (!e?.source || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+/**
+ * The run's decisions as cards a person can read without knowing how agents work: what was at
+ * stake (a concern), what was recommended and by which agent, what else that agent considered,
+ * the decision and whether it is the traveller's to make, with the evidence behind each. Built
+ * only from the run's own messages; concerns nobody answered are returned as "noted".
+ */
+export function decisionCards(messages) {
+  const msgs = (messages || []).filter(valid);
+  const replies = answers(msgs);
+  const byId = Object.fromEntries(msgs.map((m) => [m.id, m]));
+  const used = new Set();
+  const cards = [];
+  for (const c of msgs.filter((m) => m.type === 'concern')) {
+    const kids = (replies[c.id] || []).map((id) => byId[id]).filter(Boolean);
+    const recommendation = kids.find((m) => m.type === 'proposal') || null;
+    const decision = kids.find((m) => m.type === 'decision') || null;
+    const considered = recommendation
+      ? msgs.filter((m) => m.step === recommendation.step && m.type === 'proposal' && m.id !== recommendation.id && !m.resolvesEventId
+        && !used.has(m.id))
+      : [];
+    [c, ...kids, ...considered].forEach((m) => used.add(m.id));
+    cards.push({
+      id: c.id,
+      kind: kids.length ? 'resolved' : 'noted',
+      stake: c,
+      recommendation,
+      considered,
+      decision,
+      yours: Boolean(decision && /^your choice is needed/i.test(decision.summary)),
+      evidence: uniqueEvidence([...(c.evidence || []), ...(recommendation?.evidence || []), ...(decision?.evidence || [])]),
+    });
+  }
+  const final = finalDecision(msgs);
+  if (final && !used.has(final.id)) {
+    cards.push({ id: final.id, kind: 'final', stake: null, recommendation: null, considered: [], decision: final,
+      yours: /^your choice is needed/i.test(final.summary), evidence: uniqueEvidence(final.evidence || []) });
+  }
+  // What needs the traveller first, then what the agents settled, then what they only noted.
+  const rank = (x) => (x.yours ? 0 : x.kind === 'resolved' ? 1 : x.kind === 'final' ? 2 : 3);
+  return cards.sort((a, b) => rank(a) - rank(b));
+}
