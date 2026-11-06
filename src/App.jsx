@@ -17,6 +17,8 @@ const Guardian = lazy(() => import('./pages/Guardian.jsx'));
 const TripHub = lazy(() => import('./pages/TripHub.jsx'));
 const GroupRoom = lazy(() => import('./pages/GroupRoom.jsx'));
 const Decided = lazy(() => import('./pages/Decided.jsx'));
+const Explore = lazy(() => import('./pages/Explore.jsx'));
+const SharedTrip = lazy(() => import('./pages/SharedTrip.jsx'));
 
 function Loading() {
   return (
@@ -36,12 +38,15 @@ function Page() {
   if (path === '/agents') return <AgentControl />;
   if (path === '/guardian') return <Guardian />;
   if (path === '/decided') return <Decided />;
+  if (path === '/explore') return <Explore />;
   const dest = match('/destinations/:id', path);
   if (dest) return <Destination id={dest.id} />;
   const trip = match('/trip/:id', path);
   if (trip) return <TripHub id={trip.id} />;
   const group = match('/g/:code', path);
   if (group) return <GroupRoom key={group.code} code={group.code} />;   // a new code is a new room
+  const shared = match('/s/:token', path);
+  if (shared) return <SharedTrip key={shared.token} share={shared.token} />;
   return <NotFound />;
 }
 

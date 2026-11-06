@@ -5,6 +5,7 @@ import { km, pkr } from '../../lib/format.js';
 import MiniMarkdown from '../ui/MiniMarkdown.jsx';
 import Forecast from '../shared/Forecast.jsx';
 import RoadStatus from '../shared/RoadStatus.jsx';
+import VoiceButton from '../shared/VoiceButton.jsx';
 
 const MAX = 2000;
 
@@ -191,6 +192,7 @@ export default function ChatPane({ onShowPlan, onOpenForm }) {
             placeholder="Ask anything about your trip…"
             className="field max-h-40 min-h-[52px] flex-1 resize-y py-2.5"
           />
+          <VoiceButton value={draft} disabled={chatBusy} onText={(text) => setDraft(text.slice(0, MAX))} />
           <button type="submit" disabled={!draft.trim() || chatBusy} aria-label="Send" className="btn-primary h-[52px] w-[52px] shrink-0 px-0">
             <SendHorizontal size={20} />
           </button>

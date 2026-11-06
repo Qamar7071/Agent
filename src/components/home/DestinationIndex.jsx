@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link } from '../../lib/router.jsx';
-import { destinations, seasonFit, seasonalRouteFor } from '../../lib/data.js';
+import { byId, destinations, seasonFit, seasonalRouteFor } from '../../lib/data.js';
 import { MONTHS, MONTHS_SHORT, metres } from '../../lib/format.js';
 import Photo from '../ui/Photo.jsx';
 import MonthStrip from '../ui/MonthStrip.jsx';
+import HeartButton from '../shared/HeartButton.jsx';
+import { useSavedPlaces } from '../../lib/wishlist.js';
 
 const FIT_ORDER = { best: 0, possible: 1, closed: 2 };
 
@@ -17,6 +19,22 @@ function fitText(id, month) {
   if (fit === 'best') return { text: `Usually at its best in ${MONTHS[month - 1]}`, tone: 'text-juniper-600' };
   if (fit === 'closed') return { text: `Access usually closed by snow in ${MONTHS[month - 1]}`, tone: 'text-brick' };
   return { text: `Possible in ${MONTHS[month - 1]}, outside the usual season`, tone: 'text-ochre' };
+}
+
+function SavedBar() {
+  const saved = useSavedPlaces().filter((id) => byId[id]);
+  if (!saved.length) return null;
+  const names = saved.map((id) => byId[id].name);
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border border-limestone-300 bg-paper p-4 sm:flex-row sm:items-center sm:justify-between">
+      <p className="min-w-0 text-sm">
+        <span className="font-semibold">Your saved places:</span> {names.join(', ')}
+      </p>
+      <div className="flex shrink-0 flex-wrap gap-2">
+        <Link to={`/plan?d=${saved.join(',')}`} className="btn-primary min-h-[44px]">Plan a trip with {saved.length === 1 ? 'it' : 'these'}</Link>
+      </div>
+    </div>
+  );
 }
 
 export default function DestinationIndex() {
@@ -37,6 +55,7 @@ export default function DestinationIndex() {
               in season. High passes and plateaus open and close with the snow.
             </p>
           </div>
+          <SavedBar />
           <div role="group" aria-label="Travel month" className="no-scrollbar -mx-4 flex gap-1.5 overflow-x-auto px-4 lg:mx-0 lg:flex-wrap lg:px-0">
             <button type="button" aria-pressed={month === null} onClick={() => setMonth(null)} className="chip shrink-0">Any month</button>
             {MONTHS_SHORT.map((m, i) => (
@@ -51,7 +70,8 @@ export default function DestinationIndex() {
           {list.map((d) => {
             const fit = month ? fitText(d.id, month) : null;
             return (
-              <li key={d.id}>
+              <li key={d.id} className="relative">
+                <HeartButton id={d.id} name={d.name} overlay className="absolute right-2 top-2 z-10" />
                 <Link to={`/destinations/${d.id}`} className="group block rounded focus-visible:outline-offset-4">
                   <div className="aspect-[4/3] overflow-hidden rounded">
                     {/* On 3x phone screens, ask for a 2x image: it looks the same and is half the download. */}

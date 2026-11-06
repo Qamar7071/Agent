@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import { Compass, Sparkles } from 'lucide-react';
 import Photo from '../ui/Photo.jsx';
 import RouteProfile from './RouteProfile.jsx';
 import { creditLine, photos } from '../../data/photos.js';
 import { usePlanner } from '../../context/PlannerContext.jsx';
-import { useRouter } from '../../lib/router.jsx';
+import { Link, useRouter } from '../../lib/router.jsx';
 
 const examples = [
   '6 days in Hunza from Lahore in April, 2 of us, Rs 1,50,000',
@@ -67,6 +67,10 @@ export default function Hero() {
             </button>
           ))}
         </div>
+
+        <Link to="/explore" className="mt-4 inline-flex max-w-max items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white ring-1 ring-white/30 hover:bg-white/20">
+          <Compass size={16} aria-hidden="true" /> Not sure where to go? See what fits your budget
+        </Link>
 
         <RouteProfile />
         <p className="mt-6 text-xs text-white/70">{photos.passu.place}. {creditLine('passu')}.</p>

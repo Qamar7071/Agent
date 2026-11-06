@@ -15,7 +15,7 @@ import logging
 import secrets
 import threading
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import (Boolean, Column, DateTime, ForeignKey, Index, Integer, MetaData, String, Table, Text,
                         create_engine, delete, insert, select, update)
@@ -129,6 +129,18 @@ group_needs = Table(
 )
 Index("ix_group_needs_group", group_needs.c.group_id)
 MAX_MEMBERS = 20
+
+# "Where we'll be": a read-only link for family. Only the hash of its key is kept; the link
+# shows the plan's towns and dates (never costs, names or a live location) and can be revoked.
+trip_shares = Table(
+    "trip_shares", metadata,
+    Column("id", String(32), primary_key=True),
+    Column("trip_id", String(32), ForeignKey("trips.id", ondelete="CASCADE"), nullable=False),
+    Column("token_hash", String(64), nullable=False, unique=True),
+    Column("note", Text, nullable=True),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+)
+Index("ix_trip_shares_trip", trip_shares.c.trip_id)
 
 REF_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"   # no 0/O or 1/I look-alikes
 _engine = None
@@ -256,7 +268,55 @@ def delete_trip(trip_id: str, token: str) -> None:
             c.execute(delete(group_needs).where(group_needs.c.group_id == g.id))
             c.execute(delete(group_members).where(group_members.c.group_id == g.id))
         c.execute(delete(groups).where(groups.c.trip_id == trip_id))
+        c.execute(delete(trip_shares).where(trip_shares.c.trip_id == trip_id))
         c.execute(delete(trips).where(trips.c.id == trip_id))
+
+
+# ── Family share ("Where we'll be") ──────────────────────────────────────────────
+def create_share(trip_id: str, token: str, note: str | None) -> str:
+    """A new read-only link for this trip. It replaces any earlier link, which stops working."""
+    get_trip(trip_id, token)
+    share = secrets.token_urlsafe(18)
+    with engine().begin() as c:
+        c.execute(delete(trip_shares).where(trip_shares.c.trip_id == trip_id))
+        c.execute(insert(trip_shares).values(id=uuid.uuid4().hex, trip_id=trip_id, token_hash=_hash(share),
+                                             note=(note or None), created_at=_now()))
+    return share
+
+
+def revoke_share(trip_id: str, token: str) -> None:
+    get_trip(trip_id, token)
+    with engine().begin() as c:
+        c.execute(delete(trip_shares).where(trip_shares.c.trip_id == trip_id))
+
+
+def share_view(share: str) -> dict:
+    """What family sees: the trip's towns night by night, with dates when they are known."""
+    with engine().connect() as c:
+        row = c.execute(select(trip_shares).where(trip_shares.c.token_hash == _hash(share or ""))).first()
+        if not row:
+            raise NotFound("This link has been stopped or replaced. Ask for a new one.")
+        trip = c.execute(select(trips).where(trips.c.id == row.trip_id)).first()
+        comp = c.execute(select(companions).where(companions.c.trip_id == row.trip_id)).first()
+    if not trip:
+        raise NotFound("This trip no longer exists.")
+    itinerary = json.loads(trip.itinerary_json)
+    start = None
+    if comp:
+        start = (json.loads(comp.settings_json) or {}).get("startDate")
+    first_date = next((d.get("date") for d in itinerary.get("days", []) if d.get("date")), None)
+    base = None
+    if start:
+        base = date.fromisoformat(start)
+    elif first_date:
+        base = date.fromisoformat(first_date)
+    days = []
+    for i, d in enumerate(itinerary.get("days", [])):
+        night = (d.get("overnight") or {}).get("name") if isinstance(d.get("overnight"), dict) else None
+        days.append({"day": d.get("day", i + 1), "date": (base + timedelta(days=i)).isoformat() if base else None,
+                     "title": d.get("title"), "type": d.get("type"), "night": night})
+    return {"title": trip.title, "days": days, "start_date": base.isoformat() if base else None,
+            "note": row.note, "shared_at": _iso(row.created_at), "updated_at": _iso(trip.updated_at)}
 
 
 # ── Safar Saathi ──────────────────────────────────────────────────────────────────

@@ -40,9 +40,9 @@ export default function Plan() {
         return;
       }
       loadTrip(tripId, token).then(() => setView('plan')).catch((e) => setLoadError(e.message));
-    } else if (dest && byId[dest]) {
+    } else if (dest && dest.split(',').some((d) => byId[d])) {
       navigate('/plan', { replace: true });
-      prefillDestination(dest);
+      dest.split(',').filter((d) => byId[d]).slice(0, 8).forEach(prefillDestination);   // one place, or saved places
       setFormOpen(true);
     }
   }, [query]); // eslint-disable-line react-hooks/exhaustive-deps

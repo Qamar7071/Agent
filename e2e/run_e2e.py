@@ -31,8 +31,9 @@ def check(name):
                 results.append((name, True, f"{time.time() - started:.1f}s"))
                 print(f"PASS  {name}")
             except Exception as exc:  # report and continue with the next check
-                results.append((name, False, str(exc).splitlines()[0][:200]))
-                print(f"FAIL  {name}: {str(exc).splitlines()[0][:200]}")
+                first = (str(exc).splitlines() or [type(exc).__name__])[0][:200]
+                results.append((name, False, first))
+                print(f"FAIL  {name}: {first}")
                 if os.environ.get("E2E_DEBUG"):
                     traceback.print_exc()
         return run
@@ -98,7 +99,7 @@ def seo(page):
     html = page.request.get(BASE + "/destinations/hunza").text()
     assert "<h1>Hunza Valley</h1>" in html and "application/ld+json" in html and "og-hunza.jpg" in html
     sitemap = page.request.get(BASE + "/sitemap.xml").text()
-    assert sitemap.count("<url>") == 10 and "/destinations/k2" in sitemap
+    assert sitemap.count("<url>") == 11 and "/destinations/k2" in sitemap and "/explore" in sitemap
     robots = page.request.get(BASE + "/robots.txt").text()
     assert "Disallow: /admin" in robots and "Sitemap:" in robots
 
@@ -544,6 +545,79 @@ def when_to_go(page):
     expect(box).to_contain_text("not a forecast")
 
 
+@check("Where can we go: real plans ranked for the budget, and one tap opens the plan")
+def explore_trips(page):
+    fresh(page, "/explore?from=Islamabad&days=7&people=4&budget=250000&month=7")
+    expect(page.get_by_role("heading", name=re.compile(r"\d+ of \d+ trips fit"))).to_be_visible(timeout=15000)
+    cards = page.locator("section[aria-labelledby=ideas-h] > ul > li")
+    assert cards.count() >= 4
+    first = cards.first.inner_text()
+    assert "Estimate, not a quote" in first and "Best fit" in first, first[:200]
+    page.get_by_role("radio", name="Easy and gentle").click()
+    expect(page.locator("section[aria-labelledby=ideas-h]")).to_have_attribute("aria-busy", "false", timeout=15000)
+    title = cards.first.locator("h3").inner_text()
+    cards.first.get_by_role("button", name="Plan this trip").click()
+    expect(page).to_have_url(re.compile(r"/plan$"), timeout=15000)
+    expect(page.get_by_role("heading", level=2, name=title, exact=True)).to_be_visible()
+    page.goto(BASE + "/explore?days=3&people=6&budget=20000&month=1", wait_until="networkidle")
+    expect(page.get_by_text(re.compile("Nothing fits Rs 20,000"))).to_be_visible(timeout=15000)
+
+
+@check("Trip map: day colours, overnight pins and Google Maps directions for each day")
+def trip_map(page):
+    plan_hunza(page, days="8")
+    page.get_by_role("tab", name="Map").click()
+    expect(page.get_by_role("region", name=re.compile("Map of the trip"))).to_be_visible()
+    expect(page.locator(".leaflet-marker-icon").first).to_be_visible(timeout=15000)
+    assert page.locator(".leaflet-marker-icon").count() >= 4
+    links = page.get_by_role("link", name=re.compile("Directions in Google Maps"))
+    assert links.count() >= 4
+    assert links.first.get_attribute("href").startswith("https://www.google.com/maps/dir/?api=1&origin=")
+    page.get_by_role("button", name=re.compile("^3")).last.click()
+    expect(page.get_by_role("button", name="Show all days")).to_be_visible()
+    expect(page.get_by_text(re.compile("not the road"))).to_be_visible()
+
+
+@check("Share with family: a read-only link with towns and dates, a note, and a working stop")
+def family_share(page):
+    plan_hunza(page)
+    page.get_by_role("button", name="Share with family").click()
+    dialog = page.get_by_role("dialog", name="Share with family")
+    dialog.get_by_label("A note for them (optional)").fill("Hotel in Karimabad: Eagle View")
+    dialog.get_by_role("button", name="Make the link").click()
+    expect(dialog.get_by_text("Your family link")).to_be_visible(timeout=15000)
+    link = dialog.locator("p.break-all").inner_text()
+    assert "/s/" in link
+    family = page.context.browser.new_context(viewport={"width": 390, "height": 844}).new_page()
+    family.goto(link, wait_until="networkidle")
+    expect(family.get_by_role("heading", name="Where we’ll be")).to_be_visible()
+    text = family.locator("main").inner_text()
+    assert "Night in Chilas" in text and "Hotel in Karimabad" in text and "1122" in text
+    assert "Rs " not in text and "not a live location" in text
+    dialog.get_by_role("button", name="Stop sharing").click()
+    expect(dialog.get_by_role("button", name="Make the link")).to_be_visible()
+    family.reload(wait_until="networkidle")
+    expect(family.get_by_text(re.compile("stopped or replaced"))).to_be_visible()
+    family.context.close()
+
+
+@check("Saved places: hearts are remembered and become a trip")
+def saved_places(page):
+    fresh(page, "/")
+    page.get_by_role("button", name="Save Hunza Valley for later").click()
+    page.get_by_role("button", name="Save Attabad Lake for later").click()
+    expect(page.get_by_text(re.compile("Your saved places: Hunza Valley, Attabad Lake"))).to_be_visible()
+    page.reload(wait_until="networkidle")
+    expect(page.get_by_role("button", name=re.compile("Saved: Hunza Valley"))).to_have_attribute("aria-pressed", "true")
+    page.get_by_role("link", name="Plan a trip with these").click()
+    dialog = page.get_by_role("dialog", name="Trip details")
+    expect(dialog.get_by_role("checkbox", name="Hunza Valley")).to_be_checked()
+    expect(dialog.get_by_role("checkbox", name="Attabad Lake")).to_be_checked()
+    page.keyboard.press("Escape")
+    if page.evaluate("Boolean(window.SpeechRecognition || window.webkitSpeechRecognition)"):
+        expect(page.get_by_role("button", name="Speak instead of typing")).to_be_visible()
+
+
 def main() -> int:
     with sync_playwright() as p:
         browser = p.chromium.launch()
@@ -552,6 +626,7 @@ def main() -> int:
         for fn in (home, navigation, month_filter, destination_page, seo, form_validation, form_plan, chat_flow,
                    edit_day, tabs, packing, saved_trip, enquiry, admin, network_error, travel_twin, agent_control, saathi, saathi_nudges, saathi_offline,
                    guardian, group_room, decided_recorded, decided_live, decided_fallback, when_to_go,
+                   explore_trips, trip_map, family_share, saved_places,
                    theme, responsive, keyboard):
             fn(page)
         browser.close()

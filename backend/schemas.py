@@ -362,6 +362,49 @@ class MemoryIn(BaseModel):
     active_trip_id: str | None = Field(default=None, max_length=40)
 
 
+class ShareIn(BaseModel):
+    """A family share link: an optional note the traveller chooses to include (a driver's or hotel's number)."""
+    model_config = ConfigDict(extra="forbid")
+    note: Annotated[str, StringConstraints(max_length=300)] | None = None
+
+    @field_validator("note")
+    @classmethod
+    def _note(cls, v: str | None) -> str | None:
+        v = clean_text(v, 300)
+        return v or None
+
+
+class ExploreIn(BaseModel):
+    """'Where can we go?': the group, the days and the money; Raahi suggests the trips."""
+    model_config = ConfigDict(extra="forbid")
+    origin: str = "Islamabad"
+    days: int = Field(default=6, ge=2, le=30)
+    adults: int = Field(default=2, ge=1, le=20)
+    children: int = Field(default=0, ge=0, le=12)
+    budget_pkr: int | None = Field(default=None, ge=0, le=20_000_000)
+    budget_basis: BudgetBasis = "total"
+    month: int | None = Field(default=None, ge=1, le=12)
+    start_date: date | None = None
+    interests: list[str] = Field(default_factory=list, max_length=10)
+    style: Literal["any", "easy", "adventure"] = "any"
+    limited_walking: bool = False
+    limit: int = Field(default=8, ge=1, le=20)
+
+    @field_validator("origin")
+    @classmethod
+    def _origin(cls, v: str) -> str:
+        names = {n.lower(): n for n in data.origins()}
+        hit = names.get(str(v).strip().lower())
+        if not hit:
+            raise ValueError(f"Unknown starting city. Choose one of: {', '.join(data.origins())}.")
+        return hit
+
+    @field_validator("interests")
+    @classmethod
+    def _interests(cls, v: list[str]) -> list[str]:
+        return normalise_interests(v)
+
+
 class AgentRunIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     message: Annotated[str, StringConstraints(strip_whitespace=True, max_length=2000)] = ""

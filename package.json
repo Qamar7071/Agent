@@ -11,9 +11,10 @@
     "test:api": "cd backend && python -m pytest -q",
     "test:e2e": "python e2e/run_e2e.py",
     "audit:a11y": "python e2e/audit.py",
-    "test:unit": "node --test src/lib/companion/companion.test.js src/lib/decided.test.js src/lib/bestMonths.test.js"
+    "test:unit": "node --test src/lib/companion/companion.test.js src/lib/decided.test.js src/lib/bestMonths.test.js src/lib/tripMap.test.js"
   },
   "dependencies": {
+    "leaflet": "1.9.4",
     "lucide-react": "0.453.0",
     "react": "18.3.1",
     "react-dom": "18.3.1"

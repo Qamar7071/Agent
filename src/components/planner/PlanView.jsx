@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { BookmarkCheck, Footprints, Mail, Pencil, Printer, Save, Users } from 'lucide-react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
+import { BookmarkCheck, Footprints, HeartHandshake, Mail, Pencil, Printer, Save, Users } from 'lucide-react';
 import { usePlanner } from '../../context/PlannerContext.jsx';
 import { MONTHS, dayLabel, pkr, plural } from '../../lib/format.js';
 import Notice from '../ui/Notice.jsx';
@@ -10,10 +10,14 @@ import StaysView from './StaysView.jsx';
 import FoodView from './FoodView.jsx';
 import PackingView from './PackingView.jsx';
 import BestMonths from './BestMonths.jsx';
+import ShareFamily from '../shared/ShareFamily.jsx';
+
+const TripMap = lazy(() => import('./TripMap.jsx'));
 import { Link } from '../../lib/router.jsx';
 
 const TABS = [
   ['itinerary', 'Day by day'],
+  ['map', 'Map'],
   ['budget', 'Budget'],
   ['conditions', 'Weather and roads'],
   ['stays', 'Stays'],
@@ -77,8 +81,9 @@ function SaveButton() {
 }
 
 export default function PlanView({ onOpenForm }) {
-  const { itinerary, planBusy, planError, setPlanError, openEnquiry, conditions } = usePlanner();
+  const { itinerary, planBusy, planError, setPlanError, openEnquiry, conditions, savedTrip, saveTrip, health } = usePlanner();
   const [tab, setTab] = useState('itinerary');
+  const [sharing, setSharing] = useState(false);
   const tabRefs = useRef({});
   useEffect(() => {
     if (!itinerary) setTab('itinerary');
@@ -120,6 +125,7 @@ export default function PlanView({ onOpenForm }) {
           <SaveButton />
           <Link to="/trip/new?from=plan" className="btn-outline"><Footprints size={16} aria-hidden="true" /> Start trip</Link>
           <Link to="/g/new?from=plan" className="btn-outline"><Users size={16} aria-hidden="true" /> Plan with your group</Link>
+          <button type="button" className="btn-outline" onClick={() => setSharing(true)}><HeartHandshake size={16} aria-hidden="true" /> Share with family</button>
           <button type="button" onClick={() => openEnquiry({})} className="btn-primary"><Mail size={16} aria-hidden="true" /> Send enquiry</button>
           <button type="button" onClick={() => window.print()} className="btn-quiet" title="Print, or choose “Save as PDF” in the print window"><Printer size={16} aria-hidden="true" /> Print or PDF</button>
         </div>
@@ -170,6 +176,7 @@ export default function PlanView({ onOpenForm }) {
             <p className="mt-6 text-xs text-ink-500">{itinerary.honesty}</p>
           </>
         )}
+        {tab === 'map' && <Suspense fallback={<p className="text-sm text-ink-600" role="status">Loading the map…</p>}><TripMap itinerary={itinerary} /></Suspense>}
         {tab === 'budget' && <BudgetView budget={itinerary.budget} />}
         {tab === 'conditions' && (
           <>
@@ -181,6 +188,11 @@ export default function PlanView({ onOpenForm }) {
         {tab === 'food' && <FoodView itinerary={itinerary} />}
         {tab === 'packing' && <PackingView itinerary={itinerary} />}
       </div>
+
+      {sharing && (
+        <ShareFamily open={sharing} onClose={() => setSharing(false)} trip={savedTrip} ensureTrip={saveTrip}
+          storageOff={Boolean(health && !health.storage?.enabled)} />
+      )}
 
       {planBusy && (
         <div className="absolute inset-0 flex items-start justify-center bg-limestone/60 pt-24" role="status">
