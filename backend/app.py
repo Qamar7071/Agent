@@ -189,7 +189,7 @@ def create_app() -> Flask:
     app.config["MAX_CONTENT_LENGTH"] = config.MAX_BODY_BYTES
     app.json.sort_keys = False
     CORS(app, resources={r"/api/*": {"origins": config.ALLOWED_ORIGINS}},
-         allow_headers=["Content-Type", "Authorization", "X-Trip-Token", "X-Enquiry-Token"],
+         allow_headers=["Content-Type", "Authorization", "X-Trip-Token", "X-Member-Token", "X-Enquiry-Token"],
          methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], max_age=600)
 
     @app.before_request

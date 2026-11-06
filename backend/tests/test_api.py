@@ -146,6 +146,20 @@ def test_cors_allows_only_known_origins(client):
     assert "Access-Control-Allow-Origin" not in evil.headers
 
 
+def test_cors_lets_group_members_send_their_key_from_an_allowed_origin(client):
+    """Group Room and Safar Saathi authenticate members with X-Member-Token; a cross-origin
+    deployment (VITE_API_BASE_URL) must be allowed to send it, like the trip and enquiry keys."""
+    pre = client.options("/api/groups/ABCDEFGH", headers={
+        "Origin": "https://north-kappa-ivory.vercel.app", "Access-Control-Request-Method": "GET",
+        "Access-Control-Request-Headers": "x-member-token"})
+    allowed = {h.strip().lower() for h in pre.headers.get("Access-Control-Allow-Headers", "").split(",")}
+    assert "x-member-token" in allowed
+    odd = client.options("/api/groups/ABCDEFGH", headers={
+        "Origin": "https://north-kappa-ivory.vercel.app", "Access-Control-Request-Method": "GET",
+        "Access-Control-Request-Headers": "x-something-else"})
+    assert "x-something-else" not in odd.headers.get("Access-Control-Allow-Headers", "").lower()
+
+
 def test_security_headers_and_json_errors(client):
     r = client.get("/api/health")
     assert r.headers["X-Content-Type-Options"] == "nosniff" and r.headers["Cache-Control"] == "no-store"
