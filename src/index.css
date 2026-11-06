@@ -13,7 +13,11 @@
   --c-apricot-100: 251 235 211;
   --c-lake: 28 110 120; --c-lake-700: 20 86 94; --c-lake-100: 215 236 238; --c-lake-50: 236 246 247;
   --c-brick: 163 50 31; --c-brick-50: 251 236 232;
+  --c-iris: 104 72 190; --c-iris-700: 84 56 160; --c-iris-100: 230 224 250; --c-iris-50: 244 241 253;
   --c-paper: 255 255 255;
+  --shadow-card: 0 1px 2px rgb(13 33 25 / 0.05), 0 8px 24px -14px rgb(13 33 25 / 0.22);
+  --shadow-lift: 0 2px 6px rgb(13 33 25 / 0.06), 0 24px 48px -22px rgb(13 33 25 / 0.45);
+  --shadow-float: 0 32px 80px -32px rgb(6 18 13 / 0.6);
   color-scheme: light;
 }
 :root[data-theme='dark'],
@@ -26,7 +30,11 @@
   --c-apricot-100: 58 42 18;
   --c-lake: 108 200 211; --c-lake-700: 148 218 226; --c-lake-100: 20 53 59; --c-lake-50: 15 38 43;
   --c-brick: 255 138 117; --c-brick-50: 46 21 18;
+  --c-iris: 176 156 255; --c-iris-700: 200 186 255; --c-iris-100: 44 34 78; --c-iris-50: 31 24 54;
   --c-paper: 17 26 31;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.35), 0 10px 28px -16px rgb(0 0 0 / 0.7);
+  --shadow-lift: 0 2px 8px rgb(0 0 0 / 0.4), 0 28px 56px -24px rgb(0 0 0 / 0.85);
+  --shadow-float: 0 36px 90px -30px rgb(0 0 0 / 0.9);
   color-scheme: dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -39,7 +47,11 @@
   --c-apricot-100: 58 42 18;
   --c-lake: 108 200 211; --c-lake-700: 148 218 226; --c-lake-100: 20 53 59; --c-lake-50: 15 38 43;
   --c-brick: 255 138 117; --c-brick-50: 46 21 18;
+  --c-iris: 176 156 255; --c-iris-700: 200 186 255; --c-iris-100: 44 34 78; --c-iris-50: 31 24 54;
   --c-paper: 17 26 31;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.35), 0 10px 28px -16px rgb(0 0 0 / 0.7);
+  --shadow-lift: 0 2px 8px rgb(0 0 0 / 0.4), 0 28px 56px -24px rgb(0 0 0 / 0.85);
+  --shadow-float: 0 36px 90px -30px rgb(0 0 0 / 0.9);
   color-scheme: dark;
   }
 }
@@ -95,10 +107,14 @@
   }
 
   .btn {
-    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded px-4 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition duration-200 ease-out active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100;
   }
   .btn-primary {
-    @apply btn bg-juniper text-on-juniper hover:bg-juniper-700;
+    @apply btn bg-juniper text-on-juniper shadow-sm hover:bg-juniper-700 hover:shadow-card;
+  }
+  /* The apricot call to action: the road colour, used for the main action on dark ground. */
+  .btn-accent {
+    @apply btn bg-apricot text-juniper-950 shadow-glow hover:bg-apricot-300;
   }
   .btn-light {
     @apply btn bg-white text-juniper-800 hover:bg-[#EEF4F0];
@@ -109,12 +125,16 @@
   .btn-quiet {
     @apply btn min-h-[36px] px-2.5 text-juniper-600 hover:bg-juniper-50 hover:text-juniper;
   }
+  /* Outline button for dark sections (hero, footer, mission pages). */
+  .btn-ghost {
+    @apply btn border border-white/30 text-white hover:border-white/60 hover:bg-white/10;
+  }
 
   .field-label {
     @apply mb-1.5 block text-sm font-semibold text-ink-700;
   }
   .field {
-    @apply block min-h-[44px] w-full rounded border border-limestone-400 bg-paper px-3 text-base text-ink placeholder:text-ink-500 focus:border-juniper-600 focus:outline-none focus:ring-2 focus:ring-juniper-200;
+    @apply block min-h-[44px] w-full rounded-lg border border-limestone-400 bg-paper px-3 text-base text-ink transition-colors placeholder:text-ink-500 focus:border-juniper-600 focus:outline-none focus:ring-2 focus:ring-juniper-200;
   }
   .chip {
     @apply inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-limestone-400 bg-paper px-3 text-sm font-medium text-ink-700 transition-colors hover:border-juniper-600;
@@ -125,8 +145,56 @@
   }
 
   .panel {
-    @apply rounded-md border border-limestone-300 bg-paper;
+    @apply rounded-2xl border border-limestone-300 bg-paper;
   }
+  /* A raised surface: content blocks, feature cards, stat tiles. */
+  .card {
+    @apply rounded-2xl border border-limestone-300 bg-paper shadow-card;
+  }
+  .card-hover {
+    @apply transition duration-300 ease-out hover:-translate-y-0.5 hover:border-limestone-400 hover:shadow-lift;
+  }
+
+  /* Section rhythm: a small label, a wide headline and a lead paragraph. */
+  .eyebrow {
+    @apply inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-ochre-700;
+  }
+  .eyebrow::before {
+    content: '';
+    @apply h-[2px] w-6 rounded-full bg-apricot;
+  }
+  .on-dark .eyebrow {
+    @apply text-apricot-300;
+  }
+  .section-title {
+    @apply type-wide text-[clamp(1.85rem,3.6vw,2.75rem)] font-extrabold leading-[1.08];
+  }
+  .lead {
+    @apply max-w-prose text-lg leading-relaxed text-ink-600;
+  }
+  .on-dark .lead {
+    @apply text-white/80;
+  }
+
+  /* Where a fact comes from, always in words as well as colour. */
+  .badge {
+    @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase leading-4 tracking-wide;
+  }
+
+  /* Frosted glass over photography (hero search, floating panels). */
+  .glass {
+    @apply border border-white/20 bg-white/10 shadow-float backdrop-blur-xl;
+  }
+
+  /* Loading placeholder with a soft sweep. */
+  .skeleton {
+    @apply relative overflow-hidden rounded-lg bg-limestone-300/60;
+  }
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/40 to-transparent;
+  }
+
   .link {
     @apply font-semibold text-juniper-600 underline decoration-juniper-200 underline-offset-[3px] hover:decoration-juniper-600;
   }
@@ -157,6 +225,33 @@
 }
 
 @layer utilities {
+  /* Raahi's signature texture: topographic contour lines (public/topo.svg, built by
+     scripts/build_topo.py). Used as a mask, so it takes the colour of the text around it. */
+  .topo {
+    position: relative;
+    isolation: isolate;
+  }
+  .topo::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-color: currentColor;
+    opacity: var(--topo-opacity, 0.07);
+    -webkit-mask: url('/topo.svg') repeat;
+    mask: url('/topo.svg') repeat;
+    -webkit-mask-size: var(--topo-size, 720px);
+    mask-size: var(--topo-size, 720px);
+  }
+  /* Content that fades up once as it scrolls into view (see components/ui/Reveal.jsx). */
+  .reveal-init {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  .reveal-in {
+    @apply animate-fadeUp;
+  }
   .no-scrollbar {
     scrollbar-width: none;
   }

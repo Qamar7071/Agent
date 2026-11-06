@@ -3,6 +3,7 @@ import { PlannerProvider } from './context/PlannerContext.jsx';
 import { RouterProvider, match, useRouter } from './lib/router.jsx';
 import Navbar from './components/layout/Navbar.jsx';
 import Footer from './components/layout/Footer.jsx';
+import Toaster from './components/ui/Toaster.jsx';
 import Home from './pages/Home.jsx';
 import NotFound from './pages/NotFound.jsx';
 
@@ -59,6 +60,7 @@ function Layout() {
         <Page />
       </Suspense>
       {path !== '/plan' && !path.startsWith('/trip/') && <Footer />}
+      <Toaster />
     </>
   );
 }

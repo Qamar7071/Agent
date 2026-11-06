@@ -2,12 +2,16 @@
 
 Reads photos/originals/<id>.jpg and writes, for each photo:
   public/images/<id>-<width>.webp   (480, 800, 1200, 1600 and, if large enough, 1920 px wide)
-plus 1200×630 social previews (public/images/og.jpg and og-<id>.jpg) and src/data/photos.generated.json
-(sizes for width/height attributes, so the layout never jumps while images load).
+plus 1200×630 social previews (public/images/og.jpg and og-<id>.jpg), 128×128 square thumbnails
+(public/images/<id>-thumb.webp, cropped around each photo's focal point, for small round
+shortcuts) and src/data/photos.generated.json (sizes for width/height attributes, so the
+layout never jumps while images load).
 
 Run after adding or replacing an original:  python scripts/build_images.py
+Only the thumbnails:                         python scripts/build_images.py --thumbs
 """
 import json
+import sys
 from pathlib import Path
 
 from PIL import Image, ImageOps
@@ -25,6 +29,18 @@ def social(src: Path, dest: Path) -> None:
     im = ImageOps.exif_transpose(Image.open(src)).convert("RGB")
     ImageOps.fit(im, (1200, 630), Image.LANCZOS, centering=(0.5, 0.45)).save(
         dest, "JPEG", quality=78, optimize=True, progressive=True)
+
+
+def thumbs() -> None:
+    """Square thumbnails centred on the focal point recorded in photos.meta.json."""
+    focus = json.loads((ROOT / "src" / "data" / "photos.meta.json").read_text())
+    for path in sorted(SRC.glob("*.jpg")):
+        pos = (focus.get(path.stem) or {}).get("position") or "50% 50%"
+        cx, cy = (float(v.strip("%")) / 100 for v in pos.split())
+        im = ImageOps.exif_transpose(Image.open(path)).convert("RGB")
+        ImageOps.fit(im, (128, 128), Image.LANCZOS, centering=(cx, cy)).save(
+            OUT / f"{path.stem}-thumb.webp", "WEBP", quality=70, method=6)
+        print(f"{path.stem}: thumb")
 
 
 def main() -> None:
@@ -48,9 +64,10 @@ def main() -> None:
     for path in sorted(SRC.glob("*.jpg")):
         social(path, OUT / f"og-{path.stem}.jpg")
     social(SRC / f"{OG_SOURCE}.jpg", OUT / "og.jpg")
+    thumbs()
     META.parent.mkdir(parents=True, exist_ok=True)
     META.write_text(json.dumps(meta, indent=1) + "\n")
 
 
 if __name__ == "__main__":
-    main()
+    thumbs() if "--thumbs" in sys.argv else main()

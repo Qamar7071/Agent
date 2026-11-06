@@ -1,44 +1,17 @@
 // The agents' conversation for one run: each message with its agent, type, reason, evidence,
 // the earlier message it answers and a link to its real step in the Agent Control Center.
-import {
-  BadgeCheck, BedDouble, Backpack, Brain, CloudSun, Compass, Copy, CornerDownRight, Leaf, Network, Route, Scale,
-  ShieldAlert, ShieldCheck, Signpost, Users, Wallet,
-} from 'lucide-react';
+import { CornerDownRight } from 'lucide-react';
 import { Link } from '../../lib/router.jsx';
 import { agentName, answers as answersOf, stepLink } from '../../lib/decided.js';
+import { AgentAvatar } from '../ui/AgentAvatar.jsx';
 
-const LOOK = {
-  orchestrator: [Network, 'bg-juniper-100 text-juniper-700'],
-  memory: [Brain, 'bg-lake-100 text-lake-700'],
-  research: [Compass, 'bg-lake-100 text-lake-700'],
-  itinerary: [Route, 'bg-apricot-100 text-ochre-700'],
-  route: [Signpost, 'bg-apricot-100 text-ochre-700'],
-  weather: [CloudSun, 'bg-lake-100 text-lake-700'],
-  budget: [Wallet, 'bg-ochre-100 text-ochre-700'],
-  accommodation: [BedDouble, 'bg-ochre-100 text-ochre-700'],
-  safety: [ShieldCheck, 'bg-brick-50 text-brick'],
-  guardian: [ShieldAlert, 'bg-brick-50 text-brick'],
-  packing: [Backpack, 'bg-juniper-100 text-juniper-700'],
-  eco: [Leaf, 'bg-juniper-100 text-juniper-700'],
-  validation: [BadgeCheck, 'bg-juniper-100 text-juniper-700'],
-  twin: [Copy, 'bg-limestone-300 text-ink-700'],
-  comparison: [Scale, 'bg-limestone-300 text-ink-700'],
-};
+export { AgentAvatar };
 
 const TYPE_LOOK = {
   proposal: { chip: 'border-lake/30 bg-lake-50 text-lake-700', bubble: 'border-limestone-300' },
   concern: { chip: 'border-ochre/40 bg-ochre-50 text-ochre-700', bubble: 'border-ochre/50' },
   decision: { chip: 'border-juniper bg-juniper text-on-juniper', bubble: 'border-juniper' },
 };
-
-export function AgentAvatar({ agent, label, size = 40 }) {
-  const [Icon, tone] = /consensus/i.test(label || '') ? [Users, LOOK.validation[1]] : LOOK[agent] || LOOK.orchestrator;
-  return (
-    <span className={`inline-flex shrink-0 items-center justify-center rounded-full ${tone}`} style={{ width: size, height: size }} aria-hidden="true">
-      <Icon size={Math.round(size * 0.5)} />
-    </span>
-  );
-}
 
 const seconds = (ms) => (!Number.isFinite(ms) ? null : ms < 1000 ? `+${Math.round(ms)} ms` : `+${(ms / 1000).toFixed(1)} s`);
 

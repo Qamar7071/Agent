@@ -40,14 +40,15 @@ export default function Dialog({ open, onClose, title, children, footer = null, 
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6">
-      <div aria-hidden="true" className="absolute inset-0 bg-juniper-950/60" onClick={onClose} />
+      <div aria-hidden="true" className="absolute inset-0 animate-fadeIn bg-juniper-950/60 backdrop-blur-[2px]" onClick={onClose} />
       <div
         ref={boxRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={`relative flex max-h-[92vh] w-full flex-col rounded-t-lg bg-paper shadow-2xl sm:rounded-lg ${wide ? 'sm:max-w-3xl' : 'sm:max-w-xl'}`}
+        className={`relative flex max-h-[92vh] w-full animate-fadeUp flex-col rounded-t-3xl bg-paper shadow-float sm:rounded-2xl ${wide ? 'sm:max-w-3xl' : 'sm:max-w-xl'}`}
       >
+        <span aria-hidden="true" className="mx-auto mt-2.5 h-1.5 w-10 rounded-full bg-limestone-300 sm:hidden" />
         <div className="flex items-center justify-between gap-4 border-b border-limestone-300 px-5 py-4">
           <h2 id={titleId} className="type-semiwide text-lg font-bold">{title}</h2>
           <button type="button" onClick={onClose} className="btn-quiet -mr-2" aria-label="Close">
