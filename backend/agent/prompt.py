@@ -71,6 +71,12 @@ give the key points and the decisions you made rather than repeating every line.
 
 PKT = timezone(timedelta(hours=5))
 
+# Added for a turn written in Roman Urdu. The rule is also in SYSTEM, but a real model still
+# answered in Urdu script; the server rejects such replies (runner.script_mismatch) either way.
+ROMAN_URDU = ("LANGUAGE FOR THIS REPLY: the traveller writes Roman Urdu, Urdu in Latin letters. Write the whole reply "
+              "in Roman Urdu with Latin letters only, for example \"Skardu ka 5 din ka plan: Day 1 Islamabad se "
+              "Chilas\". Never use Urdu (Arabic) script. Keep numbers, prices and place names as the tools give them.")
+
 
 def context(ctx: ToolContext) -> str:
     now = datetime.now(PKT)

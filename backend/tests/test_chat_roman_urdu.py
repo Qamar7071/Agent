@@ -162,3 +162,35 @@ def test_the_ai_gets_the_optimiser_result_before_it_answers(ai):
     assert any(t["tool"] == "fit_plan_to_budget" for t in r["trace"])
     assert runner.fit_args(parser.extract("budget 10% kam kar do")) == {"reduce_by_percent": 10, "keep_days": True}
     assert runner.fit_args(parser.extract("increase the budget by 30k")) is None
+
+
+# ── AI mode: the reply must be in the letters the traveller used ──
+def test_an_ai_reply_in_urdu_script_to_roman_urdu_is_replaced(ai):
+    from conftest import say
+    from agent import runner
+    llm = ai.script([say("Skardu کا 5 دن کا پلان: اسلام آباد سے چلاس")])
+    r = runner.run_chat(ChatRequest(message="5 din Skardu jana hai, 4 log hain, budget 1 lakh hai."))
+    assert r["mode"] == "guided" and r["lang"] == "ur"
+    assert not runner.URDU_SCRIPT.search(r["reply"]) and "Skardu" in r["reply"]
+    assert any(t["tool"] == "script_check" and not t["ok"] for t in r["trace"])
+    assert "Urdu script" in r["notice"]
+    sent = llm.requests[0]["json"]["messages"]                    # the model was told, too
+    assert any(m["role"] == "system" and "Latin letters only" in (m["content"] or "") for m in sent)
+
+
+def test_urdu_script_is_fine_when_the_traveller_wrote_in_it(ai):
+    from conftest import say
+    from agent import runner
+    ai.script([say("سکردو کے لیے 5 دن کافی ہیں۔")])
+    r = runner.run_chat(ChatRequest(message="سکردو 5 دن کے لیے کیسا رہے گا؟"))
+    assert r["mode"] == "ai" and "سکردو" in r["reply"]
+
+
+def test_roman_urdu_from_the_ai_is_kept(ai):
+    from conftest import say
+    from agent import runner
+    ai.script([say("Skardu ka 5 din ka plan tayyar hai. Andaazan kharcha estimate hai, quote nahi.")])
+    r = runner.run_chat(ChatRequest(message="5 din Skardu jana hai, 4 log hain"))
+    assert r["mode"] == "ai" and r["reply"].startswith("Skardu ka 5 din")
+    assert runner.script_mismatch("Hunza mein hotel batao", "ہنزہ میں ہوٹل") is True
+    assert runner.script_mismatch("Hunza mein hotel batao", "Hunza mein 3 hotel hain (Rs 8,000)") is False

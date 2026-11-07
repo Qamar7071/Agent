@@ -127,6 +127,11 @@ flowchart LR
   or that something is booked, reserved or confirmed (outside a negation or a seasonal
   statement such as "usually open April–November"), the reply is discarded, guided mode
   answers instead, and the trace shows an `honesty_check` entry.
+- **Replies come in the traveller's letters.** If the message is written in Latin letters
+  (English or Roman Urdu) and the model's reply is in Urdu script, the reply is discarded,
+  guided mode answers in Roman Urdu, and the trace shows a `script_check` entry. On Roman Urdu
+  turns the model also gets a short system reminder (`prompt.ROMAN_URDU`). A real model was
+  seen ignoring the general rule on 7 Nov 2026.
 - The instructions also require replies in the traveller's own script (Roman Urdu stays in
   Latin letters), describing places only with the fields a tool returned (no invented
   amenities), and naming only official sources that tools give.
@@ -354,7 +359,7 @@ curl -s -X POST localhost:5000/api/chat -H "Content-Type: application/json" -d '
 
 | Command | What it covers |
 |---|---|
-| `npm run test:api` | Backend unit and API tests with pytest (211 on 7 Nov 2026): data, planner, budget, services (with recorded PMD fixtures and fake HTTP), storage (SQLite; Postgres when `RAAHI_TEST_PG_URL` is set), API, parser, the agent with a scripted fake model (including the 10 evaluation scenarios), and the multi-agent system (`test_multiagent.py`: task graph, events, intent routing, failures, validation retries, every scenario type, comparison, risk and eco models, Guardian, streaming). All offline. |
+| `npm run test:api` | Backend unit and API tests with pytest (214 on 7 Nov 2026): data, planner, budget, services (with recorded PMD fixtures and fake HTTP), storage (SQLite; Postgres when `RAAHI_TEST_PG_URL` is set), API, parser, the agent with a scripted fake model (including the 10 evaluation scenarios), and the multi-agent system (`test_multiagent.py`: task graph, events, intent routing, failures, validation retries, every scenario type, comparison, risk and eco models, Guardian, streaming). All offline. |
 | `npm run test:unit` | 58 tests of the front end's pure logic with Node's built-in runner (Safar Saathi, the conversation and decision cards, best months, the trip map, stages, destination search, Twin trade-offs, Guardian categories). |
 | `npm run test:e2e` | 36 browser checks against a running server (Playwright + Chromium), including Travel Twin, Agent Control Center, Guardian, Safar Saathi, the Group Room, Roman Urdu chat, offline reload and the theme button. Start the server with `WRITE_RATE_PER_MIN=120` for the full suite. |
 | `npm run audit:a11y` | axe-core accessibility audit of 110 page states at phone and desktop sizes (including the agent pages, Safar Saathi, Roman Urdu and the dark theme), plus page weight. |

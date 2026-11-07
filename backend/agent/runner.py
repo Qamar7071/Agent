@@ -38,6 +38,16 @@ SEASONAL = re.compile(r"\b(usually|typically|normally|generally|seasonal(ly)?|se
                       r"april|may|june|july|august|september|october|november|december)\b", re.I)
 
 
+# Urdu (Arabic) script. Someone who writes in Latin letters, English or Roman Urdu, must get an answer
+# they can read the same way: a real model was seen answering a Roman Urdu message in Urdu script.
+URDU_SCRIPT = re.compile(r"[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]")
+
+
+def script_mismatch(message: str, reply: str) -> bool:
+    """True when the traveller wrote in Latin letters and the reply is in Urdu script."""
+    return not URDU_SCRIPT.search(message or "") and len(URDU_SCRIPT.findall(reply or "")) >= 3
+
+
 def unsupported_claim(text: str) -> str | None:
     """Return the first claim Raahi cannot support, unless the sentence negates it."""
     for pattern in UNSUPPORTED:
@@ -92,6 +102,8 @@ def fit_args(slots: dict) -> dict | None:
 
 def _ai(body: ChatRequest, ctx: tools.ToolContext, deadline: float) -> tuple[str, str, str]:
     messages = [{"role": "system", "content": prompt.SYSTEM}, {"role": "system", "content": prompt.context(ctx)}]
+    if ctx.state.lang == "ur" and not URDU_SCRIPT.search(body.message):
+        messages.append({"role": "system", "content": prompt.ROMAN_URDU})
     for turn in body.history[-HISTORY_TURNS:]:
         messages.append({"role": turn.role, "content": turn.content[:HISTORY_CHARS]})
     messages.append({"role": "user", "content": body.message})
@@ -186,6 +198,13 @@ def run_chat(body: ChatRequest) -> dict:
                                   "summary": f"Rejected the AI wording for an unsupported claim: “{claim}”"})
                 reply, mode = None, "guided"
                 notice = "The AI's wording made a claim Raahi can't support, so Raahi answered in guided mode."
+            elif script_mismatch(body.message, reply):
+                log.warning("AI reply rejected: Urdu script for a message written in Latin letters")
+                ctx.trace.append({"tool": "script_check", "ok": False, "ms": 0,
+                                  "summary": "Rejected the AI wording: it was in Urdu script, but the message was "
+                                             "written in Latin letters."})
+                reply, mode = None, "guided"
+                notice = "The AI replied in Urdu script, so Raahi answered in guided mode, in the letters you wrote in."
         except llm.LLMUnavailable as exc:
             notice = "The AI model did not respond, so Raahi answered in guided mode."
             ai_error = str(exc)[:600]
