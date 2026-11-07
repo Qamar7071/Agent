@@ -30,6 +30,7 @@ import queue
 import re
 import threading
 import time
+import uuid
 
 from flask import Flask, Response, g, jsonify, request, send_from_directory, stream_with_context
 from flask_cors import CORS
@@ -58,6 +59,8 @@ from money import rs
 VERSION = "2.0.0"
 HEX32 = re.compile(r"^[0-9a-f]{32}$")
 REFERENCE = re.compile(r"^RAH-[A-Z0-9]{4}-[A-Z0-9]{4}$")
+REQUEST_ID = re.compile(r"^[A-Za-z0-9._:-]{8,80}$")    # safe to echo and to log
+PERMISSIONS = "camera=(), microphone=(self), geolocation=(), payment=()"   # same as vercel.json
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"),
                     format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -136,6 +139,14 @@ def respond(work, **kwargs):
                     headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
 
 
+def static_json(payload: dict, max_age: int = 3600):
+    """Data that only changes with a deploy: cacheable, with an ETag so a repeat visit gets a 304."""
+    resp = jsonify(payload)
+    resp.headers["Cache-Control"] = f"public, max-age={max_age}"
+    resp.add_etag()
+    return resp.make_conditional(request)
+
+
 def need_storage() -> None:
     if not storage.enabled():
         raise ApiError(503, "Saving is not available on this deployment yet (no database is configured).",
@@ -195,16 +206,25 @@ def create_app() -> Flask:
     @app.before_request
     def _start():
         g.t0 = time.monotonic()
+        # One id per request, in the response header, the log line and any server-error message,
+        # so a problem someone reports can be found in the logs. A proxy's id is kept if it is sane.
+        inbound = request.headers.get("X-Request-ID") or request.headers.get("X-Vercel-Id") or ""
+        g.rid = inbound if REQUEST_ID.match(inbound) else uuid.uuid4().hex[:16]
 
     @app.after_request
     def _headers(resp):
+        # The same headers vercel.json sets, so a self-hosted server (Render, python app.py) matches.
         resp.headers.setdefault("X-Content-Type-Options", "nosniff")
         resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        resp.headers.setdefault("X-Frame-Options", "DENY")
+        resp.headers.setdefault("Permissions-Policy", PERMISSIONS)
         if request.path.startswith("/api/"):
             resp.headers.setdefault("Cache-Control", "no-store")
-            resp.headers.setdefault("X-Frame-Options", "DENY")
+            resp.headers["X-Request-ID"] = g.get("rid", "")
             ms = int((time.monotonic() - g.get("t0", time.monotonic())) * 1000)
-            log.info("%s %s %s %dms", request.method, request.path, resp.status_code, ms)
+            slow = ms >= config.SLOW_REQUEST_MS
+            log.log(logging.WARNING if slow else logging.INFO, "%s %s %s %dms rid=%s%s", request.method,
+                    request.path, resp.status_code, ms, g.get("rid", "-"), " SLOW" if slow else "")
         return resp
 
     @app.errorhandler(ApiError)
@@ -228,9 +248,11 @@ def create_app() -> Flask:
 
     @app.errorhandler(Exception)
     def _crash(e: Exception):
-        log.exception("Unhandled error on %s %s", request.method, request.path)
+        rid = g.get("rid", "-")
+        log.exception("Unhandled error on %s %s rid=%s", request.method, request.path, rid)
         resp = jsonify({"error": {"code": "server_error", "message": "Something went wrong on our side. Please try "
-                                                                     "again.", "details": None}})
+                                                                     f"again. Reference: {rid}.", "details": None,
+                                  "request_id": rid}})
         resp.status_code = 500
         return resp
 
@@ -253,19 +275,15 @@ def create_app() -> Flask:
 
     @app.get("/api/destinations")
     def destinations():
-        resp = jsonify({"destinations": [_dest_summary(d) for d in data.dataset()["destinations"]],
-                        "meta": data.dataset()["meta"], "general_sources": data.dataset()["general_sources"]})
-        resp.headers["Cache-Control"] = "public, max-age=3600"
-        return resp
+        return static_json({"destinations": [_dest_summary(d) for d in data.dataset()["destinations"]],
+                            "meta": data.dataset()["meta"], "general_sources": data.dataset()["general_sources"]})
 
     @app.get("/api/destinations/<did>")
     def destination(did: str):
         d = data.destination(did)
         if not d:
             raise ApiError(404, "Unknown destination.", "not_found")
-        resp = jsonify({"destination": d, "stays": data.stays(did), "meta": data.dataset()["meta"]})
-        resp.headers["Cache-Control"] = "public, max-age=3600"
-        return resp
+        return static_json({"destination": d, "stays": data.stays(did), "meta": data.dataset()["meta"]})
 
     @app.get("/api/weather")
     def get_weather():
@@ -327,7 +345,7 @@ def create_app() -> Flask:
                     "description": "Compares the original and simulated trips day by day."}]
         planned = [{"name": "local_pulse", "label": "Local Pulse", "status": "planned (phase B)"},
                    {"name": "emergency", "label": "Emergency Assistance", "status": "planned (phase B)"}]
-        return {"agents": roster, "planned": planned}
+        return static_json({"agents": roster, "planned": planned})
 
     @app.post("/api/agents/run")
     def agents_run():
@@ -344,9 +362,9 @@ def create_app() -> Flask:
 
     @app.get("/api/twin/scenarios")
     def twin_presets():
-        return {"presets": twin_scenarios.PRESETS,
-                "roads": [{"id": s["id"], "name": s["name"], "destination": s.get("destination")}
-                          for s in twin_segments.all_segments()]}
+        return static_json({"presets": twin_scenarios.PRESETS,
+                            "roads": [{"id": s["id"], "name": s["name"], "destination": s.get("destination")}
+                                      for s in twin_segments.all_segments()]})
 
     @app.post("/api/twin/simulate")
     def twin_simulate():
@@ -532,19 +550,9 @@ def create_app() -> Flask:
         sent = parse(ExpenseSync, body())
         token, member = trip_or_member()
         try:
-            current = storage.get_companion(_trip_id(trip_id), token, member)
-            members = {m["id"] for m in (current["settings"] or {}).get("members", [])}
-            accepted, rejected = [], []
-            for e in sent.expenses:
-                if members and (e.paidBy not in members or any(m not in members for m in e.splitAmong)):
-                    rejected.append({"id": e.id, "reason": "Paid by or split with someone who is not in this group."})
-                else:
-                    accepted.append(e.model_dump())
-            out = storage.sync_expenses(trip_id, token, accepted, member)
+            return storage.sync_expenses(_trip_id(trip_id), token, [e.model_dump() for e in sent.expenses], member)
         except storage.NotFound as exc:
             raise ApiError(404, str(exc), "not_found") from exc
-        out["rejected"] = rejected + out["rejected"]
-        return out
 
     # ── Group Room ──
     def _group_call(fn, *args, **kw):

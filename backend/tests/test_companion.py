@@ -133,3 +133,34 @@ def test_wording_input_is_bounded(client):
     assert client.post("/api/companion/wording", json={"ruleId": "R9", "text": "x"}).status_code == 400
     assert client.post("/api/companion/wording", json={"ruleId": "R1", "text": "x" * 401}).status_code == 400
     assert config.COMPANION_RATE_PER_MIN > 0
+
+
+def test_a_big_offline_batch_syncs_in_a_fixed_number_of_queries(client):
+    """A phone that was offline for days sends everything at once: no query per expense."""
+    from sqlalchemy import event
+    import storage
+    tid, key = saved(client)
+    client.put(f"/api/trips/{tid}/companion", json=SETTINGS, headers=key)
+    batch = [expense(100 + i, at=T0 + timedelta(minutes=i)) for i in range(60)]
+    statements = []
+    listener = lambda conn, cursor, sql, *a: statements.append(sql)   # noqa: E731
+    event.listen(storage.engine(), "before_cursor_execute", listener)
+    try:
+        out = client.post(f"/api/trips/{tid}/expenses/sync", json={"expenses": batch}, headers=key).get_json()
+    finally:
+        event.remove(storage.engine(), "before_cursor_execute", listener)
+    assert len(out["expenses"]) == 60 and out["rejected"] == []
+    selects = [q for q in statements if q.lstrip().upper().startswith("SELECT")]
+    assert len(selects) <= 5, selects                      # key, settings, known ids, count, read-back
+    again = client.post(f"/api/trips/{tid}/expenses/sync", json={"expenses": batch}, headers=key).get_json()
+    assert len(again["expenses"]) == 60                    # a retry adds nothing
+
+
+def test_the_same_id_twice_in_one_batch_is_one_expense(client):
+    tid, key = saved(client)
+    e = expense(1000)
+    later = {**e, "amountPkr": 1500, "updatedAt": (T0 + timedelta(minutes=2)).isoformat()}
+    r = client.post(f"/api/trips/{tid}/expenses/sync", json={"expenses": [e, later]}, headers=key)
+    assert r.status_code == 200
+    out = r.get_json()
+    assert [x["amountPkr"] for x in out["expenses"]] == [1500] and out["rejected"] == []

@@ -176,3 +176,43 @@ def test_chat_endpoint_returns_structured_results(client):
                                            "history": [{"role": "user", "content": "Plan 6 days in Hunza"},
                                                        {"role": "assistant", "content": body["reply"]}]}).get_json()
     assert again["itinerary"]["request"]["destinations"] == ["hunza", "attabad"]
+
+
+def test_every_response_has_a_request_id_and_the_site_headers(client):
+    r = client.get("/api/health")
+    rid = r.headers["X-Request-ID"]
+    assert len(rid) >= 8 and r.headers["X-Frame-Options"] == "DENY"
+    assert "microphone=(self)" in r.headers["Permissions-Policy"]          # voice input keeps working
+    assert client.get("/api/health", headers={"X-Request-ID": "trace-1234abcd"}).headers["X-Request-ID"] == "trace-1234abcd"
+    odd = client.get("/api/health", headers={"X-Request-ID": "bad id <script>alert(1)</script>"}).headers["X-Request-ID"]
+    assert "<" not in odd and " " not in odd and len(odd) == 16              # replaced, never echoed
+
+
+def test_a_crash_answers_with_a_reference_and_no_internals(client, monkeypatch):
+    import data
+    def boom(*a, **k):
+        raise RuntimeError("secret internal detail")
+    monkeypatch.setattr(data, "destination", boom)
+    r = client.get("/api/destinations/hunza", headers={"X-Request-ID": "ref-0123456789"})
+    assert r.status_code == 500
+    err = r.get_json()["error"]
+    assert err["code"] == "server_error" and err["request_id"] == "ref-0123456789"
+    assert "Reference: ref-0123456789" in err["message"] and "secret" not in str(err)
+
+
+def test_static_data_is_cacheable_with_an_etag(client):
+    for path in ("/api/destinations", "/api/destinations/hunza", "/api/agents", "/api/twin/scenarios"):
+        first = client.get(path)
+        assert first.status_code == 200 and "max-age=3600" in first.headers["Cache-Control"], path
+        etag = first.headers["ETag"]
+        again = client.get(path, headers={"If-None-Match": etag})
+        assert again.status_code == 304 and again.data == b"", path
+    assert "ETag" not in client.get("/api/health").headers                   # live answers are never cached
+
+
+def test_a_wrong_admin_key_in_any_alphabet_is_a_401_not_a_crash(client, admin_headers):
+    # Werkzeug reads headers as latin-1; "café" sent as UTF-8 arrives as non-ASCII text.
+    odd = "Bearer café-token".encode("utf-8").decode("latin-1")
+    assert client.get("/api/admin/enquiries", headers={"Authorization": odd}).status_code == 401
+    assert client.get("/api/admin/enquiries", headers={"Authorization": "Bearer nope"}).status_code == 401
+    assert client.get("/api/admin/enquiries", headers=admin_headers).status_code == 200

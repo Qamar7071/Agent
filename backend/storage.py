@@ -18,7 +18,7 @@ import uuid
 from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import (Boolean, Column, DateTime, ForeignKey, Index, Integer, MetaData, String, Table, Text,
-                        create_engine, delete, insert, select, update)
+                        create_engine, delete, func, insert, select, update)
 from sqlalchemy.pool import NullPool
 
 import config
@@ -248,8 +248,18 @@ def get_trip(trip_id: str, token: str) -> dict:
     return _trip_out(row)
 
 
+def _require_key(trip_id: str, token: str, c=None) -> None:
+    """Check a trip's key without loading (and parsing) the whole saved plan."""
+    if c is None:
+        with engine().connect() as conn:
+            return _require_key(trip_id, token, conn)
+    row = c.execute(select(trips.c.token_hash).where(trips.c.id == trip_id)).first()
+    if not _check(row, token):
+        raise NotFound("Trip not found, or this link's key does not match.")
+
+
 def update_trip(trip_id: str, token: str, title: str, request: dict, itinerary: dict) -> dict:
-    get_trip(trip_id, token)
+    _require_key(trip_id, token)
     now = _now()
     with engine().begin() as c:
         c.execute(update(trips).where(trips.c.id == trip_id).values(
@@ -259,7 +269,7 @@ def update_trip(trip_id: str, token: str, title: str, request: dict, itinerary: 
 
 
 def delete_trip(trip_id: str, token: str) -> None:
-    get_trip(trip_id, token)
+    _require_key(trip_id, token)
     with engine().begin() as c:
         c.execute(update(enquiries).where(enquiries.c.trip_id == trip_id).values(trip_id=None))
         c.execute(delete(expenses).where(expenses.c.trip_id == trip_id))      # SQLite doesn't cascade by default
@@ -275,7 +285,7 @@ def delete_trip(trip_id: str, token: str) -> None:
 # ── Family share ("Where we'll be") ──────────────────────────────────────────────
 def create_share(trip_id: str, token: str, note: str | None) -> str:
     """A new read-only link for this trip. It replaces any earlier link, which stops working."""
-    get_trip(trip_id, token)
+    _require_key(trip_id, token)
     share = secrets.token_urlsafe(18)
     with engine().begin() as c:
         c.execute(delete(trip_shares).where(trip_shares.c.trip_id == trip_id))
@@ -285,7 +295,7 @@ def create_share(trip_id: str, token: str, note: str | None) -> str:
 
 
 def revoke_share(trip_id: str, token: str) -> None:
-    get_trip(trip_id, token)
+    _require_key(trip_id, token)
     with engine().begin() as c:
         c.execute(delete(trip_shares).where(trip_shares.c.trip_id == trip_id))
 
@@ -339,7 +349,7 @@ def _auth_trip(trip_id: str, token: str | None, member_token: str | None = None)
     """The trip's own key, or the key of an active member of the trip's group."""
     if member_token and member_trip_access(trip_id, member_token):
         return
-    get_trip(trip_id, token or "")
+    _require_key(trip_id, token or "")
 
 
 def get_companion(trip_id: str, token: str | None, member_token: str | None = None) -> dict:
@@ -370,29 +380,53 @@ def put_companion_settings(trip_id: str, token: str | None, settings: dict, memb
 def sync_expenses(trip_id: str, token: str | None, items: list[dict], member_token: str | None = None) -> dict:
     """Merge expenses sent by a phone. Same id twice = one expense (safe to retry after a lost
     connection). If two phones changed the same expense, the later change wins. An id that
-    belongs to another trip is refused. Returns the trip's full list, tombstones included."""
+    belongs to another trip is refused, and so is a payer or share for someone outside the group.
+    Returns the trip's full list, tombstones included.
+
+    One connection and a fixed number of queries however many expenses arrive (a phone that was
+    offline for days can send up to 200 at once)."""
     _auth_trip(trip_id, token, member_token)
-    rejected = []
+    rejected, fresh = [], []
     with engine().begin() as c:
-        count = len(c.execute(select(expenses.c.id).where(expenses.c.trip_id == trip_id)).all())
+        comp = c.execute(select(companions.c.settings_json).where(companions.c.trip_id == trip_id)).first()
+        members = {m["id"] for m in (json.loads(comp.settings_json) if comp else {}).get("members", [])}
         for it in items:
-            row = c.execute(select(expenses).where(expenses.c.id == it["id"])).first()
+            if members and (it["paidBy"] not in members or any(m not in members for m in it["splitAmong"])):
+                rejected.append({"id": it["id"], "reason": "Paid by or split with someone who is not in this group."})
+            else:
+                fresh.append(it)
+        ids = list(dict.fromkeys(it["id"] for it in fresh))
+        known = {r.id: {"trip_id": r.trip_id, "updated_at": r.updated_at}
+                 for r in c.execute(select(expenses.c.id, expenses.c.trip_id, expenses.c.updated_at)
+                                    .where(expenses.c.id.in_(ids))).all()} if ids else {}
+        count = c.execute(select(func.count()).select_from(expenses).where(expenses.c.trip_id == trip_id)).scalar_one()
+        new_rows: dict[str, dict] = {}                     # inserted together, in one statement
+        for it in fresh:
             values = {"amount_pkr": it["amountPkr"], "category": it["category"], "paid_by": it["paidBy"],
                       "split_among": json.dumps(it["splitAmong"]), "note": it.get("note"),
                       "day_index": it["dayIndex"], "deleted": bool(it.get("deleted")),
                       "updated_at": it["updatedAt"]}
+            if it["id"] in new_rows:                       # the same new id twice in this batch: later change wins
+                if _aware(it["updatedAt"]) > _aware(new_rows[it["id"]]["updated_at"]):
+                    new_rows[it["id"]].update(values)
+                continue
+            row = known.get(it["id"])
             if row is None:
                 if count >= MAX_EXPENSES_PER_TRIP:
                     rejected.append({"id": it["id"], "reason": "This trip has reached its expense limit."})
                     continue
-                c.execute(insert(expenses).values(id=it["id"], trip_id=trip_id, created_at=it["createdAt"], **values))
+                new_rows[it["id"]] = {"id": it["id"], "trip_id": trip_id, "created_at": it["createdAt"], **values}
                 count += 1
-            elif row.trip_id != trip_id:
+            elif row["trip_id"] != trip_id:
                 rejected.append({"id": it["id"], "reason": "This id belongs to another trip."})
-            elif _aware(it["updatedAt"]) > _aware(row.updated_at):
+            elif _aware(it["updatedAt"]) > _aware(row["updated_at"]):
                 c.execute(update(expenses).where(expenses.c.id == it["id"]).values(**values))
-    out = get_companion(trip_id, token, member_token)
-    return {"expenses": out["expenses"], "rejected": rejected, "synced_at": _iso(_now())}
+                row["updated_at"] = it["updatedAt"]
+        if new_rows:
+            c.execute(insert(expenses), list(new_rows.values()))
+        rows = c.execute(select(expenses).where(expenses.c.trip_id == trip_id)
+                         .order_by(expenses.c.created_at, expenses.c.id)).all()
+    return {"expenses": [_expense_out(r) for r in rows], "rejected": rejected, "synced_at": _iso(_now())}
 
 
 # ── Enquiries ─────────────────────────────────────────────────────────────────────

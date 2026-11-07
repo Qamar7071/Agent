@@ -62,4 +62,5 @@ def admin_status() -> str:
         return "disabled"
     header = request.headers.get("Authorization", "")
     token = header[7:].strip() if header.lower().startswith("bearer ") else ""
-    return "ok" if token and hmac.compare_digest(token, config.ADMIN_TOKEN) else "denied"
+    # Bytes, not str: compare_digest raises on non-ASCII text, which would turn a wrong key into a 500.
+    return "ok" if token and hmac.compare_digest(token.encode("utf-8"), config.ADMIN_TOKEN.encode("utf-8")) else "denied"

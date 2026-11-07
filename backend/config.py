@@ -95,6 +95,7 @@ KKH_RISK_API_URL = _get("KKH_RISK_API_URL").rstrip("/")  # optional KKH model
 SITE_URL = _get("SITE_URL", "https://north-kappa-ivory.vercel.app").rstrip("/")
 ALLOWED_ORIGINS = _list("ALLOWED_ORIGINS", SITE_URL + ",http://localhost:5173,http://localhost:5000")
 MAX_BODY_BYTES = _num("MAX_BODY_BYTES", 64 * 1024, int)
+SLOW_REQUEST_MS = _num("SLOW_REQUEST_MS", 3000, int)   # logged as a warning above this
 # Trust X-Forwarded-For only behind a proxy that sets it (Vercel and Render do).
 TRUST_PROXY = _bool("TRUST_PROXY", "true" if (ON_VERCEL or ON_RENDER) else "false")
 PLAN_RATE_PER_MIN = _num("PLAN_RATE_PER_MIN", 40, int)

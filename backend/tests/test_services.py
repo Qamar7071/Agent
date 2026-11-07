@@ -131,3 +131,21 @@ def test_failures_are_cached_only_briefly():
     http._cache["k"] = (0, http._cache["k"][1])          # …but at most 60 s, simulate expiry
     http.cached("k", 3600, fetch)
     assert len(calls) == 2
+
+
+def test_the_cache_stays_bounded_dropping_expired_then_oldest(monkeypatch):
+    http.clear_cache()
+    monkeypatch.setattr(http, "MAX_ENTRIES", 3)
+    t = [1000.0]
+    monkeypatch.setattr(http.time, "time", lambda: t[0])
+    http.cached("short", 5, lambda: "s")                 # expires first
+    http.cached("a", 600, lambda: "a")
+    http.cached("b", 600, lambda: "b")
+    t[0] += 10                                           # "short" is now stale
+    http.cached("a", 600, lambda: "never called")        # a hit: "a" becomes the most recent
+    http.cached("c", 600, lambda: "c")                   # 4th entry: the stale one goes, not "a" or "b"
+    assert set(http._cache) == {"a", "b", "c"}
+    http.cached("d", 600, lambda: "d")                   # nothing stale: the least recently used goes
+    assert set(http._cache) == {"a", "c", "d"}
+    assert http.cached("a", 600, lambda: "x") == "a"
+    http.clear_cache()

@@ -5,6 +5,7 @@ it only exists to avoid hammering free public APIs.
 """
 import threading
 import time
+from collections import OrderedDict
 from datetime import datetime, timezone
 
 import requests
@@ -15,7 +16,10 @@ UA = f"Raahi/2.0 (AI travel concierge for Northern Pakistan; {config.CONTACT})"
 _session = requests.Session()
 _session.headers.update({"User-Agent": UA, "Accept": "application/json, application/xml;q=0.9, */*;q=0.5"})
 
-_cache: dict[str, tuple[float, object]] = {}
+# Bounded, so a long-running server can't grow without limit: expired entries go first, then the
+# least recently used.
+MAX_ENTRIES = 512
+_cache: "OrderedDict[str, tuple[float, object]]" = OrderedDict()
 _lock = threading.Lock()
 
 
@@ -50,11 +54,18 @@ def cached(key: str, ttl_s: float, fetch, refresh_failed: bool = False):
     with _lock:
         hit = _cache.get(key)
         if hit and hit[0] > now and not (refresh_failed and _failed(hit[1])):
+            _cache.move_to_end(key)
             return hit[1]
     value = fetch()
     ok = not _failed(value)
     with _lock:
         _cache[key] = (now + (ttl_s if ok else min(60, ttl_s)), value)
+        _cache.move_to_end(key)
+        if len(_cache) > MAX_ENTRIES:
+            for k in [k for k, (expires, _) in _cache.items() if expires <= now]:
+                del _cache[k]
+            while len(_cache) > MAX_ENTRIES:
+                _cache.popitem(last=False)
     return value
 
 
