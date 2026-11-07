@@ -12,6 +12,7 @@ import AgentFlow, { STATUS } from '../components/mission/AgentFlow.jsx';
 import AgentPipeline from '../components/mission/AgentPipeline.jsx';
 import { EventLog, TaskDetails, Timeline } from '../components/mission/RunDetails.jsx';
 import { AgentAvatar } from '../components/ui/AgentAvatar.jsx';
+import { tabKeyDown } from '../lib/tabKeys.js';
 
 const KIND = { plan: 'Trip analysis', simulation: 'What-if simulation', guardian: 'Guardian check', consensus: 'Group options' };
 const VERDICT = { pass: 'Passed', pass_with_warnings: 'Passed with warnings', needs_approval: 'Waiting for your decision', fail: 'Failed' };
@@ -228,7 +229,9 @@ export default function AgentControl() {
                 {tasks.length > 0 && (
                   <div role="tablist" aria-label="Workflow view" className="flex rounded-full bg-black/30 p-1">
                     {[['stages', 'Stages', ListTree], ['graph', 'Graph', GitBranch]].map(([id, label, Icon]) => (
-                      <button key={id} type="button" role="tab" aria-selected={view === id} onClick={() => setView(id)}
+                      <button key={id} id={`view-${id}`} type="button" role="tab" aria-selected={view === id}
+                        tabIndex={view === id ? 0 : -1} onClick={() => setView(id)}
+                        onKeyDown={(e) => tabKeyDown(e, ['stages', 'graph'], view, setView, (x) => `view-${x}`)}
                         className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-full px-3 text-sm font-semibold ${view === id ? 'bg-white/15 text-ink' : 'text-ink-500 hover:text-ink'}`}>
                         <Icon size={15} aria-hidden="true" /> {label}
                       </button>

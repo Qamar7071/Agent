@@ -10,6 +10,7 @@ import TripForm, { TripFormActions } from '../components/planner/TripForm.jsx';
 import EnquiryDialog from '../components/planner/EnquiryDialog.jsx';
 import Dialog from '../components/ui/Dialog.jsx';
 import Notice from '../components/ui/Notice.jsx';
+import { tabKeyDown } from '../lib/tabKeys.js';
 
 const MIN = 320;
 const MAX = 680;
@@ -63,7 +64,9 @@ export default function Plan() {
       <h1 className="sr-only">Trip planner</h1>
       <div className="no-print flex border-b border-limestone-300 bg-paper lg:hidden" role="tablist" aria-label="Planner view">
         {[['chat', 'Chat'], ['plan', itinerary ? 'Your plan' : 'Plan']].map(([id, label]) => (
-          <button key={id} type="button" role="tab" aria-selected={view === id} onClick={() => setView(id)}
+          <button key={id} id={`planner-${id}`} type="button" role="tab" aria-selected={view === id}
+            tabIndex={view === id ? 0 : -1} onClick={() => setView(id)}
+            onKeyDown={(e) => tabKeyDown(e, ['chat', 'plan'], view, setView, (x) => `planner-${x}`)}
             className={`flex-1 border-b-2 py-3 text-sm font-semibold ${view === id ? 'border-juniper text-juniper' : 'border-transparent text-ink-600'}`}>
             {label}
           </button>

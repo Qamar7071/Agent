@@ -35,7 +35,7 @@ function TripRow({ trip, onGone }) {
         <p className="text-sm text-ink-600">Saved {ago(trip.savedAt)}</p>
         {state.error && <p className="mt-1 text-sm text-brick" role="alert">{state.error}</p>}
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <button type="button" onClick={() => navigate(`/plan?trip=${trip.id}`)} className="btn-primary">Open</button>
         <button type="button" onClick={() => navigate(loadCompanion(trip.id) ? `/trip/${trip.id}` : `/trip/new?trip=${trip.id}`)}
           className="btn-outline">{loadCompanion(trip.id) ? 'Trip companion' : 'Start trip'}</button>
@@ -87,7 +87,7 @@ function EnquiryRow({ enquiry, onGone }) {
         )}
         {state.error && <p className="mt-1 text-sm text-brick" role="alert">{state.error}</p>}
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <button type="button" disabled={state.busy} onClick={check} className="btn-outline">Check status</button>
         <button type="button" disabled={state.busy} onClick={withdraw} className="btn-outline">Withdraw</button>
       </div>
@@ -135,7 +135,7 @@ export default function Trips() {
                   <p className="type-semiwide text-lg font-bold">{t.title}</p>
                   <p className="text-sm text-ink-600">{t.days} days{t.startDate ? ` from ${t.startDate}` : ''}{t.id.startsWith('local-') ? ' · on this phone only' : ''}</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Link to={`/trip/${t.id}`} className="btn-primary">Open</Link>
                   {t.id.startsWith('local-') && (
                     <button type="button" className="btn-outline" onClick={() => {

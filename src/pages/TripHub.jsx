@@ -18,6 +18,7 @@ import TripSettings from '../components/companion/TripSettings.jsx';
 import Notice from '../components/ui/Notice.jsx';
 import { dismiss, toast } from '../lib/toast.js';
 import ShareFamily from '../components/shared/ShareFamily.jsx';
+import { tabKeyDown } from '../lib/tabKeys.js';
 
 const TABS = [['today', Sun], ['money', Wallet], ['plan', ListChecks]];
 
@@ -159,7 +160,8 @@ function Hub({ id }) {
             const label = { today: s.tabToday, money: s.tabMoney, plan: s.tabPlan }[key];
             return (
               <button key={key} id={`tab-${key}`} type="button" role="tab" aria-selected={tab === key} aria-controls={`panel-${key}`}
-                onClick={() => setTab(key)}
+                tabIndex={tab === key ? 0 : -1} onClick={() => setTab(key)}
+                onKeyDown={(e) => tabKeyDown(e, TABS.map(([k]) => k), tab, setTab, (x) => `tab-${x}`)}
                 className={`flex min-h-[64px] flex-col items-center justify-center gap-1 text-xs font-semibold ${tab === key ? 'text-juniper-700' : 'text-ink-600'}`}>
                 <Icon size={22} aria-hidden="true" strokeWidth={tab === key ? 2.5 : 2} />
                 {label}

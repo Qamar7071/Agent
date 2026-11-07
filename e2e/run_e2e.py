@@ -217,6 +217,12 @@ def agent_control(page):
     expect(page.get_by_text(re.compile(r"Tool calls \(\d+\)"))).to_be_visible()
     expect(page.get_by_text(re.compile("open-meteo|pmd.alerts")).first).to_be_visible()
     expect(page.get_by_role("heading", name="Event log")).to_be_visible()
+    stages = page.get_by_role("tab", name="Stages")
+    stages.press("ArrowRight")                                     # Stages ⇄ Graph with the arrow keys
+    expect(page.get_by_role("tab", name="Graph")).to_have_attribute("aria-selected", "true")
+    expect(page.get_by_role("tab", name="Graph")).to_be_focused()
+    page.keyboard.press("ArrowLeft")
+    expect(stages).to_have_attribute("aria-selected", "true")
 
 
 @check("guardian scores the trip day by day and explains every point")
@@ -363,6 +369,18 @@ def saathi(page):
     settle = page.locator("section[aria-labelledby='settle-h']")
     expect(settle).to_contain_text("Sara pays Qamar")
     expect(settle).to_contain_text("Rs 700")            # Qamar paid 2,400, Sara 1,000; each owes 1,700
+    page.get_by_role("tab", name="Spending").press("ArrowRight")       # arrow keys move between the tabs
+    expect(page.get_by_role("tab", name="Plan")).to_be_focused()
+    expect(page.get_by_role("tab", name="Plan")).to_have_attribute("aria-selected", "true")
+    page.keyboard.press("Home")
+    expect(page.get_by_role("tab", name="Today")).to_have_attribute("aria-selected", "true")
+    page.goto(BASE + "/trips", wait_until="networkidle")              # a trip with a companion: the longest buttons
+    for width in (360, 390):
+        page.set_viewport_size({"width": width, "height": 800})
+        over = page.evaluate("document.documentElement.scrollWidth - window.innerWidth")
+        assert over <= 1, f"/trips overflows by {over}px at {width}px"
+    page.set_viewport_size({"width": 1440, "height": 900})
+    page.go_back(wait_until="networkidle")
     page.get_by_role("tab", name="Today").click()
 
 
@@ -416,7 +434,8 @@ def responsive(page):
         overflow = []
         for width, height in ((360, 740), (390, 844), (768, 1024), (1024, 768), (1440, 900)):
             page.set_viewport_size({"width": width, "height": height})
-            for path in ("/", "/plan", "/destinations/hunza", "/trips", "/twin", "/agents", "/guardian", "/trip/new?from=plan"):
+            for path in ("/", "/explore", "/plan", "/destinations/hunza", "/trips", "/twin", "/agents", "/guardian",
+                         "/decided", "/trip/new?from=plan"):
                 page.goto(BASE + path, wait_until="networkidle")
                 over = page.evaluate("document.documentElement.scrollWidth - window.innerWidth")
                 if over > 1:
@@ -430,6 +449,9 @@ def responsive(page):
     expect(page.get_by_role("navigation", name="Mobile").get_by_role("link", name="Plan a trip")).to_be_visible()
     page.goto(BASE + "/plan", wait_until="networkidle")
     expect(page.get_by_role("tab", name="Chat")).to_be_visible()
+    page.get_by_role("tab", name="Chat").press("ArrowRight")
+    expect(page.get_by_role("tab", name="Plan")).to_be_focused()
+    expect(page.get_by_role("tab", name="Plan")).to_have_attribute("aria-selected", "true")
     page.set_viewport_size({"width": 1440, "height": 900})
 
 
