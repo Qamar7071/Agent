@@ -21,7 +21,7 @@ flowchart LR
   subgraph Server["Flask API (Vercel function or gunicorn)"]
     API[app.py<br/>validation, rate limits,<br/>CORS, security headers]
     AG[agent/runner.py<br/>tool loop + guided mode]
-    TL[agent/tools.py<br/>12 validated tools]
+    TL[agent/tools.py<br/>13 validated tools]
     PL[planner.py + budget.py<br/>deterministic]
     SV[services/<br/>weather, roads, routing]
     DB[storage.py]
@@ -91,6 +91,7 @@ flowchart LR
 | `get_road_status` | What can and cannot be known: always "not verified", with alerts, typical seasonal closures, optional unverified news, official checks | PMD, dataset, Tavily (optional) |
 | `find_places` | Places to stay (curated, matched to a per-night range, plus OpenStreetMap listings without prices) or to eat (local dishes, restaurants and cafés) in a town | dataset, OpenStreetMap |
 | `estimate_trip_budget` | Line-by-line PKR estimate compared with the budget, with savings | `budget.py` |
+| `fit_plan_to_budget` | Re-prices the current plan for a lower or higher target ("Budget 20,000 kam kar do", "budget 10% kam", "reduce the budget by 20k") by trying cheaper stays first, then cheaper transport, keeping the days and places unless asked; returns the cheapest option that fits, the alternatives it tried and the original values. The traveller's stated budget is not changed | `agents/budget_agent.py` |
 | `create_itinerary` | Builds the full day-by-day plan | `planner.py` |
 | `update_itinerary` | Changes days, dates, budget, pace, transport, stays, destinations or one day, keeping everything else | `planner.py` |
 | `save_trip` | Saves or updates the trip, only when asked. The private key goes to the browser, never to the model | `storage.py` |
@@ -111,7 +112,7 @@ flowchart LR
 
 - Tool arguments are parsed with pydantic models; unknown tools and invalid arguments return
   an error to the model instead of running.
-- Only the 12 tools above exist. None of them can fetch an arbitrary URL, run code, read files
+- Only the 13 tools above exist. None of them can fetch an arbitrary URL, run code, read files
   or send messages.
 - A message sticks to one provider. If the main provider fails, the backup provider (and any
   fallback models) is tried; a 401 or 403 skips the rest of that provider's models.
@@ -129,6 +130,12 @@ flowchart LR
 - The instructions also require replies in the traveller's own script (Roman Urdu stays in
   Latin letters), describing places only with the fields a tool returned (no invented
   amenities), and naming only official sources that tools give.
+- **Language.** `agent/lang.py` tells Roman Urdu from English by common words (din, log,
+  lakh, hazar, jana hai, kam kar do, safe rahega…), allowing mixed sentences, and keeps the
+  choice in the trip state (`lang`). Guided mode then writes its replies in Roman Urdu; the
+  honesty sentences (estimates, unverified roads) may stay in English so they are never
+  softened in translation. A safety question ("Deosai jana safe rahega is month?") gets the
+  usual season, altitude, the forecast if live and the road-status rule, never "open".
 
 ## 3. Planner (`backend/planner.py`)
 
@@ -232,7 +239,12 @@ CREATE INDEX ix_enquiries_status_created ON enquiries (status, created_at);
 
 ## 7. API
 
-All responses are JSON. Errors look like `{"error": {"code", "message", "details"}}`.
+All responses are JSON. Errors look like `{"error": {"code", "message", "details"}}`; a server
+error (500) also carries `request_id` and says "Reference: …" in its message. Every API
+response has an `X-Request-ID` header (a proxy's id is kept if it is a safe string), which is
+also in the log line. Data that only changes with a deploy (destinations, the agent roster,
+Twin scenarios) is sent with `Cache-Control: public, max-age=3600` and an ETag, so a repeat
+visit gets `304 Not Modified`.
 
 | Method and path | Purpose | Limit per minute |
 |---|---|---|
@@ -291,12 +303,16 @@ curl -s -X POST localhost:5000/api/chat -H "Content-Type: application/json" -d '
   limit; per-visitor rate limits per bucket (in memory, per server instance).
 - CORS limited to `ALLOWED_ORIGINS`; security headers on every response (also set by
   `vercel.json` for static files).
-- Private keys hashed at rest; admin token compared in constant time.
+- Private keys hashed at rest; admin token compared in constant time (as bytes, so a key in
+  any alphabet is a 401, never a crash). Trip-key checks read only the key hash, not the plan.
 - Enquiries: consent required, honeypot field against bots, the traveller can withdraw.
 - Prompt injection: tool results and saved notes are marked as data in the prompt, the model
   can only use the 12 tools, arguments are validated, and anything consequential (sending an
   enquiry) needs the traveller to act in the website.
-- Logs record method, path, status and timing, not request bodies or personal details.
+- Logs record method, path, status, timing and the request id, not request bodies or personal
+  details. Requests slower than `SLOW_REQUEST_MS` (default 3 s) are logged as warnings.
+- The live-data cache (`services/http.py`) is bounded at 512 entries (expired first, then least
+  recently used), so a long-running server cannot grow without limit.
 - Assistant text is rendered with a small safe Markdown renderer (no HTML injection; only
   `http(s)` links).
 
@@ -310,7 +326,19 @@ curl -s -X POST localhost:5000/api/chat -H "Content-Type: application/json" -d '
   `backend/money.py`).
 - A service worker (`public/sw.js`, registered only in the built site) keeps the app usable
   offline: pages network-first with a cached fallback, hashed assets cache-first, API calls
-  never cached.
+  never cached. On its first install it caches the app shell and the files the HTML names,
+  and the page then tells it which other built files it loaded, so a page opened once loads
+  again without a connection, even on the very first visit.
+- Lucide icons are built into one shared file (`vite.config.js`, `manualChunks`) instead of
+  dozens of files of a few hundred bytes each: a first visit to the home page makes 17 script
+  requests instead of 40.
+- Design system: CSS variables for colour, radius, shadows and motion (`src/index.css`,
+  `tailwind.config.js`), shared pieces in `src/components/ui/` (DataBadge for live, estimate,
+  typical and simulated labels; SectionHeader; Reveal, which fades content in on scroll and is
+  skipped for people who prefer reduced motion; a site-wide toast queue in `src/lib/toast.js`;
+  CopyButton; EmptyState; AgentAvatar), and a contour-line texture (`public/topo.svg`).
+- Tab rows follow the ARIA tabs pattern (`src/lib/tabKeys.js`): arrow keys, Home and End,
+  one Tab stop.
 - Themes: colours are CSS variables, so one set of Tailwind classes serves a light and a dark
   theme. The theme button cycles device, light and dark (`raahi:theme`). The agent pages use a
   dark "mission" look (`.mission`) whatever the theme.
@@ -326,9 +354,10 @@ curl -s -X POST localhost:5000/api/chat -H "Content-Type: application/json" -d '
 
 | Command | What it covers |
 |---|---|
-| `npm run test:api` | Backend unit and API tests with pytest (147 on 30 Oct 2026): data, planner, budget, services (with recorded PMD fixtures and fake HTTP), storage (SQLite; Postgres when `RAAHI_TEST_PG_URL` is set), API, parser, the agent with a scripted fake model (including the 10 evaluation scenarios), and the multi-agent system (`test_multiagent.py`: task graph, events, intent routing, failures, validation retries, every scenario type, comparison, risk and eco models, Guardian, streaming). All offline. |
-| `npm run test:e2e` | 21 browser checks against a running server (Playwright + Chromium), including Travel Twin, Agent Control Center, Guardian and the theme button. |
-| `npm run audit:a11y` | axe-core accessibility audit of 62 page states at phone and desktop sizes (including the agent pages and the dark theme), plus page weight. |
+| `npm run test:api` | Backend unit and API tests with pytest (211 on 7 Nov 2026): data, planner, budget, services (with recorded PMD fixtures and fake HTTP), storage (SQLite; Postgres when `RAAHI_TEST_PG_URL` is set), API, parser, the agent with a scripted fake model (including the 10 evaluation scenarios), and the multi-agent system (`test_multiagent.py`: task graph, events, intent routing, failures, validation retries, every scenario type, comparison, risk and eco models, Guardian, streaming). All offline. |
+| `npm run test:unit` | 58 tests of the front end's pure logic with Node's built-in runner (Safar Saathi, the conversation and decision cards, best months, the trip map, stages, destination search, Twin trade-offs, Guardian categories). |
+| `npm run test:e2e` | 36 browser checks against a running server (Playwright + Chromium), including Travel Twin, Agent Control Center, Guardian, Safar Saathi, the Group Room, Roman Urdu chat, offline reload and the theme button. Start the server with `WRITE_RATE_PER_MIN=120` for the full suite. |
+| `npm run audit:a11y` | axe-core accessibility audit of 110 page states at phone and desktop sizes (including the agent pages, Safar Saathi, Roman Urdu and the dark theme), plus page weight. |
 
 Tests use fakes for every external service; passing them shows the code handles those
 responses, not that the live services or a real AI model behave the same way.
@@ -548,7 +577,11 @@ a duplicate. The later change wins, by phone clock. Deletes are kept as tombston
 phones learn about them. The server keeps times to the millisecond, the same as the phone; an
 earlier version rounded to seconds and caused an endless re-send loop, and a test now covers
 it. Expenses the server refuses (for example, paid by someone not in the group) are marked
-and not retried. Trips that were never saved stay on the phone that started them.
+and not retried. Trips that were never saved stay on the phone that started them. A sync is
+one transaction on one connection with a fixed number of queries, however many expenses
+arrive (up to 200): the member check, one look-up for all the ids sent, one count, one insert
+for all the new ones, updates only for changed ones, and the read-back. A batch of 60 went
+from 128 statements and 6 connection checkouts to 6 statements and 2 checkouts.
 
 **Privacy.** Companion settings hold names, the budget, the first day and the language: no
 contact or health details (the schema forbids extra fields). Deleting a trip deletes its
