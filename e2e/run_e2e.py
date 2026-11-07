@@ -376,8 +376,13 @@ def saathi_nudges(page):
     expect(nudge).to_have_attribute("aria-label", re.compile("Over plan|Go carefully"))
     expect(nudge.get_by_role("button", name="Keep the plan")).to_be_visible()
     savers = nudge.get_by_role("button", name=re.compile("saves about Rs"))
+    expect(page.get_by_text(re.compile(r"Spending is ahead of the plan: about Rs [\d,]+ more"))).to_be_visible()
+    hint = page.get_by_text("The choices below show where tomorrow could cost less")
     if savers.count():
         expect(savers.first).to_contain_text("estimate, Raahi cost model")
+        expect(hint).to_be_visible()
+    else:                                           # never point at choices that are not there
+        expect(hint).to_have_count(0)
     nudge.get_by_role("button", name="Keep the plan").click()
     expect(page.get_by_role("article")).to_have_count(0)
 

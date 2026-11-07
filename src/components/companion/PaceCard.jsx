@@ -3,7 +3,7 @@
 import { pkr } from '../../lib/format.js';
 import { StatusChip, TONE } from './bits.jsx';
 
-export default function PaceCard({ p, s, onAddBudget }) {
+export default function PaceCard({ p, s, choices = false, onAddBudget }) {
   if (!p.budgetTotal) {
     return (
       <section aria-labelledby="pace-h" className="panel p-4 sm:p-5">
@@ -18,8 +18,16 @@ export default function PaceCard({ p, s, onAddBudget }) {
   const spentW = Math.min(100, (p.spentAll / p.budgetTotal) * 100);
   const planX = Math.min(100, p.plannedPct || 0);
   const label = `${s.spentSoFar}: ${pkr(p.spentAll)} / ${pkr(p.budgetTotal)}. ${s.planExpects(pkr(p.plannedToDate))}.`;
+  const behind = p.dayIndex >= 1 && (p.status === 'careful' || p.status === 'over');
+  const ahead = Math.max(0, (p.spentToDate || 0) - (p.plannedToDate || 0));
   return (
-    <section aria-labelledby="pace-h" className="panel p-4 sm:p-5">
+    <section aria-labelledby="pace-h" className={`panel p-4 sm:p-5 ${behind ? tone.box : ''}`}>
+      {behind && ahead > 0 && (
+        <p className={`-mx-1 mb-3 flex items-start gap-2 rounded-xl bg-paper/80 px-3 py-2 text-sm font-semibold ${tone.text}`}>
+          <tone.icon size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <span>{s.aheadBy(pkr(ahead))}{choices && <span className="block text-xs font-normal text-ink-600">{s.aheadHint}</span>}</span>
+        </p>
+      )}
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <h2 id="pace-h" className="text-sm font-semibold text-ink-600">{s.spentSoFar}</h2>

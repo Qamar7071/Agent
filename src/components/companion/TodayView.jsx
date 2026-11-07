@@ -7,6 +7,7 @@ import { metres, pkr } from '../../lib/format.js';
 import PaceCard from './PaceCard.jsx';
 import NudgeCard from './NudgeCard.jsx';
 import { CategoryIcon, Section } from './bits.jsx';
+import { offersSaving } from '../../lib/companion/nudges.js';
 
 function DayPlan({ day, s, heading, id }) {
   if (!day) return null;
@@ -48,6 +49,8 @@ export default function TodayView({ hub }) {
   const tomorrow = c.plan.days[dayIndex];
   const name = (c.settings.members.find((m) => m.id === c.me) || c.settings.members[0])?.name;
   const live = c.nudges.filter((x) => !x.dismissed && Date.now() - new Date(x.createdAt) < 36 * 3600e3);
+  // Only point at 'the choices below' when a live nudge really offers a cheaper option.
+  const choices = offersSaving(live);
   const g = c.guardian;
   const showGuardian = g && g.day === dayIndex + 1 && ['High', 'Severe'].includes(g.category);
   const evening = now.getHours() >= 20 || closing;
@@ -72,7 +75,7 @@ export default function TodayView({ hub }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <PaceCard p={p} s={s} onAddBudget={hub.openSettings} />
+      <PaceCard p={p} s={s} choices={choices} onAddBudget={hub.openSettings} />
       {live.map((x) => <NudgeCard key={x.id} nudge={x} lang={lang} s={s} name={name} onChoose={hub.onChoose} />)}
       {showGuardian && (
         <section aria-labelledby="guard-h" className="rounded-md border border-brick/40 bg-brick-50 p-4">

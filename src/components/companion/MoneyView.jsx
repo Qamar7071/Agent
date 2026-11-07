@@ -1,6 +1,6 @@
 // "Kharcha": totals by category against the plan, every expense by day, and the settle-up.
 import { useState } from 'react';
-import { AlertTriangle, Check, CloudOff, Share2 } from 'lucide-react';
+import { AlertTriangle, Check, CloudOff, MessageCircle, Share2 } from 'lucide-react';
 import { pkr } from '../../lib/format.js';
 import { CATEGORIES, PLANNED } from '../../lib/companion/pace.js';
 import { summary } from '../../lib/companion/split.js';
@@ -26,9 +26,14 @@ function SettleUp({ c, s }) {
   return (
     <Section title={s.settle} id="settle-h"
       action={payments.length > 0 && (
-        <button type="button" className="btn-outline -my-1" onClick={share}>
-          {copied ? <Check size={16} aria-hidden="true" /> : <Share2 size={16} aria-hidden="true" />} {copied ? s.copied : s.share}
-        </button>
+        <span className="-my-1 flex flex-wrap gap-1.5">
+          <a href={`https://wa.me/?text=${encodeURIComponent(text)}`} target="_blank" rel="noopener noreferrer" className="btn-outline">
+            <MessageCircle size={16} aria-hidden="true" /> {s.whatsapp}<span className="sr-only"> (opens WhatsApp)</span>
+          </a>
+          <button type="button" className="btn-outline" onClick={share}>
+            {copied ? <Check size={16} aria-hidden="true" /> : <Share2 size={16} aria-hidden="true" />} {copied ? s.copied : s.share}
+          </button>
+        </span>
       )}>
       <p className="text-xs text-ink-500">{s.settleHow}</p>
       {payments.length === 0 ? (

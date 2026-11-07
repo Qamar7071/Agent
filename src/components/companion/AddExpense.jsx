@@ -9,6 +9,7 @@ import { MAX_AMOUNT } from '../../lib/companion/limits.js';
 import { CategoryIcon } from './bits.jsx';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '000', '0', 'back'];
+const QUICK = [500, 1000, 2000, 5000];
 
 export default function AddExpense({ open, onClose, onSave, onDelete, c, s, editing = null, dayIndex }) {
   const members = c.settings.members;
@@ -100,6 +101,12 @@ export default function AddExpense({ open, onClose, onSave, onDelete, c, s, edit
         </div>
         {error && <p id="amount-err" role="alert" className="mt-1 text-sm text-brick">{error}</p>}
 
+        <div className="mt-3 flex flex-wrap items-center gap-1.5" role="group" aria-label={s.quickAmounts}>
+          {QUICK.map((q) => (
+            <button key={q} type="button" onClick={() => { setError(null); setDigits(String(q)); }} aria-pressed={amount === q}
+              className="chip num min-h-[40px] px-3.5 font-semibold">{lakh(q)}</button>
+          ))}
+        </div>
         <div className="mt-3 grid grid-cols-3 gap-2" role="group" aria-label={s.amount}>
           {KEYS.map((k) => (
             <button key={k} type="button" onClick={() => press(k)}

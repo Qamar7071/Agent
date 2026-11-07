@@ -16,7 +16,7 @@ import MoneyView from '../components/companion/MoneyView.jsx';
 import PlanTab from '../components/companion/PlanTab.jsx';
 import TripSettings from '../components/companion/TripSettings.jsx';
 import Notice from '../components/ui/Notice.jsx';
-import { toast } from '../lib/toast.js';
+import { dismiss, toast } from '../lib/toast.js';
 import ShareFamily from '../components/shared/ShareFamily.jsx';
 
 const TABS = [['today', Sun], ['money', Wallet], ['plan', ListChecks]];
@@ -24,11 +24,14 @@ const TABS = [['today', Sun], ['money', Wallet], ['plan', ListChecks]];
 function SyncBadge({ hub }) {
   const { c, s, online, sync, pending } = hub;
   if (!c.server) return null;
+  const pill = 'mt-1.5 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold';
   if (!online || sync.serverOff) {
-    return <span className="inline-flex items-center gap-1 text-xs text-ink-600"><CloudOff size={14} aria-hidden="true" />{pending ? s.pending(pending) : 'Offline'}</span>;
+    return <span className={`${pill} border-limestone-400 bg-limestone-200 text-ink-700`}><CloudOff size={13} aria-hidden="true" />{pending ? s.pending(pending) : s.offlineShort}</span>;
   }
-  if (sync.state === 'syncing') return <span className="inline-flex items-center gap-1 text-xs text-ink-600"><RefreshCw size={14} className="animate-spin" aria-hidden="true" />Sync…</span>;
-  return <span className="inline-flex items-center gap-1 text-xs text-ink-600"><Cloud size={14} aria-hidden="true" />{pending ? s.pending(pending) : s.synced}</span>;
+  if (sync.state === 'syncing') return <span className={`${pill} border-lake/30 bg-lake-50 text-lake-700`}><RefreshCw size={13} className="animate-spin" aria-hidden="true" />Sync…</span>;
+  if (sync.error) return <span className={`${pill} border-brick/30 bg-brick-50 text-brick`}><CloudOff size={13} aria-hidden="true" />{s.syncFailed}</span>;
+  if (pending) return <span className={`${pill} border-ochre/40 bg-ochre-50 text-ochre-700`}><Cloud size={13} aria-hidden="true" />{s.pending(pending)}</span>;
+  return <span className={`${pill} border-juniper/30 bg-juniper-50 text-juniper-700`}><Cloud size={13} aria-hidden="true" />{s.synced}</span>;
 }
 
 function Hub({ id }) {
@@ -54,16 +57,18 @@ function Hub({ id }) {
   const n = c.plan.days.length;
   // Toasts sit above the "+ Kharcha" button and the tab bar.
   const notify = (t) => toast({ bottom: 150, undoLabel: s.undo, ...t }, { duration: 6000 });
+  // A toast left over from the last save would cover the sheet's category buttons.
+  const openSheet = (editing = null) => { dismiss(); setSheet({ open: true, editing }); };
   const name = (pid) => c.settings.members.find((m) => m.id === pid)?.name || '';
   const view = {
     ...hub, setTab,
-    edit: (e) => setSheet({ open: true, editing: e }),
+    edit: (e) => openSheet(e),
     openSettings: () => setSettingsOpen(true),
     onChoose: (nudge, option) => {
       const action = hub.choose(nudge, option);
       if (action.type === 'edit_expense') {
         const e = c.expenses.find((x) => x.id === action.expenseId);
-        if (e) setSheet({ open: true, editing: e });
+        if (e) openSheet(e);
       }
       if (action.type === 'apply_alt') notify({ text: s.applied(action.altId === 'stay_down' ? s.optionStay : s.optionBus) });
     },
@@ -142,7 +147,7 @@ function Hub({ id }) {
       </div>
 
       {tab !== 'plan' && (
-        <button type="button" onClick={() => setSheet({ open: true, editing: null })} aria-label={s.addExpense}
+        <button type="button" onClick={() => openSheet()} aria-label={s.addExpense}
           className="fixed bottom-[84px] right-4 z-30 inline-flex min-h-[56px] items-center gap-2 rounded-full bg-juniper px-5 text-base font-bold text-on-juniper shadow-lg hover:bg-juniper-700 sm:right-[max(1rem,calc(50%-20rem))]">
           <Plus size={22} aria-hidden="true" /> {s.addShort}
         </button>

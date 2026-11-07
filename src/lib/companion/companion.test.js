@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { lakh, pkr, pkrRange } from '../format.js';
-import { evaluate, candidates, altSavings, MAX_PER_DAY } from './nudges.js';
+import { evaluate, candidates, altSavings, offersSaving, MAX_PER_DAY } from './nudges.js';
 import { addDays, dayCost, pace, plannedDays, tripDay } from './pace.js';
 import { balances, settle, shares, summary } from './split.js';
 import { addExpense, budgetTotalFrom, createCompanion, deleteExpense, markRejected, mergeServer, pendingExpenses } from './store.js';
@@ -166,6 +166,15 @@ describe('nudge rules', () => {
     const none = altSavings({ planned, alternatives: [ALT_STAY], adjustments: [{ altId: 'stay_down', fromDay: 2 }], fromDay: 3 });
     assert.deepEqual(none, []);
     assert.deepEqual(altSavings({ planned, alternatives: [ALT_STAY], fromDay: 5 }), []);   // no stay left to save on
+  });
+  it('only claims a cheaper choice is on screen when one really is', () => {
+    const saver = { id: 'alt:stay_down', action: { type: 'apply_alt', altId: 'stay_down', fromDay: 3 } };
+    const keepIt = { id: 'keep', action: { type: 'dismiss' } };
+    assert.equal(offersSaving([{ options: [keepIt] }]), false);                       // "Keep the plan" only
+    assert.equal(offersSaving([{ options: [saver, keepIt] }]), true);
+    assert.equal(offersSaving([{ options: [saver, keepIt], dismissed: true }]), false);
+    assert.equal(offersSaving([{ options: [saver, keepIt], choice: 'alt:stay_down' }]), false);
+    assert.equal(offersSaving([]), false);
   });
 });
 

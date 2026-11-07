@@ -138,3 +138,8 @@ export function evaluate({ p, planned, alternatives, adjustments, lastExpense, h
   }
   return picked;
 }
+
+/** True when a nudge on screen (not dismissed, not yet answered) offers a cheaper option to pick. */
+export function offersSaving(nudges = []) {
+  return nudges.some((x) => !x.dismissed && !x.choice && (x.options || []).some((o) => o.action?.type === 'apply_alt'));
+}
