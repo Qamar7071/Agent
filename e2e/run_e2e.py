@@ -52,7 +52,7 @@ def home(page):
     page.on("pageerror", lambda e: errors.append(str(e)))
     fresh(page, "/")
     expect(page).to_have_title(re.compile("Raahi"))
-    expect(page.get_by_role("heading", level=1)).to_contain_text("planned around the real road")
+    expect(page.get_by_role("heading", level=1)).to_contain_text("Your Journey Through Northern Pakistan Starts Here")
     loaded = page.evaluate("[...document.images].filter(i => i.loading !== 'lazy').every(i => i.complete && i.naturalWidth > 0)")
     assert loaded, "hero image did not load"
     expect(page.get_by_role("button", name="Plan My Trip with AI")).to_be_visible()
@@ -86,12 +86,29 @@ def month_filter(page):
     assert "closed" in last, "closed destinations should be listed last"
 
 
+@check("destination search and filters narrow the guide, and clear again")
+def destination_search(page):
+    fresh(page, "/")
+    names = page.locator("#destinations li h3")
+    total = names.count()
+    page.get_by_label("Search destinations").fill("lake")
+    expect(page.locator("#destinations").get_by_text(re.compile(r"^\d+ places? match"))).to_be_visible()
+    found = names.all_inner_texts()
+    assert 0 < len(found) < total and "Attabad Lake" in found and "Khunjerab Pass" not in found, found
+    page.get_by_role("button", name="Clear filters").click()
+    expect(names).to_have_count(total)
+
+
 @check("destination page shows sources and a live or honestly failed forecast")
 def destination_page(page):
     fresh(page, "/destinations/deosai")
     expect(page.get_by_role("heading", name="Sources")).to_be_visible()
     forecast = page.locator("aside").filter(has_text="Forecast")
-    expect(forecast).to_contain_text(re.compile("Open-Meteo forecast model, checked|Couldn’t load the forecast|No forecast"), timeout=25000)
+    expect(forecast).to_contain_text(re.compile("Open-Meteo forecast model, checked|Couldn’t load the forecast|No live forecast"),
+                                     timeout=25000)
+    if "No live forecast" in forecast.inner_text():          # no live data: a typical pattern, never a forecast
+        expect(forecast).to_contain_text("What usually happens in")
+        assert "checked" not in forecast.inner_text()
 
 
 @check("crawlable pages, sitemap and robots.txt")
@@ -200,6 +217,9 @@ def travel_twin(page):
     page.get_by_role("button", name="Khunjerab route unavailable on day 4").click()
     expect(page.locator("#sim-h")).to_have_text("Khunjerab Pass road (Sost–border) unavailable from day 4", timeout=60000)
     expect(page.get_by_text("Original plan unchanged until you accept")).to_be_visible()
+    expect(page.get_by_text("Advantages", exact=True)).to_be_visible()              # read from the comparison's numbers
+    expect(page.get_by_text("Disadvantages", exact=True)).to_be_visible()
+    expect(page.get_by_text(re.compile(r"Costs about Rs [\d,]+ (more|less) \(estimate\)")).first).to_be_visible()
     expect(page.get_by_role("region", name="Original and simulated days")).to_contain_text("Up to Khunjerab")
     expect(twin).to_have_text("Hunza Valley and Khunjerab Pass")
     page.get_by_role("button", name="Accept this plan").click()
@@ -230,9 +250,44 @@ def guardian(page):
     page.goto(BASE + "/guardian", wait_until="networkidle")
     expect(page.get_by_role("heading", name="Day by day")).to_be_visible(timeout=60000)
     expect(page.get_by_text("not an official safety assessment").first).to_be_visible()
+    expect(page.get_by_role("heading", name="What drives the risk on this trip")).to_be_visible()
     expect(page.get_by_role("heading", name="How the score works")).to_be_visible()
     page.get_by_role("button", name="Check now").click()
     expect(page.get_by_role("heading", name="Since your last check")).to_be_visible(timeout=60000)
+
+
+@check("Roman Urdu chat: a plan, a budget cut that keeps the days, and an honest safety answer")
+def chat_roman_urdu(page):
+    fresh(page, "/plan")
+    chat = page.locator("section[aria-label='Chat with Raahi']")
+    chat_send(page, "5 din Skardu jana hai, 4 log hain, budget 1 lakh hai.")
+    expect(page.get_by_role("heading", name="Skardu & Upper Kachura")).to_be_visible(timeout=60000)
+    expect(chat).to_contain_text("Andaazan kharcha", timeout=60000)            # replies in Roman Urdu…
+    expect(chat).to_contain_text("estimate hai, quote nahi")                    # …and still labels estimates
+    chat_send(page, "Budget 20,000 kam kar do, itinerary change na ho zyada.")
+    expect(chat).to_contain_text("Din aur jagahen wahi hain", timeout=60000)   # same days and places
+    expect(chat.get_by_text(re.compile(r"Rs [\d,]+ → Rs [\d,]+")).first).to_be_visible()
+    expect(page.get_by_text(re.compile(r"^5 days from Islamabad"))).to_be_visible()
+    chat_send(page, "Deosai jana safe rahega is month?")
+    expect(chat).to_contain_text("Current road status could not be verified", timeout=60000)
+    claims = re.findall(r"[^.]*\broads? (?:is|are) open[^.]*", chat.inner_text().lower())
+    assert all("not mean" in c or "cannot confirm" in c for c in claims), claims   # disclaimers only
+
+
+@check("offline: a page opened once loads again with no connection")
+def offline_first_visit(page):
+    ctx = page.context.browser.new_context(viewport={"width": 390, "height": 844})
+    phone = ctx.new_page()
+    try:
+        phone.goto(BASE + "/destinations/hunza", wait_until="networkidle")
+        phone.evaluate("navigator.serviceWorker.ready.then(() => true)")
+        phone.wait_for_timeout(1500)                    # the worker caches the app shell and this page's files
+        ctx.set_offline(True)
+        phone.reload(wait_until="domcontentloaded")
+        expect(phone.get_by_role("heading", level=1, name="Hunza Valley")).to_be_visible(timeout=15000)
+    finally:
+        ctx.set_offline(False)
+        ctx.close()
 
 
 @check("theme button switches between device, light and dark")
@@ -365,10 +420,19 @@ def saathi(page):
     assert time.time() - started < 5, "adding an expense took more than 5 seconds"
     expect(page.locator("#pace-h").locator("..")).to_contain_text("Rs 2,400")
     add_expense(page, "1000", "Transport", "Sara")
+    page.get_by_role("button", name="Add expense").click()        # quick amounts fill the keypad in one tap
+    sheet = page.get_by_role("dialog")
+    sheet.get_by_role("group", name="Quick amounts").get_by_role("button", name="5,000").click()
+    expect(sheet.get_by_role("group", name="Quick amounts").get_by_role("button", name="5,000")).to_have_attribute("aria-pressed", "true")
+    expect(sheet).to_contain_text("5,000")
+    sheet.get_by_role("button", name="Cancel").click()
     page.get_by_role("tab", name="Spending").click()
     settle = page.locator("section[aria-labelledby='settle-h']")
     expect(settle).to_contain_text("Sara pays Qamar")
     expect(settle).to_contain_text("Rs 700")            # Qamar paid 2,400, Sara 1,000; each owes 1,700
+    whatsapp = settle.get_by_role("link", name=re.compile("WhatsApp"))
+    href = whatsapp.get_attribute("href")                # only a text link: nothing is sent automatically
+    assert href.startswith("https://wa.me/?text=") and "Sara%20%E2%86%92%20Qamar%3A%20Rs%20700" in href, href
     page.get_by_role("tab", name="Spending").press("ArrowRight")       # arrow keys move between the tabs
     expect(page.get_by_role("tab", name="Plan")).to_be_focused()
     expect(page.get_by_role("tab", name="Plan")).to_have_attribute("aria-selected", "true")
@@ -530,6 +594,10 @@ def decided_recorded(page):
     expect(page.get_by_text(re.compile("it is not live"))).to_be_visible()
     page.get_by_role("button", name="Show all").click()
     expect(page.get_by_role("heading", name="Where they landed")).to_be_visible()
+    glance = page.locator("section[aria-labelledby='glance-h']")      # one card per decision, once it has played out
+    expect(glance.get_by_role("heading", name="Decisions at a glance")).to_be_visible()
+    assert glance.locator("ol > li").count() >= 1
+    expect(glance.get_by_text("Recommended").first).to_be_visible()
     items = page.locator("[role=log] ol > li")
     steps = page.get_by_role("link", name="See this step")
     assert items.count() >= 8 and steps.count() == items.count(), (items.count(), steps.count())
@@ -650,10 +718,10 @@ def main() -> int:
         browser = p.chromium.launch()
         page = browser.new_context(viewport={"width": 1440, "height": 900}).new_page()
         page.set_default_timeout(15000)
-        for fn in (home, navigation, month_filter, destination_page, seo, form_validation, form_plan, chat_flow,
+        for fn in (home, navigation, month_filter, destination_search, destination_page, seo, form_validation, form_plan, chat_flow,
                    edit_day, tabs, packing, saved_trip, enquiry, admin, network_error, travel_twin, agent_control, saathi, saathi_nudges, saathi_offline,
                    guardian, group_room, decided_recorded, decided_live, decided_fallback, when_to_go,
-                   explore_trips, trip_map, family_share, saved_places,
+                   explore_trips, trip_map, family_share, saved_places, chat_roman_urdu, offline_first_visit,
                    theme, responsive, keyboard):
             fn(page)
         browser.close()
